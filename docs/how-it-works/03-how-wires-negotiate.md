@@ -40,6 +40,12 @@ The negotiation has a second benefit that matters more than its routing quality.
 
 That number is what guides the placement search ([next article](04-shrinking-the-board.md)). A search that only hears "works / doesn't work" is blind on a dense board, because almost everything fails. A search that hears "three conflicts … two … one … zero" can follow the signal.
 
+## Jumping over: jumper wires
+
+When jumpers are allowed (see [the routability article](02-can-it-be-routed.md#jumper-wires-what-boardroute-does-when-a-circuit-cant-be-built)), the search gets one more kind of step. From a free hole, a wire may jump two to five holes in a straight line, as long as no part or pin lies in between. That is a jumper wire on the component side, arching over whatever copper runs underneath. A jump is priced like a six-hole detour, so a wire takes it only when going around is clearly worse.
+
+Jumpers take part in the negotiation like everything else. Two jumpers can't lie over the same hole, and a contested jumper spot gets more expensive round by round, just like a contested hole on the solder side.
+
 ## Repair instead of starting over
 
 The placement search moves one part at a time, thousands of times. Re-routing the whole board after each move would be wasteful: moving one resistor doesn't change most of the wiring.

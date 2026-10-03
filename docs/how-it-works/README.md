@@ -11,6 +11,6 @@ User-facing explanations of the layout engine, written as source material for th
 | 5 | [How we know it got better](05-measuring-progress.md) | The benchmark, the independent validator, results against the previous engine. |
 | 6 | [FAQ](06-faq.md) | Short answers to common questions. |
 
-Search terms these pages cover: perfboard layout, protoboard layout, perfboard autorouter, single-sided routing, perfboard design tool, can a circuit be routed on one layer, planar graph, utilities puzzle, jumper wire placement, simulated annealing placement, PathFinder routing.
+Search terms these pages cover: perfboard layout, protoboard layout, perfboard autorouter, single-sided routing, perfboard design tool, can a circuit be routed on one layer, planar graph, utilities puzzle, jumper wire placement, automatic jumper wires, simulated annealing placement, PathFinder routing.
 
-Numbers in articles 1, 2 and 5 come from the benchmark in `bench/` (run of 2026-10-03, 5 seeds × 60 s per circuit). Re-check them when the engine changes: `node bench/report.js bench/baselines/legacy-60s.json bench/baselines/box-v3-60s.json`.
+Numbers in articles 1, 2 and 5 come from the benchmark in `bench/` (run of 2026-10-03, 5 seeds × 60 s per circuit). Re-check them when the engine changes: `node bench/report.js bench/baselines/legacy-60s.json bench/baselines/box-v3-60s.json bench/baselines/app-jumpers-60s.json` (the last one is the app's policy with automatic jumper wires).

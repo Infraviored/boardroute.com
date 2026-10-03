@@ -33,7 +33,7 @@ boardroute's layout engine is built on three ideas. Each has its own article.
 
 ### 1. Check whether it's possible at all
 
-Some circuits cannot be wired on one layer, no matter how cleverly the parts are arranged. It is the same reason you can't connect three houses to water, gas and electricity without two lines crossing. boardroute runs a mathematical check (a planarity test) before it starts. If the circuit fails, you get the exact parts and nets that cause the conflict, and you know a jumper wire is needed.
+Some circuits cannot be wired on one layer, no matter how cleverly the parts are arranged. It is the same reason you can't connect three houses to water, gas and electricity without two lines crossing. boardroute runs a mathematical check (a planarity test) before it starts. If the circuit fails, boardroute knows a jumper wire is needed, places as few as it can, and tells you which parts and nets caused the conflict.
 
 → [Can your circuit be built on one layer?](02-can-it-be-routed.md)
 
@@ -55,7 +55,7 @@ Instead of juggling board size, wire length and connectivity all at once, boardr
 2. **Layout** starts the search. The board on screen updates whenever a smaller layout is found, and the panel at the bottom shows the current best size and wire length. The search stops by itself once it stops making progress (small circuits within seconds, large ones in up to a minute). **Apply Current Best** stops it early.
 3. **Refine** continues from the current layout. Use it if you want more search time, or after you moved parts by hand and want the engine to tidy up around your choice.
 
-If the circuit can't be built on one layer, a red notice names the parts and nets involved. If the circuit passes that check but no layout is found, a yellow notice explains the most likely reason.
+If the circuit can't be built on one layer, or the wires simply don't fit between closely spaced pins, boardroute adds jumper wires and a blue notice says how many and why. Jumpers are drawn as arcs over the wiring. If even that fails, a yellow notice explains the most likely reason.
 
 The search runs in a background thread in your browser. Nothing is uploaded, and the page stays responsive while it works.
 

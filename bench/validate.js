@@ -8,6 +8,9 @@
 //   - two different nets may not share a cell
 //   - consecutive path points must be 4-neighbours
 //   - every net's pins must end up in one connected piece (connections only along wire paths)
+//   - jumper wires ({ jumper: true, path: [a, b] }) are straight bridges on the component side:
+//     both legs in holes free of pins and part bodies, nothing but solder-side wiring under
+//     them, no two jumpers over the same hole. Their legs count as copper of their net.
 
 const key = (c, r) => `${c},${r}`;
 
@@ -41,10 +44,39 @@ export function validateLayout(components, wires) {
         m.get(a).add(b); m.get(b).add(a);
     };
 
-    let failed = 0;
+    let failed = 0, jumpers = 0;
+    const jumperAt = new Map();
+    for (const w of wires || []) {
+        if (w.failed || !w.jumper) continue;
+        jumpers++;
+        const [a, b] = w.path || [];
+        if (!a || !b || w.path.length !== 2 || (a.col !== b.col && a.row !== b.row) || Math.abs(a.col - b.col) + Math.abs(a.row - b.row) < 2) {
+            errors.push(`bad jumper geometry in ${w.net}`); continue;
+        }
+        const n = Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+        const sx = Math.sign(b.col - a.col), sy = Math.sign(b.row - a.row);
+        for (let i = 0; i <= n; i++) {
+            const k = key(a.col + sx * i, a.row + sy * i);
+            if (occupied.has(k)) errors.push(`jumper of ${w.net} over part ${occupied.get(k)} at ${k}`);
+            if (pinAt.has(k)) errors.push(`jumper of ${w.net} over a pin at ${k}`);
+            if (jumperAt.has(k)) errors.push(`jumpers ${jumperAt.get(k)}/${w.net} overlap at ${k}`);
+            jumperAt.set(k, w.net);
+        }
+    }
     for (const w of wires || []) {
         if (w.failed) { failed++; continue; }
         if (!w.path?.length) continue;
+        if (w.jumper) {
+            // legs are copper of the net; the bridge links them
+            for (const p of w.path) {
+                const k = key(p.col, p.row);
+                const owner = netOfCell.get(k);
+                if (owner !== undefined && owner !== w.net) errors.push(`nets ${owner}/${w.net} share ${k}`);
+                netOfCell.set(k, w.net);
+            }
+            link(w.net, key(w.path[0].col, w.path[0].row), key(w.path[1].col, w.path[1].row));
+            continue;
+        }
         for (let i = 0; i < w.path.length; i++) {
             const { col, row } = w.path[i];
             const k = key(col, row);
@@ -92,12 +124,12 @@ export function validateLayout(components, wires) {
     const width = maxC - minC + 1, height = maxR - minR + 1;
 
     let wl = 0;
-    for (const w of wires || []) if (!w.failed && w.path) wl += w.path.length - 1;
+    for (const w of wires || []) if (!w.failed && w.path) for (let i = 1; i < w.path.length; i++) wl += Math.abs(w.path[i].col - w.path[i - 1].col) + Math.abs(w.path[i].row - w.path[i - 1].row);
 
     return {
         valid: errors.length === 0,
         routed: errors.length === 0 && netsOpen === 0,
-        netsOpen, failed, errors: errors.slice(0, 10),
+        netsOpen, failed, jumpers, errors: errors.slice(0, 10),
         width, height, area: width * height, wl,
     };
 }

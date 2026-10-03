@@ -48,13 +48,16 @@ A placement `pl` is `{ ox, oy, rot }` as typed arrays indexed by part.
 - `routeNet(n, occ, pres, seed)`: Steiner tree by repeated multi-source/multi-target A* from the current tree to the remaining pins. Step cost `1 + hist + pres · occ(other nets) + turnCost` (0.2 per bend). Returns `{ conns, cells, missing }`; `cells` are the non-pin wire cells used for occupancy.
 - `negotiate({ state, maxIter, pres0, presMul, histInc, partial })`: PathFinder loop. With a warm `state`, nets whose old tree is still intact (`salvage().intact`) are kept untouched; damaged nets regrow from their salvage. Each round re-routes only nets on overused cells; present cost × `presMul` per round, history cost += `histInc` on overused cells. Returns `{ conns, cells, missing, occ, overuse, miss, wl, badNets }`.
 - `salvage(n, conns, occ?)`: drops connections that cross a now-illegal cell (or, during negotiation, a cell another net uses) or no longer end on an own pin; keeps the connected piece touching the most pins. This partial repair is the main speed lever.
+- Jumpers (`jumpCost > 0`): from a free hole with no body on it, A* may step 2..`jumpMax`+1 holes in a straight line over holes without bodies/pins, cost `jumpCost + length`. A jump is stored as a non-adjacent step inside a connection; `jumpSpan`/`isJump` decode it. Component-side coverage (`jocc`) is negotiated like `occ` and folded into `overuse`; `salvage` drops jumps that a part now covers. `toEngine` emits each jump as its own wire `{ jumper: true, path: [a, b] }`.
 - `trim()` (during search) cuts dangling non-pin ends; `prune()` (on output) rebuilds each net as a clean tree: BFS spanning forest over the copper, leaf trimming, split into paths between pins/junctions. Salvage can otherwise leave loops.
 
 Profile (MOSFET bank, 23 parts): A* in `routeNet` ≈ 60 % of runtime.
 
 ### `boxsolver.js`: `solveBox(defs, opts)`
 
-Cost of a state: `6 · overlap + 10 · missing pins + 2 · overused cells + 0.02 · wire length`. Legal ⇔ the first three are zero.
+Cost of a state: `6 · overlap + 10 · missing pins + 2 · overused cells + 0.02 · wire length + jumperWeight · jumpers`. Legal ⇔ the first three are zero. Best layouts are compared by `area + jumperArea · jumpers` (default 4), then wire length.
+
+Jumper policy: `V.jumpers: 1` allows them from the start, `V.jumperAfterMs` switches them on if no legal layout exists by then. `engine.layout` uses `jumpers: 1` for non-planar circuits and `jumperAfterMs: 10000` otherwise (`bench` strategy `app` mirrors this).
 
 1. **Start.** Square box of side `≈ √(3 · body area)` (or `√(1.6 · best area)` on restarts). Random placement, then `hpwlPlace`: a fast anneal on half-perimeter wire length with a 1-hole keep-out around bodies, no routing. With `opts.initial` (Refine), the first attempt uses the given layout in its bounding box + 1 hole margin instead.
 2. **Anneal to legality** (`anneal`): Metropolis with geometric cooling (`T0` → `T1`). The acceptance threshold `-T · ln(u)` is drawn first; a move whose overlap lower bound already exceeds it is rejected without routing (exact, saves 20–35 % of evaluations). Returns at the first legal state.

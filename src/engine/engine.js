@@ -30,7 +30,7 @@ export class AutorouterEngine {
         this.gCancelRequested = false;
         // Stop after stallMsPerPart · parts without improvement (clamped to stallMinMs..stallMaxMs).
         // Calibrated by replaying the benchmark traces: near full-minute quality, ~19 s average.
-        this.layoutConfig = { budgetMs: 60000, stallMsPerPart: 1200, stallMinMs: 3000, stallMaxMs: 15000 };
+        this.layoutConfig = { budgetMs: 60000, stallMsPerPart: 1200, stallMinMs: 3000, stallMaxMs: 15000, jumperAfterMs: 10000 };
         this.activeWorker = null;
 
         // Callbacks for UI updates
@@ -76,20 +76,21 @@ export class AutorouterEngine {
      * Place, route and pack in one go with the box solver (src/engine/solver/).
      * Runs in a Web Worker when available, inline otherwise (Node, tests).
      * With `refine`, the search starts from the current layout instead of from scratch.
-     * Returns { unroutable } with a topology certificate if the circuit provably can't be
-     * built on one layer, otherwise { found, score }.
+     * Jumper wires are allowed right away if the circuit provably can't be built on one
+     * layer, otherwise only once no jumper-free layout turned up within jumperAfterMs.
+     * Returns { found, score, jumpers, topology } (topology.certificate when non-planar).
      */
     async layout(compDefs, { refine = false } = {}) {
         if (!compDefs?.length) return null;
         this.gCancelRequested = false;
 
         const topo = analyzeTopology(compDefs);
-        if (!topo.planar) return { unroutable: topo };
+        const variant = topo.planar ? { jumperAfterMs: this.layoutConfig.jumperAfterMs } : { jumpers: 1 };
 
         const t0 = performance.now();
         const { budgetMs, stallMsPerPart, stallMinMs, stallMaxMs } = this.layoutConfig;
         const stallMs = Math.max(stallMinMs, Math.min(stallMaxMs, stallMsPerPart * compDefs.length));
-        let found = false;
+        let found = false, jumpers = 0;
         // Keep results where the parts were, so the camera doesn't have to chase them.
         let cx = 0, cy = 0;
         if (this.components.length) {
@@ -99,6 +100,7 @@ export class AutorouterEngine {
         }
         const onBest = (components, wires, metrics) => {
             found = true;
+            jumpers = metrics.jumpers || 0;
             recenterComponents(components, wires);
             components.forEach(c => moveComp(c, c.ox + cx, c.oy + cy));
             wires.forEach(w => w.path.forEach(pt => { pt.col += cx; pt.row += cy; }));
@@ -129,20 +131,20 @@ export class AutorouterEngine {
                     else if (m.type === 'done') finish();
                 };
                 worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
-                worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs });
+                worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs, variant });
                 if (this.gCancelRequested) worker.postMessage({ type: 'stop' });
             });
         } else {
-            let lastBest = t0;
+            let lastBest = null;
             await solveBox(compDefs, {
-                budgetMs, initial,
-                shouldStop: () => this.gCancelRequested || performance.now() - lastBest > Math.max(stallMs, (lastBest - t0) * 0.5),
+                budgetMs, initial, variant,
+                shouldStop: () => this.gCancelRequested || (lastBest !== null && performance.now() - lastBest > Math.max(stallMs, (lastBest - t0) * 0.5)),
                 onBest: (c, w, m) => { lastBest = performance.now(); onBest(c, w, m); },
                 onProgress: () => onProgress(performance.now() - t0),
             });
         }
         this.notify();
-        return { found, score: found ? scoreState(this.components, this.wires) : null };
+        return { found, jumpers, topology: topo, score: found ? scoreState(this.components, this.wires) : null };
     }
 
     async optimize() {

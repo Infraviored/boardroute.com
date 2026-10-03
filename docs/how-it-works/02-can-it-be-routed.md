@@ -53,13 +53,28 @@ G G G
 
 This is why the check shrinks each net *together with its pins*: a net may pass through its own pins, and the check must allow that.
 
-**The DIP chip that runs out of room.** An L293D motor driver next to a Wemos D1 mini passes the check, yet boardroute never found a layout in twenty minutes of searching. The reason is room, not topology: a standard DIP-16 has only two free holes between its pin rows, and this circuit needs to send more wires between the rows than fit. With the rows widened by one hole, a layout is found every time. The planarity check can't see this kind of capacity problem, so in that case you get the yellow notice instead of the red one.
+**The DIP chip that runs out of room.** An L293D motor driver next to a Wemos D1 mini passes the check, yet boardroute never found a layout in twenty minutes of searching. The reason is room, not topology: a standard DIP-16 has only two free holes between its pin rows, and this circuit needs to send more wires between the rows than fit. With the rows widened by one hole, a layout is found every time. The planarity check can't see this kind of capacity problem. boardroute notices it differently: when no layout without crossings turns up within ten seconds, it starts allowing jumper wires (see below), and then this circuit fits with two or three of them.
 
-## What to do when a circuit can't be built
+## Jumper wires: what boardroute does when a circuit can't be built
 
-- **Add a jumper wire.** A short insulated wire on the component side can hop over other wiring. In the circuit description, split one of the named nets into two (for example `GND` and `GND_B`, moving some of its pins to the new name) and add the jumper as a two-pin part with a few holes between its legs, one leg on `GND` and one on `GND_B`. boardroute places it like any other part, and wires can pass under it.
+A jumper is a short piece of insulated wire on the component side of the board. It is soldered into two free holes and arches over whatever runs underneath. It is the standard perfboard fix for two wires that have to cross.
+
+boardroute places jumpers by itself:
+
+- If the planarity check fails, jumpers are allowed from the start.
+- If the check passes but no layout without crossings turns up within ten seconds, jumpers are switched on then.
+- Otherwise boardroute never uses them, even if one would make the board a little smaller.
+
+The router treats a jumper as one more way to get from a hole to another hole in a straight line, two to five holes away. The holes it spans may carry other nets' wires, but no part and no pin, because the jumper lies on the same side as the parts. Each jumper costs about as much as a six-hole detour, so the router only uses one where going around is clearly worse, and the search counts every jumper against the layout, so it keeps their number low.
+
+For the ten-capacitor K5 and the nine-capacitor utilities puzzle, boardroute finds layouts with a single jumper. One is also the mathematical minimum, because both patterns can be drawn with exactly one crossing.
+
+In the app, jumpers are drawn as arcs over the wiring, and the notice tells you how many were added. In the solder-side view they show as dashed lines between their two legs.
+
+## Avoiding jumpers
+
 - **Change a footprint.** Bending a capacitor's legs to 5 mm, or using a resistor instead of a wire link, turns a wall into a part wires can pass. Often one changed part is enough to break the pattern.
-- **Check DIP chips with many signals.** If several nets have to reach pins on both sides of a chip, there may not be enough room between the rows. A jumper over the chip usually solves it.
+- **Check DIP chips with many signals.** If several nets have to reach pins on both sides of a chip, there may not be enough room between the rows. A socket with wider spacing, or a different pin assignment, can help.
 
 ## Rules of thumb
 

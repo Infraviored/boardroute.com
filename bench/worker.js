@@ -43,16 +43,18 @@ const snapshot = (components, wires) => ({
         id: c.id, routeUnder: !!c.routeUnder, w: c.w, h: c.h, ox: c.ox, oy: c.oy,
         pins: c.pins.map(p => ({ dCol: p.dCol, dRow: p.dRow, net: p.net || null, lbl: p.lbl }))
     })),
-    wires: (wires || []).map(w => ({ net: w.net, failed: !!w.failed, path: (w.path || []).map(p => ({ col: p.col, row: p.row })) })),
+    wires: (wires || []).map(w => ({ net: w.net, failed: !!w.failed, ...(w.jumper ? { jumper: true } : {}), path: (w.path || []).map(p => ({ col: p.col, row: p.row })) })),
 });
 
 function report(components, wires) {
     if (!components?.length) return;
     const v = validateLayout(components, wires);
     if (!v.routed) return;
-    if (!best || v.area < best.area || (v.area === best.area && v.wl < best.wl)) {
+    // same ranking as the solver: a jumper counts as 4 holes
+    const key = v.area + 4 * v.jumpers;
+    if (!best || key < best.key || (key === best.key && v.wl < best.wl)) {
         const t = Math.round(performance.now() - t0);
-        best = { area: v.area, width: v.width, height: v.height, wl: v.wl, t, layout: snapshot(components, wires) };
+        best = { key, area: v.area, width: v.width, height: v.height, wl: v.wl, jumpers: v.jumpers, t, layout: snapshot(components, wires) };
         trace.push([t, v.area]);
     }
 }
@@ -70,7 +72,7 @@ if (savePath && best) writeFileSync(savePath, JSON.stringify(best.layout));
 process.stdout.write(JSON.stringify({
     strategy: stratName, circuit: basename(circuitPath, '.json'), seed, budgetMs, elapsed,
     routed: !!best,
-    area: best?.area ?? null, width: best?.width ?? null, height: best?.height ?? null, wl: best?.wl ?? null,
+    area: best?.area ?? null, width: best?.width ?? null, height: best?.height ?? null, wl: best?.wl ?? null, jumpers: best?.jumpers ?? null,
     tBest: best?.t ?? null, trace,
     finalValid: final?.valid ?? false, finalErrors: final?.errors ?? [],
     evalsPerSec: result?.evals ? Math.round(result.evals / (elapsed / 1000)) : null,

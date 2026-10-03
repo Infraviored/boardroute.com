@@ -44,6 +44,17 @@ class Heap {
     }
 }
 
+// Cells covered by the jumper from a to b (straight line, both ends included).
+export function jumpSpan(a, b, W) {
+    const ax = a % W, ay = (a / W) | 0, bx = b % W, by = (b / W) | 0;
+    const n = Math.abs(bx - ax) + Math.abs(by - ay);
+    const sx = Math.sign(bx - ax), sy = Math.sign(by - ay);
+    const out = [];
+    for (let i = 0; i <= n; i++) out.push((ay + sy * i) * W + ax + sx * i);
+    return out;
+}
+export const isJump = (a, b, W) => Math.abs((a % W) - (b % W)) + Math.abs(((a / W) | 0) - ((b / W) | 0)) > 1;
+
 export const CELL_FREE = -1;
 export const CELL_DEAD = -2; // unconnected pin or pin collision: nobody may use it
 
@@ -69,6 +80,10 @@ export class BoxRouter {
         this.heap = new Heap(N * 4);
         this.netPinCells = model.netNames.map(() => []);
         this.turnCost = 0.2;
+        // Jumper wires: a straight insulated wire on the component side that hops over up to
+        // jumpMax holes. 0 = jumpers disabled; otherwise the extra cost of one jumper.
+        this.jumpCost = 0;
+        this.jumpMax = 4;
     }
 
     // Rasterize a placement. Returns overlap cell count.
@@ -113,13 +128,14 @@ export class BoxRouter {
     // now-illegal cell (foreign pin, blocked body, or -- if `occ` is given -- a cell another
     // net uses) or that no longer end on one of this net's pins, then keep the connected
     // piece touching the most pins. Returns null if nothing is worth keeping.
-    salvage(n, oldConns, occ = null) {
+    salvage(n, oldConns, occ = null, jocc = null) {
         if (!oldConns || !oldConns.length) return null;
         const ok = [];
         for (const c of oldConns) {
             let good = this.pinNet[c[c.length - 1]] === n;
             for (let i = 0; good && i < c.length; i++) {
                 const k = c[i], pn = this.pinNet[k];
+                if (i > 0 && isJump(c[i - 1], k, this.W) && !this.jumpStillValid(c[i - 1], k, jocc)) { good = false; break; }
                 if (pn === n) continue;
                 if (pn !== CELL_FREE || this.blocked[k] || (occ && occ[k] > 0)) good = false;
             }
@@ -143,9 +159,19 @@ export class BoxRouter {
         return { conns: kept, intact: kept.length === oldConns.length && bestPins === this.netPinCells[n].length };
     }
 
+    // A jumper stays valid while jumpers are enabled and nothing is placed under it on the
+    // component side (no part body, and -- during negotiation -- no other net's jumper).
+    jumpStillValid(a, b, jocc) {
+        if (!this.jumpCost) return false;
+        for (const k of jumpSpan(a, b, this.W)) {
+            if (this.bodyCount[k] > 0 || (jocc && jocc[k] > 0)) return false;
+        }
+        return this.pinNet[a] === CELL_FREE && this.pinNet[b] === CELL_FREE;
+    }
+
     // Route one net as a Steiner tree (repeated multi-source/multi-target A*), optionally
     // growing from salvaged connections. occ: per-cell count of OTHER nets.
-    routeNet(n, occ, pres, seed = null) {
+    routeNet(n, occ, pres, seed = null, jocc = null) {
         const { W, H } = this;
         const pins = this.netPinCells[n];
         const expected = this.model.netPinCount[n];
@@ -172,6 +198,7 @@ export class BoxRouter {
         const pinNet = this.pinNet, blocked = this.blocked, hist = this.hist;
         const g = this.g, stamp = this.stamp, parentA = this.parent, pdir = this.pdir, tgt = this.tgt;
         const turnCost = this.turnCost;
+        const bodyCount = this.bodyCount, jumpCost = jocc ? this.jumpCost : 0, jumpMax = this.jumpMax;
         const tx = new Int32Array(pins.length), ty = new Int32Array(pins.length);
 
         while (remaining > 0) {
@@ -209,6 +236,32 @@ export class BoxRouter {
                         let h = 1e9;
                         for (let i = 0; i < nt; i++) { const dd = Math.abs(nx - tx[i]) + Math.abs(ny - ty[i]); if (dd < h) h = dd; }
                         heap.push(nk, ng + h);
+                    }
+                }
+                // Jumper: from a free hole (no part on the component side), hop over 1..jumpMax
+                // holes that carry no part (other nets' wires may run underneath).
+                if (jumpCost && pinNet[k] === CELL_FREE && bodyCount[k] === 0) {
+                    for (let d = 0; d < 4; d++) {
+                        let spanCost = pres * jocc[k];
+                        for (let m = 1; m <= jumpMax; m++) {
+                            const mx = x + DX[d] * m, my = y + DY[d] * m;
+                            const ex = mx + DX[d], ey = my + DY[d];
+                            if (ex < 0 || ey < 0 || ex >= W || ey >= H) break;
+                            const mk = my * W + mx;
+                            if (bodyCount[mk] > 0) break;
+                            spanCost += pres * jocc[mk];
+                            const ek = ey * W + ex;
+                            if (pinNet[ek] !== CELL_FREE || bodyCount[ek] > 0 || blocked[ek]) continue;
+                            let cost = jumpCost + m + 1 + hist[ek] + pres * occ[ek] + spanCost + pres * jocc[ek];
+                            if (dk !== -1 && dk !== d) cost += turnCost;
+                            const ng = gk + cost;
+                            if (stamp[ek] !== s || ng < g[ek]) {
+                                stamp[ek] = s; g[ek] = ng; parentA[ek] = k; pdir[ek] = d;
+                                let h = 1e9;
+                                for (let i = 0; i < nt; i++) { const dd = Math.abs(ex - tx[i]) + Math.abs(ey - ty[i]); if (dd < h) h = dd; }
+                                heap.push(ek, ng + h);
+                            }
+                        }
                     }
                 }
             }
@@ -323,22 +376,40 @@ export class BoxRouter {
 
     // Negotiated routing. `state` (optional) is a previous routing to warm-start from:
     // intact nets are kept as they are, damaged nets are repaired from their salvage.
+    // Cells covered on the component side by a net's jumpers, and how many jumpers it uses.
+    jumperCells(conns) {
+        const out = [];
+        let count = 0;
+        for (const c of conns) for (let i = 1; i < c.length; i++) {
+            if (isJump(c[i - 1], c[i], this.W)) { count++; out.push(...jumpSpan(c[i - 1], c[i], this.W)); }
+        }
+        return { cells: out, count };
+    }
+
     negotiate({ state = null, maxIter = 6, pres0 = 0.6, presMul = 1.8, histInc = 0.4, partial = true } = {}) {
         const { model, N } = this;
         const nets = model.routedNets;
         const occ = new Int16Array(N);
+        const jocc = new Int16Array(N); // jumper coverage on the component side, per cell
+        const useJumps = this.jumpCost > 0;
         const conns = new Array(model.netNames.length);
         const cells = new Array(model.netNames.length);
+        const jcells = new Array(model.netNames.length);
         const missing = new Int32Array(model.netNames.length);
         const seeds = new Map();
         let order = [];
+        const add = (n, sign) => {
+            if (cells[n]) for (const k of cells[n]) occ[k] += sign;
+            if (jcells[n]) for (const k of jcells[n]) jocc[k] += sign;
+        };
 
         if (state) {
             for (const n of nets) {
                 const sv = state.missing[n] > 0 ? null : this.salvage(n, state.conns[n]);
                 if (sv && sv.intact) {
                     conns[n] = state.conns[n]; cells[n] = this.wireCells(conns[n]);
-                    for (const k of cells[n]) occ[k]++;
+                    if (useJumps) jcells[n] = this.jumperCells(conns[n]).cells;
+                    add(n, 1);
                 } else {
                     seeds.set(n, sv);
                     order.push(n);
@@ -352,32 +423,42 @@ export class BoxRouter {
         let overuse = 0, miss = 0;
         for (let it = 0; it < maxIter; it++) {
             for (const n of order) {
-                if (cells[n]) for (const k of cells[n]) occ[k]--;
+                add(n, -1);
                 let seed = seeds.get(n) || null;
-                if (it > 0) seed = partial ? this.salvage(n, conns[n], occ) : null;
-                const r = this.routeNet(n, occ, pres, seed);
+                if (it > 0) seed = partial ? this.salvage(n, conns[n], occ, useJumps ? jocc : null) : null;
+                const r = this.routeNet(n, occ, pres, seed, useJumps ? jocc : null);
                 conns[n] = r.conns; cells[n] = r.cells; missing[n] = r.missing;
-                for (const k of r.cells) occ[k]++;
+                jcells[n] = useJumps ? this.jumperCells(r.conns).cells : null;
+                add(n, 1);
             }
             overuse = 0; miss = 0;
             for (const n of nets) miss += missing[n];
-            for (let k = 0; k < N; k++) if (occ[k] > 1) { overuse += occ[k] - 1; this.hist[k] += histInc * (occ[k] - 1); }
-            if (overuse === 0) break;
-            const bad = [];
-            for (const n of nets) {
-                for (const k of cells[n]) if (occ[k] > 1) { bad.push(n); break; }
+            for (let k = 0; k < N; k++) {
+                if (occ[k] > 1 || jocc[k] > 1) {
+                    const e = Math.max(0, occ[k] - 1) + Math.max(0, jocc[k] - 1);
+                    overuse += e; this.hist[k] += histInc * e;
+                }
             }
-            order = bad;
+            if (overuse === 0) break;
+            order = nets.filter(n => this.conflicts(n, cells, jcells, occ, jocc));
             pres *= presMul;
         }
-        let wl = 0;
-        for (const n of nets) for (const c of conns[n]) wl += c.length - 1;
+        let wl = 0, jumpers = 0;
+        for (const n of nets) {
+            for (const c of conns[n]) wl += c.length - 1;
+            if (useJumps) jumpers += this.jumperCells(conns[n]).count;
+        }
         // Nets that still conflict, for targeted moves
         const badNets = new Set();
-        for (const n of nets) {
-            if (missing[n] > 0) { badNets.add(n); continue; }
-            for (const k of cells[n]) if (occ[k] > 1) { badNets.add(n); break; }
-        }
-        return { conns, cells, missing, occ, overuse, miss, wl, badNets };
+        for (const n of nets) if (missing[n] > 0 || this.conflicts(n, cells, jcells, occ, jocc)) badNets.add(n);
+        // Fold jumper conflicts into occ so callers that look for hot cells see them too.
+        if (useJumps) for (let k = 0; k < N; k++) if (jocc[k] > 1 && occ[k] < 2) occ[k] = 2;
+        return { conns, cells, missing, occ, overuse, miss, wl, jumpers, badNets };
+    }
+
+    conflicts(n, cells, jcells, occ, jocc) {
+        if (cells[n]) for (const k of cells[n]) if (occ[k] > 1) return true;
+        if (jcells[n]) for (const k of jcells[n]) if (jocc[k] > 1) return true;
+        return false;
     }
 }

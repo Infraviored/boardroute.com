@@ -238,21 +238,23 @@ function App() {
       setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
       setBestSnapshot(null);
     }
-    if (res?.unroutable) {
-      const c = res.unroutable.certificate;
-      setNotice({
-        kind: 'error',
-        title: 'This circuit cannot be built on one layer',
-        text: `Parts ${c.parts.join(', ')} and nets ${c.nets.join(', ')} form a ${c.type} structure: some wires would have to cross, wherever the parts are placed. Add a jumper wire (split one of these nets), or change a footprint so wires can pass between its pins.`,
-      });
-      setWorkflowStep(1);
-      return;
-    }
+    const cert = res?.topology?.certificate;
+    const jumperText = (n) => `${n} jumper wire${n === 1 ? '' : 's'}`;
     if (res && !res.found) {
       setNotice({
         kind: 'warn',
         title: 'No fully routed layout found',
-        text: 'The circuit passed the topology check, but the search found no layout where every wire fits. A common cause is too little room between pin rows (e.g. a DIP chip with many signals between its rows). Try Layout again, or add a jumper wire.',
+        text: cert
+          ? `Parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure, so wires have to cross somewhere, and even with jumper wires no complete layout turned up. Try Layout again.`
+          : 'The search found no layout where every wire fits, even with jumper wires. Try Layout again, or give parts with many pins more room between their pin rows.',
+      });
+    } else if (res?.jumpers > 0) {
+      setNotice({
+        kind: 'info',
+        title: `Layout needs ${jumperText(res.jumpers)}`,
+        text: cert
+          ? `This circuit cannot be built on one layer without crossings: parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`
+          : `No layout without crossings turned up, most likely because some wires don't fit between closely spaced pins. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`,
       });
     }
     setSnapCounter(c => c + 1); saveHistory();
@@ -442,8 +444,9 @@ function App() {
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
     const routedNum = board.wires.filter(w => !w.failed).length;
+    const jumpers = board.wires.filter(w => w.jumper && !w.failed).length;
     const failedNum = board.wires.length - routedNum;
-    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 ? Math.round((routedNum / (routedNum + failedNum)) * 100) : null };
+    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 ? Math.round((routedNum / (routedNum + failedNum)) * 100) : null, jumpers };
   }, [board]);
 
   const netsMap = useMemo(() => {
@@ -551,6 +554,8 @@ function App() {
         .notice-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 50; width: min(640px, calc(100% - 32px)); display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.45); }
         .notice-banner.error { border-color: #f85149; }
         .notice-banner.warn { border-color: #d29922; }
+        .notice-banner.info { border-color: var(--blu-bright); }
+        .notice-banner.info .notice-title { color: var(--blu-bright); }
         .notice-body { flex: 1; min-width: 0; }
         .notice-title { font-weight: 600; margin-bottom: 4px; }
         .notice-banner.error .notice-title { color: #ff7b72; }

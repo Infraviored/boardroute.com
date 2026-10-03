@@ -95,9 +95,32 @@ export function generateBackgroundSVG(cols, rows, bounds = null) {
   `;
 }
 
+// Jumper wire: an insulated bridge on the component side, drawn as an arc between its legs.
+// `hidden` (solder-side view) draws only a faint dashed line between the legs.
+function jumperSVG(x1, y1, x2, y2, color, { width = 2.4, hidden = false } = {}) {
+  const legs = `<circle cx="${x1}" cy="${y1}" r="${width + 1}" fill="${color}"/><circle cx="${x2}" cy="${y2}" r="${width + 1}" fill="${color}"/>`;
+  if (hidden) {
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.6"/>${legs}`;
+  }
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const bulge = Math.min(len * 0.35, SP * 0.9);
+  const cx = (x1 + x2) / 2 - ((y2 - y1) / len) * bulge;
+  const cy = (y1 + y2) / 2 + ((x2 - x1) / len) * bulge;
+  const d = `M${x1},${y1} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2},${y2}`;
+  return `<path d="${d}" fill="none" stroke="#e9e4d8" stroke-width="${width + 3}" stroke-linecap="round"/>`
+    + `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round"/>${legs}`;
+}
+
 export function generateWiresSVG(wires, activeNets = []) {
   let out = '';
+  let jumpers = '';
   wires.forEach(w => {
+    if (w.jumper && !w.failed && w.path?.length === 2) {
+      const [a, b] = w.path;
+      const isActive = activeNets.includes(w.net);
+      jumpers += jumperSVG(a.col * SP + SP / 2, a.row * SP + SP / 2, b.col * SP + SP / 2, b.row * SP + SP / 2, netColor(w.net), { width: isActive ? 3.4 : 2.4 });
+      return;
+    }
     if (w.failed) {
       const a = w.path[0], b = w.path[w.path.length - 1];
       out += `<line x1="${a.col * SP + SP / 2}" y1="${a.row * SP + SP / 2}" x2="${b.col * SP + SP / 2}" y2="${b.row * SP + SP / 2}" stroke="#ff2222" stroke-width="1" stroke-dasharray="2 5"/>`;
@@ -112,7 +135,8 @@ export function generateWiresSVG(wires, activeNets = []) {
 
     out += `<polyline points="${pts}" fill="none" class="${isActive ? 'wire-active' : ''}" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round" style="${isActive ? `--wire-color: ${color}` : ''}"/>`;
   });
-  return out;
+  // Jumpers sit on the component side, above the copper
+  return out + jumpers;
 }
 
 
@@ -357,8 +381,12 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   }
 
   // Wires (Bottom: components first, then wires? User said "wires on highest layer overshadow everything")
+  const px = (pt) => [Math.round((pt.col - minC) * SP + SP / 2), Math.round((pt.row - minR) * SP + SP / 2)];
+  // Jumpers are on the component side: arcs on top in the top view, faint in the solder-side view
+  const jumpersContent = displayWires.filter(w => w.jumper && !w.failed && w.path?.length === 2)
+    .map(w => jumperSVG(...px(w.path[0]), ...px(w.path[1]), netColor(w.net), { width: 2, hidden: isBottom })).join('');
   const wiresContent = displayWires.map(w => {
-    if (!w.path?.length || w.failed) return '';
+    if (!w.path?.length || w.failed || w.jumper) return '';
     const pts = w.path.map(pt => `${Math.round((pt.col - minC) * SP + SP / 2)},${Math.round((pt.row - minR) * SP + SP / 2)}`).join(' ');
     return `<polyline points="${pts}" fill="none" stroke="${netColor(w.net)}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
   }).join('');
@@ -381,10 +409,10 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   let content = '';
   if (isBottom) {
     // Components Base -> Wires -> Component Labels (always on top)
-    content = compsBases.join('') + wiresContent + compsLabels.join('');
+    content = compsBases.join('') + wiresContent + jumpersContent + compsLabels.join('');
   } else {
-    // Wires -> Components (Base + Labels)
-    content = wiresContent + compsBases.join('') + compsLabels.join('');
+    // Wires -> Components (Base + Labels) -> jumpers (component side)
+    content = wiresContent + compsBases.join('') + compsLabels.join('') + jumpersContent;
   }
 
   inner += `<g>${content}</g>`;

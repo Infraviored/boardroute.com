@@ -2,7 +2,7 @@
 //   node bench/show.js 04_blinker555          (looks in bench/best/)
 //   node bench/show.js path/to/layout.json
 // Pins print as the net's letter in upper case, wires in lower case; '#' is an unconnected
-// pin, '·' a part body without pin, '.' an empty hole.
+// pin, '·' a part body without pin, '.' an empty hole, '^' the leg of a jumper wire.
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -19,7 +19,9 @@ const sym = new Map(nets.map((n, i) => [n, 'abcdefghijklmnopqrstuvwxyz0123456789
 const cells = new Map();
 const put = (c, r, ch) => cells.set(`${c},${r}`, ch);
 for (const c of components) for (let dc = 0; dc < c.w; dc++) for (let dr = 0; dr < c.h; dr++) put(c.ox + dc, c.oy + dr, '·');
-for (const w of wires) if (!w.failed) for (const p of w.path) put(p.col, p.row, sym.get(w.net));
+for (const w of wires) if (!w.failed && !w.jumper) for (const p of w.path) put(p.col, p.row, sym.get(w.net));
+const jumpers = wires.filter(w => w.jumper && !w.failed);
+for (const w of jumpers) for (const p of w.path) put(p.col, p.row, '^');
 for (const c of components) for (const p of c.pins) put(c.ox + p.dCol, c.oy + p.dRow, p.net ? sym.get(p.net).toUpperCase() : '#');
 
 const keys = [...cells.keys()].map(k => k.split(',').map(Number));
@@ -32,5 +34,6 @@ for (let r = minR; r <= maxR; r++) {
 }
 const v = validateLayout(components, wires);
 console.log(`\n${v.width}x${v.height} = ${v.area} holes, wire length ${v.wl}, ${v.routed ? 'fully routed' : 'NOT routed'}${v.valid ? '' : ' INVALID: ' + v.errors.join('; ')}`);
+if (jumpers.length) console.log('jumpers: ' + jumpers.map(w => `${w.net} (${w.path[0].col - minC},${w.path[0].row - minR})-(${w.path[1].col - minC},${w.path[1].row - minR})`).join('  '));
 console.log('nets: ' + nets.map(n => `${sym.get(n).toUpperCase()}=${n}`).join('  '));
 console.log('parts: ' + components.map(c => `${c.id}@(${c.ox - minC},${c.oy - minR})`).join(' '));

@@ -1,6 +1,7 @@
 // Compact numeric model of a circuit for the box solver.
 import { makeComp } from '../initial-placement.js';
 import { rotateComp90InPlace, moveComp } from '../placer.js';
+import { isJump } from './boxrouter.js';
 
 // Rotation matches rotateComp90InPlace: w' = h, h' = w, dCol' = h-1-dRow, dRow' = dCol.
 function rotations(def) {
@@ -51,14 +52,23 @@ export function toEngine(model, pl, routing, W, originCol = 0, originRow = 0) {
         moveComp(comp, pl.ox[i] + originCol, pl.oy[i] + originRow);
         return comp;
     });
+    // Copper runs become ordinary wires; every jump step becomes its own two-point wire
+    // with `jumper: true` (an insulated bridge on the component side).
     const wires = [];
+    const pt = (k) => ({ col: (k % W) + originCol, row: Math.floor(k / W) + originRow });
     if (routing) {
         for (const n of model.routedNets) {
+            const net = model.netNames[n];
             for (const conn of routing.conns[n] || []) {
-                wires.push({
-                    net: model.netNames[n], failed: false,
-                    path: Array.from(conn, k => ({ col: (k % W) + originCol, row: Math.floor(k / W) + originRow })),
-                });
+                let run = [conn[0]];
+                for (let i = 1; i < conn.length; i++) {
+                    if (isJump(conn[i - 1], conn[i], W)) {
+                        if (run.length > 1) wires.push({ net, failed: false, path: run.map(pt) });
+                        wires.push({ net, failed: false, jumper: true, path: [pt(conn[i - 1]), pt(conn[i])] });
+                        run = [conn[i]];
+                    } else run.push(conn[i]);
+                }
+                if (run.length > 1) wires.push({ net, failed: false, path: run.map(pt) });
             }
         }
     }

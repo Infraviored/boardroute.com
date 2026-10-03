@@ -6,15 +6,19 @@ You describe your circuit: the parts, the position of each part's pins, and whic
 
 ### Why does it say my circuit "cannot be built on one layer"?
 
-Because some wires would have to cross wherever the parts are placed. boardroute proves this with a planarity check before it starts searching, and names the parts and nets that form the conflict. The usual fix is a jumper wire. → [Can your circuit be built on one layer?](02-can-it-be-routed.md)
+Because some wires would have to cross wherever the parts are placed. boardroute proves this with a planarity check before it starts searching, and names the parts and nets that form the conflict. It then adds jumper wires itself, as few as it can. → [Can your circuit be built on one layer?](02-can-it-be-routed.md)
 
-### How do I add a jumper wire?
+### What are the arcs on my board?
 
-Split one of the nets named in the notice into two names (for example `VCC` and `VCC_2`), move some of its pins to the new name, and add a two-pin part with a few holes between its legs whose pins sit on `VCC` and `VCC_2`. boardroute places the jumper like a resistor. Wires can pass under it, which is exactly what a jumper on the component side does.
+Jumper wires: short pieces of insulated wire on the component side that bridge over the wiring underneath. boardroute adds them only when a circuit can't be built without crossings, or when no layout without them turned up within ten seconds. Solder each one into its two holes and bend it over the wires it crosses.
 
-### It says "no fully routed layout found", but not that it's impossible. Why?
+### Can I avoid jumpers?
 
-The circuit passed the topology check, so it isn't ruled out mathematically. But the search didn't find a layout where every wire fits. The most common reason is room: a DIP chip has only two free holes between its pin rows, and some circuits need more wires between the rows than fit. Try Layout again (the search is randomised), or add a jumper wire.
+Often, by changing one footprint: a capacitor with 5 mm lead spacing instead of 2.54 mm lets wires pass between its legs, which can break the pattern that forces a crossing. The notice names the parts involved.
+
+### It says "no fully routed layout found". Why?
+
+The search found no layout where every wire fits, even with jumper wires. This is rare. Try Layout again (the search is randomised), or give parts with many pins more room, for example a wider DIP socket.
 
 ### Can wires run under parts?
 

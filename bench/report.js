@@ -31,6 +31,7 @@ export function summarize(results) {
             median: median(ok.map(r => r.area)),
             tBest: median(ok.map(r => r.tBest)),
             wl: median(ok.map(r => r.wl)),
+            jumpers: median(ok.map(r => r.jumpers || 0)),
             // best area reached within a quarter of the budget (convergence speed)
             q1: median(ok.map(r => { const q = (r.trace || []).filter(([t]) => t <= r.budgetMs / 4); return q.length ? q[q.length - 1][1] : Infinity; }).filter(Number.isFinite)),
             eps: median(rs.map(r => r.evalsPerSec).filter(x => x != null)),
@@ -81,14 +82,14 @@ export function printTable(series, bestKnown) {
             const r = s.rows.get(c);
             if (!r) { line += ' │ ' + ''.padEnd(W); continue; }
             const t = r.tBest != null ? (r.tBest / 1000).toFixed(1) + 's' : '-';
-            line += ' │ ' + `${r.ok}/${r.n}`.padEnd(4) + pad(r.best, 5) + pad(r.median, 6) + pad(r.q1, 7) + pad(r.wl, 7) + pad(t, 8) + pad(r.eps, 6) + (r.invalid ? ' !' : '  ');
+            line += ' │ ' + `${r.ok}/${r.n}`.padEnd(4) + pad(r.best, 5) + pad(r.median, 6) + pad(r.q1, 7) + pad(r.wl, 7) + pad(t, 8) + pad(r.eps, 6) + (r.invalid ? ' !' : '  ') + (r.jumpers ? ` J${r.jumpers}` : '');
         }
         console.log(line);
     }
     let foot = 'score (gmean area/ref)'.padEnd(30);
     for (const s of series) { const sc = scoreRuns(s.results); foot += ' │ ' + (sc ? sc.toFixed(3) : '-').padEnd(W); }
     console.log(foot);
-    console.log('topo: X = proven unroutable (non-planar), R = routable (layout known), ? = open.  ! = a run ended on an invalid layout');
+    console.log('topo: X = proven unroutable (non-planar), R = routable (layout known), ? = open.  ! = a run ended on an invalid layout.  Jn = median jumper wires');
 }
 
 if (process.argv[1] && basename(process.argv[1]) === 'report.js') {

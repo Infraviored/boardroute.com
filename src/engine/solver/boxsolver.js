@@ -13,8 +13,8 @@ const W_OVERLAP = 6, W_MISS = 10, W_OVERUSE = 2, W_WL = 0.02;
 
 function clonePl(pl) { return { ox: pl.ox.slice(), oy: pl.oy.slice(), rot: pl.rot.slice() }; }
 
-export function costOf(r, overlap) {
-    return W_OVERLAP * overlap + W_MISS * r.miss + W_OVERUSE * r.overuse + W_WL * r.wl;
+export function costOf(r, overlap, jumperWeight = 0) {
+    return W_OVERLAP * overlap + W_MISS * r.miss + W_OVERUSE * r.overuse + W_WL * r.wl + jumperWeight * (r.jumpers || 0);
 }
 
 function isLegal(s) { return s.overlap === 0 && s.route.miss === 0 && s.route.overuse === 0; }
@@ -71,6 +71,12 @@ export async function solveBox(defs, opts = {}) {
         partial: 1,       // repair only the conflicting branches during negotiation
         local: 0,         // blame parts near conflict cells rather than all parts on conflicting nets
         init: 'hpwl',     // 'hpwl': pre-place by wire-length annealing before routing; 'random'
+        // Jumper wires (component-side bridges over other wiring)
+        jumpers: 0,          // 1: allowed from the start
+        jumperAfterMs: 0,    // >0: switch jumpers on if no legal layout was found by then
+        jumperCost: 6,       // router cost of one jumper (in holes of detour it is worth)
+        jumperWeight: 1.5,   // search cost per jumper
+        jumperArea: 4,       // when comparing layouts, one jumper counts as this many holes
         hpwlSteps: 2000,
         hpwlOverlap: 4,
         shrink: 'hard',   // 'soft': empty a boundary line under cost pressure instead of deleting one
@@ -99,7 +105,9 @@ export async function solveBox(defs, opts = {}) {
     const ri = (n) => Math.floor(rnd() * n);
 
     let W = 0, H = 0, router = null;
-    const setBox = (w, h) => { W = w; H = h; router = new BoxRouter(model, W, H); };
+    let jumpersOn = !!V.jumpers;
+    const setBox = (w, h) => { W = w; H = h; router = new BoxRouter(model, W, H); router.jumpCost = jumpersOn ? V.jumperCost : 0; };
+    const enableJumpers = () => { jumpersOn = true; if (router) router.jumpCost = V.jumperCost; };
 
     let evals = 0, lazyRejects = 0;
     const evaluate = (pl, base = null, maxIter = V.iters, rasterized = false) => {
@@ -112,7 +120,7 @@ export async function solveBox(defs, opts = {}) {
             const r2 = router.negotiate({ maxIter: V.polishIter, pres0: V.pres0, partial: false });
             if (r2.overuse === 0 && r2.miss === 0) route = r2;
         }
-        let cost = costOf(route, overlap), edgeOcc = 0;
+        let cost = costOf(route, overlap, V.jumperWeight), edgeOcc = 0;
         if (edge) { edgeOcc = lineOccupancy(route, edge); cost += V.edgeW * edgeOcc; }
         return { pl, route, overlap, cost, edgeOcc };
     };
@@ -360,16 +368,18 @@ export async function solveBox(defs, opts = {}) {
     const record = (s) => {
         const f = footprint(model, s, W);
         const area = f.w * f.h;
-        if (!best || area < best.area || (area === best.area && s.route.wl < best.wl)) {
+        const jumpers = s.route.jumpers || 0;
+        const key = area + V.jumperArea * jumpers;
+        if (!best || key < best.key || (key === best.key && s.route.wl < best.wl)) {
             // Emit clean trees (no loops or dangling ends left over from salvaging).
             router.setPlacement(s.pl);
             const conns = s.route.conns.map((cs, n) => cs && router.prune(n, cs).conns);
             const route = { ...s.route, conns, wl: conns.reduce((t, cs) => t + (cs ? cs.reduce((u, c) => u + c.length - 1, 0) : 0), 0) };
             s = { ...s, route };
-            best = { area, wl: route.wl, pl: clonePl(s.pl), route, W, H, f };
+            best = { area, key, jumpers, wl: route.wl, pl: clonePl(s.pl), route, W, H, f };
             if (onBest) {
                 const out = toEngine(model, s.pl, s.route, W);
-                onBest(out.components, out.wires, { area, width: f.w, height: f.h, wl: s.route.wl });
+                onBest(out.components, out.wires, { area, width: f.w, height: f.h, wl: s.route.wl, jumpers });
             }
         }
         return f;
@@ -384,7 +394,7 @@ export async function solveBox(defs, opts = {}) {
         const route = remapRoute(model, s.route, W, f.w, -f.minX, -f.minY);
         setBox(f.w, f.h);
         const overlap = router.setPlacement(pl);
-        return { pl, route, overlap, cost: costOf(route, overlap) };
+        return { pl, route, overlap, cost: costOf(route, overlap, V.jumperWeight) };
     };
 
     // Remove column x (axis 0) or row x (axis 1) from a placement.
@@ -428,6 +438,7 @@ export async function solveBox(defs, opts = {}) {
             if (!isLegal(s)) s = null;
         }
         for (let tries = 0; tries < 8 && !stop() && !(s && isLegal(s)); tries++) {
+            if (!best && !jumpersOn && V.jumperAfterMs > 0 && now() - t0 > V.jumperAfterMs) enableJumpers();
             setBox(side, side);
             const pl0 = randomPlacement();
             if (V.init === 'hpwl') hpwlPlace(pl0);
@@ -512,5 +523,5 @@ export async function solveBox(defs, opts = {}) {
 
     if (!best) return null;
     const out = toEngine(model, best.pl, best.route, best.W);
-    return { ...out, area: best.area, restarts: restart, evals, lazyRejects };
+    return { ...out, area: best.area, jumpers: best.jumpers, restarts: restart, evals, lazyRejects };
 }

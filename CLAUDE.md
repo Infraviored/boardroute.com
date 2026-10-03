@@ -21,6 +21,7 @@ There is no unit test suite; solver quality is measured with the benchmark in `b
 node bench/run.js box --quick                 # 3 hard boards x 4 seeds x 15 s, ~15 s wall clock -- iterate here
 node bench/run.js box --quick --opt pSmart=80 # A/B a solver tunable (keys = the V object in boxsolver.js)
 node bench/run.js box                         # full set, 5 seeds x 60 s (~6 min with --jobs 12)
+node bench/run.js app                         # exactly what the UI runs (topology check + jumper policy)
 node bench/run.js legacy                      # the old UI pipeline (placeAndRoute -> optimize -> plateau)
 node bench/report.js bench/results/a.json bench/results/b.json   # side-by-side table
 node bench/topology.js [--blocking]           # which circuits are provably unroutable on one layer
@@ -60,16 +61,16 @@ node tools/analyze_layout.js <layout.json>     # bounding box + which components
 - `state-utils.js` — `saveComps`/`restoreComps` snapshots; passes speculatively mutate components in place and restore on failure.
 - `render-utils.js` — pure SVG string generators (board, wires, ratsnest, export) and hit-testing; `SP = 28` px grid pitch. `colors.js` derives stable net/component colors.
 
-- `solver/` — the box solver (`solveBox`), benchmarked far ahead of the legacy pipeline above but not yet wired into the UI:
+- `solver/` — the box solver (`solveBox`) behind the UI's Layout/Refine steps (`engine.layout()`, run in `solver.worker.js`; the legacy pipeline above is kept but unused by the UI):
   - `boxrouter.js` — negotiated-congestion (PathFinder-style) router inside a fixed W×H box. Nets may temporarily share cells at rising cost; the result's `overuse`/`miss` measure how far a placement is from routable. Warm starts `salvage()` the valid part of each net's previous Steiner tree and only re-route the broken branches -- this partial repair is the main speed lever (profiling: A* in `routeNet` is ~60 % of runtime).
-  - `boxsolver.js` — fix the box, simulated-anneal placement against overlap + routing violations until legal, crop to the footprint, delete a row/column, repeat; restart after repeated failures. Start placement comes from a cheap wire-length (HPWL) anneal. Moves: shift, rotate, swap, random jump and the dominant "smart jump" (put a pin next to another pin of the same net). Metropolis draws its random number first so overlapping moves are rejected exactly without routing. All tunables live in the `V` object and can be set per benchmark run with `--opt`.
+  - `boxsolver.js` — fix the box, simulated-anneal placement against overlap + routing violations until legal, crop to the footprint, delete a row/column, repeat; restart after repeated failures. Start placement comes from a cheap wire-length (HPWL) anneal. Moves: shift, rotate, swap, random jump and the dominant "smart jump" (put a pin next to another pin of the same net). Metropolis draws its random number first so overlapping moves are rejected exactly without routing. All tunables live in the `V` object and can be set per benchmark run with `--opt`. Jumper wires are a router step (straight hop over 1–4 holes without parts) enabled by `V.jumpers` / `V.jumperAfterMs`; they come out as wires with `jumper: true`.
   - `model.js` — numeric circuit model (4 precomputed rotations matching `rotateComp90InPlace`) and `toEngine()` back to engine components/wires.
 - `topology.js` — proves a circuit unroutable on one layer: contract every net's copper (wires + its pins) to a vertex, keep part bodies/pin clusters as grid graphs; the result must be planar for ANY placement. Non-planar → returns a K5/K3,3 certificate naming parts and nets. Planarity is necessary, not sufficient: it ignores capacity (e.g. `06_motor_l293d` is planar but its DIP-16 corridor of 2 holes is too narrow; with 3 holes it routes).
 
 Key invariants:
 - **Scoring is lexicographic** (`scoreState` / `isScoreBetter`): routing completion → area → perimeter → wire length. A pass is accepted only if it beats the current best.
 - **Treadmill coordinates:** the grid is effectively unbounded (callers pass huge `cols/rows`, e.g. `1000000`); after global mutations everything is recentred around the origin (`recenterComponents`).
-- Everything runs on the main thread; long loops yield with `await new Promise(r => setTimeout(r, 0))` so the UI stays responsive. Keep that pattern when adding long-running passes.
+- The legacy passes run on the main thread (the box solver runs in a Web Worker); long loops yield with `await new Promise(r => setTimeout(r, 0))` so the UI stays responsive. Keep that pattern when adding long-running passes.
 
 `docs/architecture.md` is the detailed write-up of the algorithms and pass schedule; the other `docs/*.md` are research notes.
 

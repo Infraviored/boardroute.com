@@ -75,5 +75,26 @@
     "height": 11,
     "strategy": "box",
     "seed": 4
+  },
+  "06_motor_l293d": {
+    "area": 198,
+    "width": 18,
+    "height": 11,
+    "strategy": "app",
+    "seed": 4
+  },
+  "x1_caps_k33": {
+    "area": 25,
+    "width": 5,
+    "height": 5,
+    "strategy": "app",
+    "seed": 1
+  },
+  "x3_caps_k5": {
+    "area": 30,
+    "width": 5,
+    "height": 6,
+    "strategy": "app",
+    "seed": 1
   }
 }

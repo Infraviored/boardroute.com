@@ -4,6 +4,7 @@
 // validates it and keeps a time-stamped best-so-far trace.
 import { AutorouterEngine } from '../src/engine/engine.js';
 import { solveBox } from '../src/engine/solver/boxsolver.js';
+import { analyzeTopology } from '../src/engine/topology.js';
 
 const now = () => performance.now();
 
@@ -31,4 +32,11 @@ async function box(defs, { budgetMs, report, variant }) {
     return solveBox(defs, { budgetMs, variant, onBest: (c, w) => report(c, w) });
 }
 
-export const STRATEGIES = { legacy, box };
+// What the app runs (engine.layout): jumpers right away for non-planar circuits, otherwise
+// only if no jumper-free layout turned up within 10 s.
+async function app(defs, { budgetMs, report, variant }) {
+    const policy = analyzeTopology(defs).planar ? { jumperAfterMs: 10000 } : { jumpers: 1 };
+    return solveBox(defs, { budgetMs, variant: { ...policy, ...variant }, onBest: (c, w) => report(c, w) });
+}
+
+export const STRATEGIES = { legacy, box, app };

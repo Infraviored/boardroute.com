@@ -46,7 +46,7 @@ Across all circuits that can be wired, a typical run of the new engine ends abou
 
 It also got faster. After 15 seconds the new engine is already about where its own first version was after a full minute.
 
-The L293D motor driver is the open case: neither engine has wired it. As described in [the routability article](02-can-it-be-routed.md), it most likely doesn't fit between the rows of a standard DIP-16 and needs a jumper wire.
+The L293D motor driver was the open case: neither engine could wire it without crossings. As described in [the routability article](02-can-it-be-routed.md), it most likely doesn't fit between the rows of a standard DIP-16. With automatic jumper wires the app now wires it in every run, typically on 209 holes with two jumpers. The two impossible capacitor circuits get a layout with exactly one jumper each (25 and 30 holes), which is the minimum.
 
 ## What helped and what didn't
 

@@ -30,7 +30,7 @@ node bench/show.js 04_blinker555              # ASCII view of the best known lay
 node bench/make-circuits.js                   # regenerate bench/circuits/04_* .. x*_
 ```
 
-- Score = geometric mean of area / `bench/reference.json` over all runs (unrouted = 2). The reference is frozen on purpose so scores stay comparable across experiments; don't update it casually. Quick-set differences below ~0.05 are noise (time budgets cut runs at different points).
+- Score = geometric mean of area / `bench/reference.json` over all runs (unrouted = 2). The reference is frozen on purpose so scores stay comparable across experiments; don't update it casually. (It was rebased once, 2026-10-03, for circuits 01/02/03/06/07/09 when part bodies were added: a model change, not a solver change. Baseline after that: `bench/baselines/app-bodies-60s.json`, score 1.023.) Quick-set differences below ~0.05 are noise (time budgets cut runs at different points).
 - Every result is checked by `bench/validate.js`, which deliberately shares no code with the engine. A solver that "wins" with an invalid layout shows `!` in the table.
 - Runs use a seeded `Math.random` (bench/worker.js); runs are parallel processes, so don't run two benchmarks at once (time budgets would compete for CPU), and don't edit solver sources while one runs (each worker imports them fresh).
 - `bench/circuits/` uses `routeUnder: true` everywhere: on perfboard the wiring is on the solder side, so only pins block. `x*_` are constructed (un)routability cases.

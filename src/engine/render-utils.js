@@ -35,8 +35,13 @@ export { compColor };
  * boostColor - For components manually assigned color, make them pop.
  * For auto-colored ones, we already have our HSL targets.
  */
+// Text from the user's circuit JSON ends up in SVG markup rendered via innerHTML: escape it.
+const escXml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// Only plain colour literals may reach a style attribute.
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*\)|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i;
+
 export function boostColor(hexOrHsl) {
-  if (!hexOrHsl) return '#555';
+  if (typeof hexOrHsl !== 'string' || !SAFE_COLOR.test(hexOrHsl)) return '#555';
   if (hexOrHsl.startsWith('hsl')) return hexOrHsl; // Already processed
 
   const hex = hexOrHsl;
@@ -262,7 +267,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
   const isGhost = activePin?.ghost || isSelected === 'ghost';
   const ghostOp = 0.4;
 
-  let out = `<g class="pcb-comp ${isSelected === true ? 'component-selected' : ''}" data-id="${c.id}" style="--comp-color: ${mainColor}; --anim-delay: ${animDelay}; --anim-dur: ${animDur}; opacity: ${isGhost ? ghostOp : 1}">`;
+  let out = `<g class="pcb-comp ${isSelected === true ? 'component-selected' : ''}" data-id="${escXml(c.id)}" style="--comp-color: ${mainColor}; --anim-delay: ${animDelay}; --anim-dur: ${animDur}; opacity: ${isGhost ? ghostOp : 1}">`;
 
   // 1. Draw Component Base (balanced shine-through, solid rim)
   const sw = isSelected ? 3.1 : 1.9; // Balanced selecion thickness
@@ -292,7 +297,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
 
 
     const textAttrs = `x="${px}" y="${py}" dy=".35em" fill="#fff" font-family="'Outfit', sans-serif" font-weight="900" font-size="${Math.min(SP * .22, 6)}" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-    labelsOut += `<text ${textAttrs}>${p.lbl}</text>`;
+    labelsOut += `<text ${textAttrs}>${escXml(p.lbl)}</text>`;
   });
 
   // 3. Draw Component Labels (Centered, two-line layout)
@@ -304,12 +309,12 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
 
   // Name line
   const nameAttrs = `x="${midX}" y="${midY}" fill="#fff" font-family="'Outfit', sans-serif" font-size="${fontSize}" font-weight="800" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${nameAttrs}>${c.id}</text>`;
+  labelsOut += `<text ${nameAttrs}>${escXml(c.id)}</text>`;
 
   // Value line (slightly smaller and dimmer)
   const valY = midY + fontSize * 0.8;
   const valAttrs = `x="${midX}" y="${valY}" fill="rgba(255,255,255,0.6)" font-family="'Outfit', sans-serif" font-size="${fontSize * 0.8}" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${valAttrs}>${c.value}</text>`;
+  labelsOut += `<text ${valAttrs}>${escXml(c.value)}</text>`;
 
   out += `</g>`;
 

@@ -197,6 +197,13 @@ export const route = async function (components, cols, rows, onProg, shouldCance
  * @param {Array|Object} movedComps - Component(s) that changed position/rotation
  * @returns {{ success: boolean, wires: Array }}
  */
+// All holes a jumper spans (legs included).
+function jumperCells(w) {
+  const [a, b] = w.path, n = Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+  const sx = Math.sign(b.col - a.col), sy = Math.sign(b.row - a.row);
+  return Array.from({ length: n + 1 }, (_, i) => ({ col: a.col + sx * i, row: a.row + sy * i }));
+}
+
 export function incrementalReroute(components, wires, movedComps) {
   const moved = Array.isArray(movedComps) ? movedComps : [movedComps];
 
@@ -218,12 +225,13 @@ export function incrementalReroute(components, wires, movedComps) {
   for (const w of wires) {
     if (w.failed || affectedNets.has(w.net)) continue;
     for (const mc of moved) {
-      if (mc.routeUnder) continue;
+      // Wires may run under a routeUnder part, just not through its pins; a blocking part
+      // displaces every wire under its body. A jumper may not lie over any part.
       const ox = mc.ox, oy = mc.oy, ox2 = mc.ox + mc.w, oy2 = mc.oy + mc.h;
-      if (w.path && w.path.some(pt =>
-        pt.col >= ox && pt.col < ox2 &&
-        pt.row >= oy && pt.row < oy2
-      )) {
+      const underBody = (pt) => pt.col >= ox && pt.col < ox2 && pt.row >= oy && pt.row < oy2;
+      const onPin = (pt) => mc.pins.some(p => p.col === pt.col && p.row === pt.row);
+      const hit = w.jumper ? jumperCells(w).some(underBody) : (mc.routeUnder ? w.path?.some(onPin) : w.path?.some(underBody));
+      if (hit) {
         displacedNets.add(w.net);
         break;
       }
@@ -258,10 +266,11 @@ export function incrementalReroute(components, wires, movedComps) {
   const grid = new Grid(gridCols, gridRows, gridMinC, gridMinR);
   components.forEach(c => grid.registerComp(c));
   // Mark all kept wires on grid (a jumper has no interior cells: block its legs instead)
+  // Every cell, ends included: box-solver wires end at branch points and jumper legs, which
+  // markWire (interior only) would leave open to other nets.
   keptWires.forEach(w => {
     if (w.failed || !w.path) return;
-    if (w.jumper) w.path.forEach(pt => grid.set(pt.col, pt.row, BLOCKED_WIRE));
-    else grid.markWire(w.path);
+    w.path.forEach(pt => grid.set(pt.col, pt.row, BLOCKED_WIRE));
   });
 
   // 5. Route only the affected nets

@@ -14,6 +14,7 @@ import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
+import { netCompletion } from './engine/net-completion.js';
 import { useBoardView } from './hooks/useBoardView.js';
 
 function App() {
@@ -148,8 +149,11 @@ function App() {
   const [previewPath, setPreviewPath] = useState(null);
 
   // History
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // The restored board is the first history entry, so Undo can always get back to it
+  // (e.g. after loading an example over it).
+  const [history, setHistory] = useState(() => board.components.length
+    ? [JSON.stringify({ components: board.components, wires: board.wires, cols: board.cols, rows: board.rows })] : []);
+  const [historyIndex, setHistoryIndex] = useState(() => (board.components.length ? 0 : -1));
 
   // Resizing
   const [lsbWidth, setLsbWidth] = useState(() => {
@@ -220,22 +224,45 @@ function App() {
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
   }, [engine, saveHistory]);
 
-  const handleLoadCircuit = useCallback(() => {
-    try {
-      const data = JSON.parse(jsonInput);
-      const defs = processTemplate(data);
-      if (defs) {
-        engine.mergeBoard(defs);
-        setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+  // Parse the circuit JSON; problems become a visible notice instead of a silent no-op.
+  const parseCircuit = useCallback(() => {
+    let data;
+    try { data = JSON.parse(jsonInput); } catch (e) {
+      setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it in the Circuit Definition box.` });
+      return null;
+    }
+    let defs = null;
+    try { defs = processTemplate(data); } catch (e) { console.error(e); }
+    if (!defs?.length) {
+      setNotice({ kind: 'error', title: 'No parts found', text: 'The JSON needs a "components" list, each part with an "id" and its "pins" (offset, net, label).' });
+      return null;
+    }
+    for (const d of defs) {
+      const seen = new Set();
+      for (const [col, row] of d.offsets) {
+        const k = `${col},${row}`;
+        if (seen.has(k)) {
+          setNotice({ kind: 'error', title: `Part ${d.id} has two pins in the same hole`, text: 'Each pin needs its own offset. Fix the offsets of this part, then try again.' });
+          return null;
+        }
+        seen.add(k);
       }
-    } catch (e) { console.error(e); }
-  }, [engine, jsonInput, saveHistory]);
+    }
+    return defs;
+  }, [jsonInput]);
+
+  const handleLoadCircuit = useCallback(() => {
+    const defs = parseCircuit();
+    if (!defs) return;
+    setNotice(null);
+    engine.mergeBoard(defs);
+    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+  }, [engine, parseCircuit, saveHistory]);
 
   // Wire (step 2): fresh placement, rearranged only until every net is connected.
   // Compact (step 3): shrink from the current board (also after moving parts by hand).
   const runLayout = useCallback(async (refine) => {
-    let defs = null;
-    try { defs = processTemplate(JSON.parse(jsonInput)); } catch (e) { console.error(e); }
+    const defs = parseCircuit();
     if (!defs) return;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
@@ -251,7 +278,9 @@ function App() {
     }
     const cert = res?.topology?.certificate;
     const jumperText = (n) => `${n} jumper wire${n === 1 ? '' : 's'}`;
-    if (res && !res.found) {
+    if (res && !res.found && engine.gCancelRequested) {
+      setNotice({ kind: 'info', title: 'Stopped before a layout was found', text: 'Press Wire again and give it a little longer.' });
+    } else if (res && !res.found) {
       setNotice({
         kind: 'warn',
         title: 'No fully routed layout found',
@@ -269,7 +298,7 @@ function App() {
       });
     }
     setSnapCounter(c => c + 1); saveHistory();
-  }, [engine, jsonInput, saveHistory]);
+  }, [engine, parseCircuit, saveHistory]);
 
   const handleStepClick = useCallback(async (step) => {
     if (step === 0) { engine.setState({ components: [], wires: [] }); setWorkflowStep(0); }
@@ -492,10 +521,10 @@ function App() {
 
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
+    const nc = netCompletion(board.components, board.wires);
     const routedNum = board.wires.filter(w => !w.failed).length;
     const jumpers = board.wires.filter(w => w.jumper && !w.failed).length;
-    const failedNum = board.wires.length - routedNum;
-    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 ? Math.round((routedNum / (routedNum + failedNum)) * 100) : null, jumpers };
+    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 && nc.total > 0 ? Math.round((nc.done / nc.total) * 100) : null, jumpers };
   }, [board]);
 
   const netsMap = useMemo(() => {

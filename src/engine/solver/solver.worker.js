@@ -26,17 +26,23 @@ self.onmessage = async (e) => {
         const t = performance.now();
         return t - lastBest > Math.max(msg.stallMs, (lastBest - t0) * 0.5);
     };
-    const res = await solveBox(msg.defs, {
-        budgetMs: msg.budgetMs,
-        initial: msg.initial,
-        variant: msg.variant,
-        shouldStop: () => stopRequested || stalled(),
-        onBest: (components, wires, metrics) => {
-            lastBest = performance.now();
-            self.postMessage({ type: 'best', components, wires, metrics });
-        },
-        onLive: msg.live ? (components, wires) => self.postMessage({ type: 'live', components, wires }) : null,
-        onProgress: (text) => self.postMessage({ type: 'progress', elapsed: performance.now() - t0, text }),
-    });
-    self.postMessage({ type: 'done', found: !!res });
+    let res = null, error = null;
+    try {
+        res = await solveBox(msg.defs, {
+            budgetMs: msg.budgetMs,
+            initial: msg.initial,
+            variant: msg.variant,
+            shouldStop: () => stopRequested || stalled(),
+            onBest: (components, wires, metrics) => {
+                lastBest = performance.now();
+                self.postMessage({ type: 'best', components, wires, metrics });
+            },
+            onLive: msg.live ? (components, wires) => self.postMessage({ type: 'live', components, wires }) : null,
+            onProgress: (text) => self.postMessage({ type: 'progress', elapsed: performance.now() - t0, text }),
+        });
+    } catch (err) {
+        // never leave the engine waiting: an exception must still end with 'done'
+        error = String(err?.message || err);
+    }
+    self.postMessage({ type: 'done', found: !!res, error });
 };

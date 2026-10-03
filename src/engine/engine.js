@@ -1,6 +1,7 @@
 import { route, incrementalReroute } from './router.js';
-import { Grid } from './grid.js';
+import { Grid, BLOCKED_WIRE } from './grid.js';
 import { scoreState, recenterComponents } from './metrics.js';
+import { netCompletion } from './net-completion.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
 import { placeInitial } from './initial-placement.js';
@@ -89,7 +90,7 @@ export class AutorouterEngine {
         if (!compDefs?.length) return null;
         this.gCancelRequested = false;
 
-        const topo = analyzeTopology(compDefs);
+        const topo = await this.topology(compDefs);
         const variant = topo.planar ? { jumperAfterMs: this.layoutConfig.jumperAfterMs } : { jumpers: 1 };
 
         const t0 = performance.now();
@@ -160,7 +161,20 @@ export class AutorouterEngine {
                 `last improvement ${since.toFixed(0)} s ago · stops after ${(window / 1000).toFixed(0)} s without one${cores}`);
         };
         const initial = refine && this.components.length ? this.components : null;
-        this.onStatusUpdate?.({ title: refine ? 'Compacting layout…' : 'Arranging parts until every net is wired…', best: null });
+        // Compact must never hand back a worse board than it started from: a fully wired
+        // starting layout is the best to beat.
+        if (initial && before.wires.length) {
+            const nc = netCompletion(before.components, before.wires);
+            if (nc.total > 0 && nc.done === nc.total) {
+                const sc = scoreState(before.components, before.wires);
+                const metrics = { area: sc.area, width: sc.width, height: sc.height, wl: sc.wl, jumpers: before.wires.filter(w => w.jumper && !w.failed).length };
+                best = { components: before.components, wires: before.wires, metrics, key: keyOf(metrics) };
+                lastImprove = t0;
+                this.onBestSnapshot?.({ components: before.components, wires: before.wires });
+                this.onStatusUpdate?.({ best: metrics });
+            }
+        }
+        this.onStatusUpdate?.({ title: refine ? 'Compacting layout…' : 'Arranging parts until every net is wired…', best: best ? best.metrics : null });
         const ticker = setInterval(progressTick, 200);
         progressTick();
 
@@ -207,6 +221,18 @@ export class AutorouterEngine {
         if (best) show(best.components, best.wires);
         else show(before.components, before.wires);
         return { found: !!best, jumpers: best?.metrics.jumpers || 0, topology: topo, score: best ? scoreState(this.components, this.wires) : null };
+    }
+
+    // Planarity check (+ certificate) in a worker so a slow certificate can't freeze the UI.
+    topology(defs) {
+        if (typeof Worker === 'undefined') return Promise.resolve(analyzeTopology(defs));
+        return new Promise((resolve) => {
+            const w = new Worker(new URL('./topology.worker.js', import.meta.url), { type: 'module' });
+            const done = (r) => { w.terminate(); resolve(r); };
+            w.onmessage = (e) => done(e.data.error ? analyzeTopology(defs) : e.data);
+            w.onerror = () => done(analyzeTopology(defs));
+            w.postMessage({ defs });
+        });
     }
 
     // One solver per spare core, at most layoutConfig.maxWorkers.
@@ -446,7 +472,8 @@ export class AutorouterEngine {
                         }
                     });
                 } else {
-                    grid.markWire(w.path);
+                    // every cell, ends included: box-solver wires end at branch points and jumper legs
+                    w.path.forEach(pt => grid.set(pt.col, pt.row, BLOCKED_WIRE));
                 }
             }
         });

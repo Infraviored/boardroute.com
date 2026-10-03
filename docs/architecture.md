@@ -5,7 +5,7 @@ Technical reference for the box solver and the topology check. For the user-faci
 ## Problem model
 
 - Board: unbounded grid of holes. A layout is a placement (position + rotation in 90° steps per part) plus one wire forest per net.
-- A part is its pin offsets; its body is the pins' bounding box (`w × h`). Bodies may not overlap.
+- A part is its pin offsets plus a body: the bounding box (`w × h`) of the pins and of the optional `body` rectangle from the circuit JSON (`"body": { "offset": [col, row], "size": [w, h] }`, holes, same frame as the pin offsets; for relays, electrolytics, terminals, standing TO-220, dev boards). `processTemplate` folds it into `w`/`h` and normalizes the pin offsets to that box, so everything downstream (overlap, jumper rules, rotation, rendering, `bench/validate.js`) only sees `w × h` + pins. Bodies may not overlap, and jumpers may not cross them. They don't block wires unless `routeUnder` is false, and the topology check ignores them for `routeUnder` parts. `bodyOf()` writes the box back as `body` (offset `[0,0]`, pins relative to the box) when it is larger than the pins, which is exact in any rotation.
 - Wires move between 4-neighbouring holes. A hole holds at most one net. A wire may not enter a pin of another net (or an unconnected pin), and may not enter the body of a part with `routeUnder: false`. A net may pass through its own pins.
 - `routeUnder` defaults to **true** (`processTemplate`): wiring is on the solder side, so only pins block.
 - Objective, lexicographic: every net connected, then minimal bounding-box area (bodies + wire cells), then minimal wire length.

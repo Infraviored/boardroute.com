@@ -7,12 +7,13 @@ import {
   MapPin,
   FlipHorizontal,
   ChevronDown,
-  Activity,
   MousePointer2,
   Share2,
   Ruler,
   AlertTriangle
 } from 'lucide-react';
+
+const SECTIONS_KEY = 'pcb_rsb_sections';
 
 export function SidebarRight({
   stats,
@@ -29,29 +30,38 @@ export function SidebarRight({
   boardView = null,
   setBoardView = null
 }) {
-  const [expanded, setExpanded] = React.useState(() => {
-    const defaultExpanded = { bottom: true, stats: true, selected: true, nets: true };
-    const saved = localStorage.getItem('sidebar_rsb_expanded');
-    if (!saved) return defaultExpanded;
+  // Which accordion sections are open. Component and Network also open on their own when
+  // something gets selected; Board and Bottom side start collapsed.
+  const [open, setOpen] = React.useState(() => {
+    const defaults = { comp: true, nets: true, board: false, bottom: false };
     try {
-      return JSON.parse(saved);
+      const saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) || 'null');
+      return saved && typeof saved === 'object' ? { ...defaults, ...saved } : defaults;
     } catch {
-      return defaultExpanded;
+      return defaults;
     }
   });
 
   React.useEffect(() => {
-    localStorage.setItem('sidebar_rsb_expanded', JSON.stringify(expanded));
-  }, [expanded]);
+    try { localStorage.setItem(SECTIONS_KEY, JSON.stringify(open)); } catch { /* storage unavailable */ }
+  }, [open]);
 
-  const toggle = (sec) => setExpanded(prev => ({ ...prev, [sec]: !prev[sec] }));
+  const toggle = (sec) => setOpen(prev => ({ ...prev, [sec]: !prev[sec] }));
 
-  React.useEffect(() => {
-    setExpanded(prev => ({ ...prev, selected: !!selectedComp }));
-  }, [selectedComp]);
+  // Auto-open on a new selection (adjusting state during render, not in an effect).
+  const selKey = selectedComp?.id ?? null;
+  const [prevSel, setPrevSel] = React.useState({ comp: selKey, net: selectedNet });
+  if (prevSel.comp !== selKey || prevSel.net !== selectedNet) {
+    const openComp = selKey && selKey !== prevSel.comp;
+    const openNets = selectedNet && selectedNet !== prevSel.net;
+    setPrevSel({ comp: selKey, net: selectedNet });
+    if ((openComp && !open.comp) || (openNets && !open.nets)) {
+      setOpen(prev => ({ ...prev, ...(openComp ? { comp: true } : {}), ...(openNets ? { nets: true } : {}) }));
+    }
+  }
 
   const preview = React.useMemo(() => {
-    if (!expanded.bottom) return null;
+    if (!open.bottom) return null;
     const comps = bestSnapshot?.components || components;
     const wrs = bestSnapshot?.wires || wires;
     return generatePrunedSVG({
@@ -62,113 +72,42 @@ export function SidebarRight({
       // Axis labels + board outline only: per-pin labels are unreadable at preview size.
       view: boardView ? { ...boardView, pinCoords: false } : null
     });
-  }, [expanded.bottom, components, wires, bestSnapshot, boardView]);
+  }, [open.bottom, components, wires, bestSnapshot, boardView]);
 
-  const boardOpen = expanded.board !== false; // open unless the user collapsed it
+  const netCount = Object.keys(nets).length;
+  const done = stats.completion >= 100;
 
   return (
     <aside id="rsb">
-      {/* Bottom Side Section */}
-      <section className="sidebar-section">
-        <div className={`section-header clickable ${expanded.bottom ? 'open' : ''}`} onClick={() => toggle('bottom')}>
-          <FlipHorizontal size={18} />
-          <h2>Bottom Side</h2>
-          <ChevronDown size={14} className="toggle-icon-right" />
+      {/* Board stats: always visible, one compact block */}
+      <div className="rs-stats" aria-label="Board stats">
+        <div className="rs-stat-grid">
+          <div className="rs-stat"><span className="rs-v">{stats.components}</span><span className="rs-l">parts</span></div>
+          <div className="rs-stat"><span className="rs-v" style={{ color: 'var(--blu-bright)' }}>{stats.nets}</span><span className="rs-l">nets</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.footprint || '—'}</span><span className="rs-l">holes</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.wireLength || '—'}</span><span className="rs-l">wire</span></div>
         </div>
-
-        {expanded.bottom && (
-          <div className="lbody">
-            {preview ? (
-              <div className="bottom-preview-container">
-                <div className="bottom-preview-svg">
-                  <svg viewBox={`0 0 ${preview.W} ${preview.H}`} style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}>
-                    <g dangerouslySetInnerHTML={{ __html: preview.inner }} />
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="empty-state">No preview available</div>
-            )}
-          </div>
-        )}
-      </section>
-
-      <div className="section-divider"></div>
-
-      {/* Stats Section */}
-      <section className="sidebar-section">
-        <div className={`section-header clickable ${expanded.stats ? 'open' : ''}`} onClick={() => toggle('stats')}>
-          <Activity size={18} />
-          <h2>Board Stats</h2>
-          <ChevronDown size={14} className="toggle-icon-right" />
+        <div className="rs-progress" title="Share of connections that are wired">
+          <div className="rs-progress-bar" style={{ width: `${stats.completion || 0}%`, background: done ? 'var(--grn-bright)' : 'var(--blu-bright)' }} />
         </div>
-
-        {expanded.stats && (
-          <div className="sgrid">
-            <div className="scard">
-              <span className="sl">Components</span>
-              <span className="sv">{stats.components}</span>
-            </div>
-            <div className="scard">
-              <span className="sl">Nets</span>
-              <span className="sv" style={{ color: 'var(--blu-bright)' }}>{stats.nets}</span>
-            </div>
-            <div className="scard">
-              <span className="sl">Wire length</span>
-              <span className="sv">{stats.wireLength || '—'}</span>
-            </div>
-            <div className="scard">
-              <span className="sl">Footprint</span>
-              <span className="sv">{stats.footprint || '—'}</span>
-            </div>
-            {stats.jumpers > 0 && (
-              <div className="scard w2">
-                <span className="sl">Jumper wires</span>
-                <span className="sv" style={{ color: 'var(--blu-bright)' }}>{stats.jumpers}</span>
-              </div>
-            )}
-            <div className="scard w2">
-              <span className="sl">Completion</span>
-              <div className="progress-container-sleek">
-                <div className="progress-bar-sleek" style={{ width: `${stats.completion || 0}%`, background: stats.completion >= 100 ? 'var(--grn-bright)' : 'var(--blu-bright)' }}></div>
-                <div className="progress-text-sleek">{stats.completion !== null ? `${stats.completion}%` : '—'}</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <div className="section-divider"></div>
-
-      {/* Physical board + hole coordinates */}
-      {boardView && setBoardView && (
-        <>
-          <section className="sidebar-section">
-            <div className={`section-header clickable ${boardOpen ? 'open' : ''}`} onClick={() => setExpanded(prev => ({ ...prev, board: !boardOpen }))}>
-              <Ruler size={18} />
-              <h2>Board</h2>
-              <ChevronDown size={14} className="toggle-icon-right" />
-            </div>
-            {boardOpen && (
-              <BoardCard view={boardView} setView={setBoardView} components={components} wires={wires} />
-            )}
-          </section>
-          <div className="section-divider"></div>
-        </>
-      )}
-
-      {/* Selected Component Section */}
-      <section className="sidebar-section">
-        <div
-          className={`section-header ${selectedComp ? 'clickable' : ''} ${expanded.selected && selectedComp ? 'open' : ''}`}
-          onClick={() => selectedComp && toggle('selected')}
-        >
-          <MousePointer2 size={18} />
-          <h2>Component</h2>
-          <ChevronDown size={14} className="toggle-icon-right" />
+        <div className="rs-progress-row">
+          <span>{stats.completion !== null ? (done ? 'All connections wired' : `${stats.completion}% wired`) : 'Not wired yet'}</span>
+          {stats.jumpers > 0 && <span className="rs-jumpers">{stats.jumpers} jumper{stats.jumpers === 1 ? '' : 's'}</span>}
         </div>
+      </div>
 
-        {expanded.selected && selectedComp && (
+      {/* Selected component */}
+      <section className={`rs-sec ${open.comp ? 'open' : ''}`}>
+        <button type="button" className="rs-head" onClick={() => toggle('comp')} aria-expanded={!!open.comp}>
+          <MousePointer2 size={15} />
+          <span className="rs-title">Component</span>
+          {selectedComp
+            ? <span className="rs-chip">{selectedComp.id}</span>
+            : <span className="rs-chip muted">none</span>}
+          <ChevronDown size={14} className="rs-chev" />
+        </button>
+
+        {open.comp && (selectedComp ? (
           <div id="selInfo">
             <div className="prop-list">
               <div className="prop-item">
@@ -203,21 +142,25 @@ export function SidebarRight({
               </div>
             </div>
           </div>
-        )}
+        ) : (
+          <div className="rs-hint">Click a part on the board or in the Parts list.</div>
+        ))}
       </section>
 
-      <div className="section-divider"></div>
+      {/* Nets */}
+      <section className={`rs-sec ${open.nets ? 'open' : ''}`}>
+        <button type="button" className="rs-head" onClick={() => toggle('nets')} aria-expanded={!!open.nets}>
+          <Share2 size={15} />
+          <span className="rs-title">Network</span>
+          {selectedNet
+            ? <span className="rs-chip" style={{ '--chip-color': netColor(selectedNet) }}>{selectedNet}</span>
+            : <span className="rs-chip muted">{netCount}</span>}
+          <ChevronDown size={14} className="rs-chev" />
+        </button>
 
-      {/* Nets Section */}
-      <section className="sidebar-section scroll-container" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div className={`section-header clickable ${expanded.nets ? 'open' : ''}`} onClick={() => toggle('nets')}>
-          <Share2 size={18} />
-          <h2>Network</h2>
-          <ChevronDown size={14} className="toggle-icon-right" />
-        </div>
-
-        {expanded.nets && (
+        {open.nets && (
           <div id="netPanel">
+            {netCount === 0 && <div className="rs-hint">No nets yet.</div>}
             {Object.entries(nets).map(([name, pins]) => {
               const isMarked = activeNets.includes(name);
               return (
@@ -235,6 +178,45 @@ export function SidebarRight({
                 </div>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* Physical board + hole coordinates */}
+      {boardView && setBoardView && (
+        <section className={`rs-sec ${open.board ? 'open' : ''}`}>
+          <button type="button" className="rs-head" onClick={() => toggle('board')} aria-expanded={!!open.board}>
+            <Ruler size={15} />
+            <span className="rs-title">Board &amp; coordinates</span>
+            <ChevronDown size={14} className="rs-chev" />
+          </button>
+          {open.board && (
+            <BoardCard view={boardView} setView={setBoardView} components={components} wires={wires} />
+          )}
+        </section>
+      )}
+
+      {/* Bottom side preview */}
+      <section className={`rs-sec ${open.bottom ? 'open' : ''}`}>
+        <button type="button" className="rs-head" onClick={() => toggle('bottom')} aria-expanded={!!open.bottom}>
+          <FlipHorizontal size={15} />
+          <span className="rs-title">Bottom side preview</span>
+          <ChevronDown size={14} className="rs-chev" />
+        </button>
+
+        {open.bottom && (
+          <div className="lbody">
+            {preview ? (
+              <div className="bottom-preview-container">
+                <div className="bottom-preview-svg">
+                  <svg viewBox={`0 0 ${preview.W} ${preview.H}`} style={{ width: '100%', height: 'auto', maxHeight: '220px', display: 'block', borderRadius: '8px' }}>
+                    <g dangerouslySetInnerHTML={{ __html: preview.inner }} />
+                  </svg>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">No preview available</div>
+            )}
           </div>
         )}
       </section>
@@ -319,70 +301,126 @@ export function SidebarRight({
           border: 1px dashed var(--border);
         }
 
-        .sgrid {
+        /* --- Always-visible stats --- */
+        .rs-stats {
+          padding: 12px 12px 10px 14px;
+          border-bottom: 1px solid var(--border);
+          background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent);
+          flex-shrink: 0;
+        }
+        .rs-stat-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 4px;
+        }
+        .rs-stat {
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          padding: 0 12px 12px 16px;
-        }
-        .scard {
+          align-items: center;
+          gap: 1px;
+          padding: 5px 2px;
           background: var(--bg3);
           border: 1px solid var(--border);
           border-radius: 6px;
-          padding: 6px 10px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          transition: 0.2s;
           min-width: 0;
-          overflow: hidden;
         }
-        .scard:hover {
-          background: var(--bg4);
-          border-color: var(--border2);
-        }
-        .sv {
+        .rs-v {
           font-family: 'Outfit', sans-serif;
           font-size: var(--fs-md);
           font-weight: 800;
           color: var(--txt0);
-          letter-spacing: -0.01em;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
         }
-        .sl {
-          font-size: var(--fs-xs);
+        .rs-l {
+          font-size: 0.66em;
           color: var(--txt1);
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.03em;
-          white-space: nowrap;
+          letter-spacing: 0.04em;
         }
-
-        .progress-container-sleek {
-          width: 80px;
-          height: 18px;
+        .rs-progress {
+          margin-top: 8px;
+          height: 4px;
+          border-radius: 2px;
           background: var(--bg0);
-          border-radius: 4px;
-          position: relative;
           overflow: hidden;
-          border: 1px solid var(--border);
         }
-        .progress-bar-sleek {
-          height: 100%;
-          transition: width 0.3s ease;
-          opacity: 0.8;
+        .rs-progress-bar { height: 100%; transition: width 0.3s ease; }
+        .rs-progress-row {
+          margin-top: 5px;
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: var(--fs-xs);
+          color: var(--txt1);
+          font-weight: 600;
         }
-        .progress-text-sleek {
-          position: absolute;
-          inset: 0;
+        .rs-jumpers { color: var(--blu-bright); }
+
+        /* --- Accordion sections --- */
+        .rs-sec { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .rs-head {
+          width: 100%;
           display: flex;
           align-items: center;
-          justify-content: center;
-          font-size: var(--fs-xs);
-          font-weight: 900;
-          color: #fff;
-          text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+          gap: 9px;
+          padding: 10px 12px 10px 14px;
+          background: none;
+          border: none;
+          color: var(--txt0);
+          cursor: pointer;
+          text-align: left;
+          font: inherit;
         }
+        .rs-head:hover { background: rgba(255,255,255,0.025); }
+        .rs-head:focus-visible { outline: 2px solid var(--blu-bright); outline-offset: -2px; }
+        .rs-head > svg:first-child { color: var(--txt1); opacity: 0.7; flex-shrink: 0; }
+        .rs-sec.open .rs-head > svg:first-child { color: var(--blu-bright); opacity: 0.9; }
+        .rs-title {
+          font-family: 'Outfit', sans-serif;
+          font-size: var(--fs-md);
+          font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+        }
+        .rs-chip {
+          --chip-color: var(--blu-bright);
+          margin-left: auto;
+          font-family: 'Consolas', monospace;
+          font-size: var(--fs-xs);
+          font-weight: 700;
+          color: var(--chip-color);
+          background: color-mix(in srgb, var(--chip-color), transparent 88%);
+          border: 1px solid color-mix(in srgb, var(--chip-color), transparent 65%);
+          border-radius: 5px;
+          padding: 1px 6px;
+          max-width: 90px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex-shrink: 1;
+        }
+        .rs-chip.muted { color: var(--txt2); background: none; border-color: var(--border); font-family: inherit; }
+        .rs-chev {
+          flex-shrink: 0;
+          color: var(--txt1);
+          opacity: 0.4;
+          transform: rotate(-90deg);
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+        }
+        .rs-title + .rs-chev { margin-left: auto; }
+        .rs-sec.open .rs-chev { transform: none; opacity: 0.8; color: var(--blu-bright); }
+        .rs-hint {
+          padding: 0 14px 12px;
+          font-size: var(--fs-sm);
+          color: var(--txt1);
+        }
+        #netPanel .rs-hint { padding: 0 2px; }
 
         .bottom-preview-container {
           padding-top: 4px;

@@ -148,6 +148,7 @@ function App() {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [examples, setExamples] = useState([]);
   const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
+  const [exampleTitle, setExampleTitle] = useState(null); // shown in the Circuit card while an example is loaded
   const [editingComp, setEditingComp] = useState(null);
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -223,6 +224,7 @@ function App() {
 
   const handleLoadTemplate = useCallback(() => {
     setWorkflowStep(0);
+    setExampleTitle(null);
     setJsonInput(JSON.stringify(TEMPLATE, null, 2));
     const defs = processTemplate(TEMPLATE);
     engine.initializeBoard(defs);
@@ -233,7 +235,7 @@ function App() {
   const parseCircuit = useCallback(() => {
     let data;
     try { data = JSON.parse(jsonInput); } catch (e) {
-      setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it in the Circuit Definition box.` });
+      setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it under Circuit → Edit JSON.` });
       return null;
     }
     let defs = null;
@@ -258,10 +260,11 @@ function App() {
 
   const handleLoadCircuit = useCallback(() => {
     const defs = parseCircuit();
-    if (!defs) return;
+    if (!defs) return false;
     setNotice(null);
     engine.mergeBoard(defs);
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+    return true;
   }, [engine, parseCircuit, saveHistory]);
 
   // Wire (step 2): fresh placement, rearranged only until every net is connected.
@@ -531,6 +534,7 @@ function App() {
   const loadExample = useCallback((ex) => {
     setExamplesOpen(null);
     setNotice(null);
+    setExampleTitle(ex.title);
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
@@ -626,6 +630,8 @@ function App() {
           onOpenPrompt={() => setIsPromptOpen(true)}
           onOpenExamples={() => setExamplesOpen('browse')}
           jsonInput={jsonInput} setJsonInput={setJsonInput}
+          exampleTitle={exampleTitle}
+          onLoadCircuit={(edited) => { const ok = handleLoadCircuit(); if (ok && edited) setExampleTitle(null); return ok; }}
           components={board.components} selectedId={selectedId}
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
           onOpenLibrary={() => setIsLibraryOpen(true)}

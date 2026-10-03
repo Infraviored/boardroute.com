@@ -137,3 +137,4 @@ figure.board figcaption { font-size: 0.88rem; color: var(--txt2); margin-top: 10
 .site-foot li { margin: 0 0 6px; }
 .site-foot li a { color: var(--txt1); }
 @media (max-width: 640px) { .site-foot ul { columns: 1; } }
+figure.board .try-link { display: inline-block; margin-top: 4px; font-weight: 600; }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AutorouterEngine } from './engine/engine.js';
 import { PcbCanvas } from './components/PcbCanvas.jsx';
 import { Topbar } from './components/Topbar.jsx';
@@ -10,6 +10,7 @@ import { CompEditorOverlay } from './components/CompEditorOverlay.jsx';
 import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
+import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { TEMPLATE, processTemplate, generateJSONFromState } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/optimizer-algorithms.js';
@@ -136,6 +137,8 @@ function App() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [examples, setExamples] = useState([]);
+  const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
   const [editingComp, setEditingComp] = useState(null);
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -445,9 +448,42 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo, requestDelete, activePin, engine, handleRouteOnly]);
 
+  // Example circuits load bare (no wires): placed on the board, all three steps still to do.
+  const loadExample = useCallback((ex) => {
+    setExamplesOpen(null);
+    setNotice(null);
+    setJsonInput(JSON.stringify(ex.circuit, null, 2));
+    engine.initializeBoard(processTemplate(ex.circuit));
+    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+    window.goatcounter?.count?.({ path: `example-${ex.id}`, title: ex.title, event: true });
+  }, [engine, saveHistory]);
+
+  const closeExamples = useCallback(() => {
+    // Skipping the first-visit picker still leaves a circuit to edit
+    if (examplesOpen === 'first' && !engine.components.length) handleLoadTemplate();
+    setExamplesOpen(null);
+  }, [examplesOpen, engine, handleLoadTemplate]);
+
+  // First visit: offer the examples. /?example=<id> (links from the explainer pages) loads one directly.
+  const [firstVisit] = useState(() => !localStorage.getItem('pcb_board_state'));
+  const [examplesError, setExamplesError] = useState(false);
   useEffect(() => {
-    if (!localStorage.getItem('pcb_board_state')) handleLoadTemplate();
-  }, [handleLoadTemplate]);
+    fetch('/examples.json').then(r => r.json()).then(setExamples)
+      .catch(err => { console.error('examples.json', err); setExamplesError(true); });
+  }, []);
+  const examplesStarted = useRef(false);
+  useEffect(() => {
+    if (examplesStarted.current || (!examples.length && !examplesError)) return;
+    examplesStarted.current = true;
+    const wanted = new URLSearchParams(window.location.search).get('example');
+    const ex = wanted && examples.find(e => e.id === wanted);
+    if (ex) {
+      loadExample(ex);
+      window.history.replaceState(null, '', window.location.pathname);
+    } else if (firstVisit) {
+      if (examples.length) setExamplesOpen('first'); else handleLoadTemplate();
+    }
+  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate]);
 
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
@@ -478,6 +514,7 @@ function App() {
       <div id="layout">
         <SidebarLeft
           onOpenPrompt={() => setIsPromptOpen(true)}
+          onOpenExamples={() => setExamplesOpen('browse')}
           jsonInput={jsonInput} setJsonInput={setJsonInput}
           components={board.components} selectedId={selectedId}
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
@@ -545,6 +582,7 @@ function App() {
           bestSnapshot={bestSnapshot}
         />
       </div>
+      <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={handleAddFromLibrary} />
       <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => setIsEditorOpen(false)} onSave={handleSaveEdit} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />

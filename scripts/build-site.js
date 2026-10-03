@@ -39,13 +39,18 @@ function rewriteHref(href) {
     return m ? urlOf(m[1]) + (m[2] || '') : href;
 }
 
+// figure -> example circuit in the app (public/examples.json), for an "open in the app" link
+const FIGURE_EXAMPLE = { 'blinker555': 'blinker-555', 'caps-k5-jumper': 'caps-k5', 'caps-k33-jumper': null };
+
 function boardFigure(name, caption) {
     const L = JSON.parse(readFileSync(join(SRC, 'figures', `${name}.json`), 'utf-8'));
     const comps = L.components.map(c => ({ ...c, name: c.id, pins: c.pins.map(p => ({ ...p, col: c.ox + p.dCol, row: c.oy + p.dRow })) }));
     const svg = generateBoardSVG(comps, L.wires)
         .replace(/@import url\([^)]*\);?/, '') // the page already loads the fonts
         .replace('<svg ', `<svg role="img" aria-label="${esc(caption)}" `);
-    return `<figure class="board">${svg}<figcaption>${esc(caption)}</figcaption></figure>`;
+    const ex = FIGURE_EXAMPLE[name];
+    const link = ex ? ` <a class="try-link" href="/?example=${ex}">Try this circuit in the autorouter →</a>` : '';
+    return `<figure class="board">${svg}<figcaption>${esc(caption)}${link}</figcaption></figure>`;
 }
 
 function render(md) {
@@ -159,7 +164,7 @@ articles.forEach((a, i) => {
     <p class="crumbs"><a href="${BASE}">How it works</a> · Part ${i + 1} of ${articles.length}</p>
     ${html}
     <nav class="pager">${prev ? `<a class="prev" href="${prev.path}"><span>Previous</span>${esc(prev.nav)}</a>` : '<span></span>'}${next ? `<a class="next" href="${next.path}"><span>Next</span>${esc(next.nav)}</a>` : ''}</nav>
-    <aside class="try"><p><strong>Try it on your own circuit.</strong> Describe the parts and their pins, press Wire and then Compact, and watch the board shrink. It runs in your browser and is free.</p><a class="cta" href="/">Open the autorouter →</a></aside>
+    <aside class="try"><p><strong>Try it yourself.</strong> Pick one of the example circuits or describe your own, press Wire and then Compact, and watch the board shrink. It runs in your browser and is free.</p><a class="cta" href="/">Open the autorouter →</a></aside>
   </article>
 </main>`;
     const jsonld = [

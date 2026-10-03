@@ -6,7 +6,8 @@ import {
   Cpu,
   Pencil,
   Info,
-  CircuitBoard
+  CircuitBoard,
+  Shapes
 } from 'lucide-react';
 
 export function SidebarLeft({
@@ -18,7 +19,8 @@ export function SidebarLeft({
   onOpenLibrary,
   onAddNewComponent,
   onEditComponent,
-  onOpenPrompt
+  onOpenPrompt,
+  onOpenExamples
 }) {
 
   return (
@@ -30,10 +32,16 @@ export function SidebarLeft({
           <h2>Circuit Definition</h2>
         </div>
         <div className="lbody">
-          <button className="prompt-help-btn" onClick={onOpenPrompt}>
-            <Info size={14} />
-            How do I obtain this?
-          </button>
+          <div className="circuit-actions">
+            <button className="prompt-help-btn examples-btn" onClick={onOpenExamples} title="Load one of the example circuits">
+              <Shapes size={14} />
+              Examples
+            </button>
+            <button className="prompt-help-btn" onClick={onOpenPrompt}>
+              <Info size={14} />
+              How do I obtain this?
+            </button>
+          </div>
 
           <div className="textarea-container">
             <textarea
@@ -155,9 +163,12 @@ export function SidebarLeft({
           flex-direction: column;
           min-width: 0;
         }
+        .circuit-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .circuit-actions .examples-btn { flex: 1 0 auto; color: var(--grn-bright); background: rgba(63, 185, 80, 0.1); border-color: rgba(63, 185, 80, 0.25); }
+        .circuit-actions .examples-btn:hover { background: rgba(63, 185, 80, 0.18); border-color: var(--grn-bright); }
         .prompt-help-btn {
-          margin-bottom: 10px;
-          width: 100%;
+          flex: 1 0 auto;
+          width: auto;
           box-sizing: border-box;
           background: rgba(31, 111, 235, 0.1);
           border: 1px solid rgba(31, 111, 235, 0.2);

@@ -52,8 +52,8 @@ Instead of juggling board size, wire length and connectivity all at once, boardr
 ## What you see in the app
 
 1. **Load** reads your circuit description and puts the parts on the board.
-2. **Layout** starts the search. The board on screen updates whenever a smaller layout is found, and the panel at the bottom shows the current best size and wire length. The search stops by itself once it stops making progress (small circuits within seconds, large ones in up to a minute). **Apply Current Best** stops it early.
-3. **Refine** continues from the current layout. Use it if you want more search time, or after you moved parts by hand and want the engine to tidy up around your choice.
+2. **Wire** rearranges the parts until every connection is wired, and stops there. Usually that takes a second or two. The result works, but it isn't small yet.
+3. **Compact** shrinks the board, starting from what's on screen. The board updates whenever a smaller layout is found, and the panel at the bottom shows the current best size and wire length. The search stops by itself once it stops making progress (small circuits within seconds, large ones in up to a minute). **Apply Current Best** stops it early. Press Compact again for more search time, or after you moved parts by hand to let the engine tidy up around your choice.
 
 If the circuit can't be built on one layer, or the wires simply don't fit between closely spaced pins, boardroute adds jumper wires and a blue notice says how many and why. Jumpers are drawn as arcs over the wiring. If even that fails, a yellow notice explains the most likely reason.
 

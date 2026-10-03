@@ -59,7 +59,7 @@ Cost of a state: `6 · overlap + 10 · missing pins + 2 · overused cells + 0.02
 
 Jumper policy: `V.jumpers: 1` allows them from the start, `V.jumperAfterMs` switches them on if no legal layout exists by then. `engine.layout` uses `jumpers: 1` for non-planar circuits and `jumperAfterMs: 10000` otherwise (`bench` strategy `app` mirrors this).
 
-1. **Start.** Square box of side `≈ √(3 · body area)` (or `√(1.6 · best area)` on restarts). Random placement, then `hpwlPlace`: a fast anneal on half-perimeter wire length with a 1-hole keep-out around bodies, no routing. With `opts.initial` (Refine), the first attempt uses the given layout in its bounding box + 1 hole margin instead.
+1. **Start.** Square box of side `≈ √(3 · body area)` (or `√(1.6 · best area)` on restarts). Random placement, then `hpwlPlace`: a fast anneal on half-perimeter wire length with a 1-hole keep-out around bodies, no routing. With `opts.initial` (the UI's Compact step), the first attempt uses the given layout in its bounding box + 1 hole margin instead.
 2. **Anneal to legality** (`anneal`): Metropolis with geometric cooling (`T0` → `T1`). The acceptance threshold `-T · ln(u)` is drawn first; a move whose overlap lower bound already exceeds it is rejected without routing (exact, saves 20–35 % of evaluations). Returns at the first legal state.
 3. **Crop** to the real footprint (`crop`, remaps the routing), record the best layout (with `prune`d trees).
 4. **Shrink**: for W−1 or H−1 (larger area cut first), try `lines` random rows/columns, remove the one with the lowest resulting cost (`removeLine`: parts beyond it shift by one, the rest is clamped), anneal with effort `effort · nParts · (1 + fails)`. On failure try the other axis; after `fails` consecutive failures, restart.

@@ -80,7 +80,9 @@ export class AutorouterEngine {
      * layer, otherwise only once no jumper-free layout turned up within jumperAfterMs.
      * Returns { found, score, jumpers, topology } (topology.certificate when non-planar).
      */
-    async layout(compDefs, { refine = false } = {}) {
+    // Wire step: { firstOnly: true } -- fresh placement, stop at the first fully routed layout.
+    // Compact step: { refine: true } -- start from the current board and shrink until progress stalls.
+    async layout(compDefs, { refine = false, firstOnly = false } = {}) {
         if (!compDefs?.length) return null;
         this.gCancelRequested = false;
 
@@ -117,7 +119,7 @@ export class AutorouterEngine {
                 best ? `Packing… best ${best.width}×${best.height} = ${best.area} holes` : 'Searching for a first routable layout…');
         };
         const initial = refine && this.components.length ? this.components : null;
-        this.onStatusUpdate?.({ title: refine ? 'Refining layout…' : 'Searching for a first routable layout…', best: null });
+        this.onStatusUpdate?.({ title: refine ? 'Compacting layout…' : 'Arranging parts until every net is wired…', best: null });
 
         if (typeof Worker !== 'undefined') {
             await new Promise((resolve) => {
@@ -131,14 +133,14 @@ export class AutorouterEngine {
                     else if (m.type === 'done') finish();
                 };
                 worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
-                worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs, variant });
+                worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs, variant, firstOnly });
                 if (this.gCancelRequested) worker.postMessage({ type: 'stop' });
             });
         } else {
             let lastBest = null;
             await solveBox(compDefs, {
                 budgetMs, initial, variant,
-                shouldStop: () => this.gCancelRequested || (lastBest !== null && performance.now() - lastBest > Math.max(stallMs, (lastBest - t0) * 0.5)),
+                shouldStop: () => this.gCancelRequested || (lastBest !== null && (firstOnly || performance.now() - lastBest > Math.max(stallMs, (lastBest - t0) * 0.5))),
                 onBest: (c, w, m) => { lastBest = performance.now(); onBest(c, w, m); },
                 onProgress: () => onProgress(performance.now() - t0),
             });

@@ -1,5 +1,5 @@
 // Runs solveBox off the main thread. Protocol:
-//   in:  { type: 'solve', defs, initial?, budgetMs, stallMs, variant? }   { type: 'stop' }
+//   in:  { type: 'solve', defs, initial?, budgetMs, stallMs, variant?, firstOnly? }   { type: 'stop' }
 //   out: { type: 'best', components, wires, metrics }  { type: 'progress', elapsed, text }  { type: 'done', found }
 import { solveBox } from './boxsolver.js';
 
@@ -15,8 +15,10 @@ self.onmessage = async (e) => {
     // Stop on stagnation: no better layout for stallMs, or for half the time it took to
     // find the last improvement (large boards keep improving for longer). Never before the
     // first layout: until then the search (and the switch to jumper wires) needs the time.
+    // firstOnly (the UI's Wire step): stop as soon as one fully routed layout exists.
     const stalled = () => {
         if (lastBest === null) return false;
+        if (msg.firstOnly) return true;
         const t = performance.now();
         return t - lastBest > Math.max(msg.stallMs, (lastBest - t0) * 0.5);
     };

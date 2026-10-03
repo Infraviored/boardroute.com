@@ -225,8 +225,8 @@ function App() {
     } catch (e) { console.error(e); }
   }, [engine, jsonInput, saveHistory]);
 
-  // Layout (step 2): place, route and pack from scratch. Refine (step 3): keep searching
-  // from the current layout, e.g. after moving parts by hand.
+  // Wire (step 2): fresh placement, rearranged only until every net is connected.
+  // Compact (step 3): shrink from the current board (also after moving parts by hand).
   const runLayout = useCallback(async (refine) => {
     let defs = null;
     try { defs = processTemplate(JSON.parse(jsonInput)); } catch (e) { console.error(e); }
@@ -234,11 +234,11 @@ function App() {
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
     // usage statistics: how many layouts people actually run (GoatCounter event, no personal data)
-    window.goatcounter?.count?.({ path: refine ? 'refine' : 'layout', title: `${defs.length} parts`, event: true });
+    window.goatcounter?.count?.({ path: refine ? 'compact' : 'wire', title: `${defs.length} parts`, event: true });
     setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
     let res = null;
     try {
-      res = await engine.layout(defs, { refine });
+      res = await engine.layout(defs, refine ? { refine: true } : { firstOnly: true });
     } finally {
       setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
       setBestSnapshot(null);
@@ -250,8 +250,8 @@ function App() {
         kind: 'warn',
         title: 'No fully routed layout found',
         text: cert
-          ? `Parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure, so wires have to cross somewhere, and even with jumper wires no complete layout turned up. Try Layout again.`
-          : 'The search found no layout where every wire fits, even with jumper wires. Try Layout again, or give parts with many pins more room between their pin rows.',
+          ? `Parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure, so wires have to cross somewhere, and even with jumper wires no complete layout turned up. Try Wire again.`
+          : 'The search found no layout where every wire fits, even with jumper wires. Try Wire again, or give parts with many pins more room between their pin rows.',
       });
     } else if (res?.jumpers > 0) {
       setNotice({

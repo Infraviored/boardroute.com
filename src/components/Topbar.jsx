@@ -1,7 +1,8 @@
 import React from 'react';
 import {
   Zap,
-  Compass,
+  Cable,
+  Minimize2,
   Undo2,
   Redo2,
   Download,
@@ -45,21 +46,21 @@ export function Topbar({
             className={`flow-btn ${workflowStep >= 2 && !(workflowStep === 2 && isProcessing) ? 'completed' : ''} ${workflowStep === 2 && isProcessing ? 'processing' : ''} ${workflowStep === 1 && !isProcessing ? 'next' : ''}`}
             onClick={() => onStepClick(2)}
             disabled={workflowStep < 1 || isProcessing}
-            title="Place, route and pack the circuit from scratch"
+            title="Arrange the parts until every connection is wired"
             style={{ '--flow-color': 'var(--grn-bright)' }}
           >
-            <Zap size={14} />
-            Layout
+            <Cable size={14} />
+            Wire
           </button>
           <button
             className={`flow-btn ${workflowStep >= 3 && !(workflowStep === 3 && isProcessing) ? 'completed' : ''} ${workflowStep === 3 && isProcessing ? 'processing' : ''} ${workflowStep === 2 && !isProcessing ? 'next' : ''}`}
             onClick={() => onStepClick(3)}
             disabled={workflowStep < 2 || isProcessing}
-            title="Keep searching from the current layout (also after moving parts by hand)"
+            title="Shrink the board as far as possible, starting from the current layout (also after moving parts by hand)"
             style={{ '--flow-color': '#a371f7' }}
           >
-            <Compass size={14} />
-            Refine
+            <Minimize2 size={14} />
+            Compact
           </button>
         </div>
       </div>

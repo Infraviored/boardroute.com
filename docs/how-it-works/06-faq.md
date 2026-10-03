@@ -18,15 +18,15 @@ Often, by changing one footprint: a capacitor with 5 mm lead spacing instead of 
 
 ### It says "no fully routed layout found". Why?
 
-The search found no layout where every wire fits, even with jumper wires. This is rare. Try Layout again (the search is randomised), or give parts with many pins more room, for example a wider DIP socket.
+The search found no layout where every wire fits, even with jumper wires. This is rare. Try Wire again (the search is randomised), or give parts with many pins more room, for example a wider DIP socket.
 
 ### Can wires run under parts?
 
 Yes, by default. On a perfboard the wiring is on the solder side, so a part body is no obstacle, only its legs are. If a part can't be routed under, add `"routeUnder": false` to it in the circuit description, and its whole outline will be kept clear.
 
-### Why do I get a different layout each time I press Layout?
+### Why do I get a different layout each time I press Wire?
 
-The search is randomised. Each run explores differently and can end at a different, equally good or slightly larger, layout. If you want to try for a smaller board, press **Refine** to keep searching from the current result, or press **Layout** again for a fresh attempt.
+The search is randomised. Each run explores differently and can end at a different, equally good or slightly larger, layout. If you want to try for a smaller board, press **Compact** to keep searching from the current result, or **Wire** and then **Compact** for a fresh attempt.
 
 ### How long does a layout take?
 
@@ -38,7 +38,7 @@ Not guaranteed. Finding the provably smallest layout is far too expensive for ci
 
 ### Can I move parts by hand?
 
-Yes. Drag a part, rotate it, and then press **Refine**. The search starts from your arrangement, repairs any wires your change broke, and tries to shrink around it.
+Yes. Drag a part, rotate it, and then press **Compact**. The search starts from your arrangement, repairs any wires your change broke, and tries to shrink around it.
 
 ### Does my circuit leave my computer?
 
@@ -52,6 +52,6 @@ Not yet. Stripboard has copper strips that connect whole rows of holes, which tu
 
 Every bend costs the router a little extra, so among equally short paths it picks the one with the fewest bends. Straight runs are easier to build with bare wire and easier to check against the screen.
 
-### What's the difference between Layout and Refine?
+### What's the difference between Wire and Compact?
 
-**Layout** starts from scratch: a fresh rough placement, then the full search. **Refine** starts from what's on the board now, including any changes you made by hand.
+**Wire** starts from scratch: a fresh placement, rearranged only until every connection is wired. **Compact** shrinks the board starting from what's on it now, including any changes you made by hand.

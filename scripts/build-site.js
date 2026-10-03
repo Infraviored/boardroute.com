@@ -159,7 +159,7 @@ articles.forEach((a, i) => {
     <p class="crumbs"><a href="${BASE}">How it works</a> · Part ${i + 1} of ${articles.length}</p>
     ${html}
     <nav class="pager">${prev ? `<a class="prev" href="${prev.path}"><span>Previous</span>${esc(prev.nav)}</a>` : '<span></span>'}${next ? `<a class="next" href="${next.path}"><span>Next</span>${esc(next.nav)}</a>` : ''}</nav>
-    <aside class="try"><p><strong>Try it on your own circuit.</strong> Describe the parts and their pins, press Layout, and watch the board shrink. It runs in your browser and is free.</p><a class="cta" href="/">Open the autorouter →</a></aside>
+    <aside class="try"><p><strong>Try it on your own circuit.</strong> Describe the parts and their pins, press Wire and then Compact, and watch the board shrink. It runs in your browser and is free.</p><a class="cta" href="/">Open the autorouter →</a></aside>
   </article>
 </main>`;
     const jsonld = [

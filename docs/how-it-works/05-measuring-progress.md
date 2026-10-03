@@ -66,7 +66,7 @@ The benchmark decided which ideas made it into the engine:
 ## Limits
 
 - "Best ever found" is not the same as optimal. For most circuits nobody knows the true minimum. A smaller layout may exist.
-- The search is randomised, so two runs can give different boards. Pressing Layout again or using Refine sometimes finds a smaller one.
+- The search is randomised, so two runs can give different boards. Pressing Compact again, or starting over with Wire, sometimes finds a smaller one.
 - The test set is small. If you have a circuit where boardroute does badly, it would make a good addition.
 
 → [FAQ](06-faq.md)

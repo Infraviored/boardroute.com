@@ -1,7 +1,8 @@
 import { route, incrementalReroute } from './router.js';
 import { Grid } from './grid.js';
-import { compactBoard, optimizeBoard } from './optimizer.js';
-import { scoreState, recenterComponents } from './optimizer-algorithms.js';
+import { scoreState, recenterComponents } from './metrics.js';
+// The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
+const legacyOptimizer = () => import('./optimizer.js');
 import { placeInitial } from './initial-placement.js';
 import { anneal, moveComp, rotateComp90InPlace } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
@@ -30,8 +31,10 @@ export class AutorouterEngine {
         this.gCancelRequested = false;
         // Stop after stallMsPerPart · parts without improvement (clamped to stallMinMs..stallMaxMs).
         // Calibrated by replaying the benchmark traces: near full-minute quality, ~19 s average.
-        this.layoutConfig = { budgetMs: 60000, stallMsPerPart: 1200, stallMinMs: 3000, stallMaxMs: 15000, jumperAfterMs: 10000 };
-        this.activeWorker = null;
+        this.layoutConfig = { budgetMs: 60000, stallMsPerPart: 1200, stallMinMs: 3000, stallMaxMs: 15000, jumperAfterMs: 10000, maxWorkers: 4 };
+        this.activeWorkers = [];
+        // Show the search at work (the state being evaluated) instead of only each new best.
+        this.liveView = true;
 
         // Callbacks for UI updates
         this.onStateChange = null;
@@ -69,19 +72,19 @@ export class AutorouterEngine {
 
     cancel() {
         this.gCancelRequested = true;
-        this.activeWorker?.postMessage({ type: 'stop' });
+        this.activeWorkers.forEach(w => w.postMessage({ type: 'stop' }));
     }
 
     /**
-     * Place, route and pack in one go with the box solver (src/engine/solver/).
-     * Runs in a Web Worker when available, inline otherwise (Node, tests).
-     * With `refine`, the search starts from the current layout instead of from scratch.
-     * Jumper wires are allowed right away if the circuit provably can't be built on one
-     * layer, otherwise only once no jumper-free layout turned up within jumperAfterMs.
-     * Returns { found, score, jumpers, topology } (topology.certificate when non-planar).
+     * Place, route and pack with the box solver (src/engine/solver/).
+     * Wire step: { firstOnly: true } -- fresh placement, stop at the first fully routed layout.
+     * Compact step: { refine: true } -- start from the current board, shrink until progress stalls.
+     *
+     * Runs one solver per spare CPU core (layoutConfig.maxWorkers), each with its own random
+     * stream, and keeps the overall best. While searching, the board shows what the first
+     * solver is looking at right now (onLive); the best layout so far goes to onBestSnapshot.
+     * When the run ends, the board is set to the best layout (or back to where it was).
      */
-    // Wire step: { firstOnly: true } -- fresh placement, stop at the first fully routed layout.
-    // Compact step: { refine: true } -- start from the current board and shrink until progress stalls.
     async layout(compDefs, { refine = false, firstOnly = false } = {}) {
         if (!compDefs?.length) return null;
         this.gCancelRequested = false;
@@ -92,7 +95,8 @@ export class AutorouterEngine {
         const t0 = performance.now();
         const { budgetMs, stallMsPerPart, stallMinMs, stallMaxMs } = this.layoutConfig;
         const stallMs = Math.max(stallMinMs, Math.min(stallMaxMs, stallMsPerPart * compDefs.length));
-        let found = false, jumpers = 0;
+        const before = { components: this.components, wires: this.wires };
+        let best = null, lastImprove = null;
         // Keep results where the parts were, so the camera doesn't have to chase them.
         let cx = 0, cy = 0;
         if (this.components.length) {
@@ -100,53 +104,115 @@ export class AutorouterEngine {
             cx = Math.round((Math.min(...xs) + Math.max(...xs)) / 2);
             cy = Math.round((Math.min(...ys) + Math.max(...ys)) / 2);
         }
-        const onBest = (components, wires, metrics) => {
-            found = true;
-            jumpers = metrics.jumpers || 0;
+        const place = (components, wires) => {
             recenterComponents(components, wires);
             components.forEach(c => moveComp(c, c.ox + cx, c.oy + cy));
             wires.forEach(w => w.path.forEach(pt => { pt.col += cx; pt.row += cy; }));
+        };
+        const show = (components, wires) => {
             this.components = components;
             this.wires = wires;
             this.tick++;
             this.notify();
+        };
+        // a jumper counts as 4 holes, like in the solver
+        const keyOf = (m) => m.area + 4 * (m.jumpers || 0);
+        const onBest = (components, wires, metrics) => {
+            if (best && (keyOf(metrics) > best.key || (keyOf(metrics) === best.key && metrics.wl >= best.metrics.wl))) return;
+            place(components, wires);
+            best = { components, wires, metrics, key: keyOf(metrics) };
+            lastImprove = performance.now();
+            if (!this.liveView) show(components, wires);
             this.onBestSnapshot?.({ components, wires });
             this.onStatusUpdate?.({ best: metrics });
+            progressTick(); // defined below; only called once the solvers run
         };
-        const onProgress = (elapsed) => {
-            const best = found ? scoreState(this.components, this.wires) : null;
-            this.onProgress?.(Math.min(100, (elapsed / budgetMs) * 100),
-                best ? `Packing… best ${best.width}×${best.height} = ${best.area} holes` : 'Searching for a first routable layout…');
+        let lastLiveShown = 0;
+        const onLive = (components, wires) => {
+            const t = performance.now();
+            if (t - lastLiveShown < 60) return;
+            lastLiveShown = t;
+            place(components, wires);
+            show(components, wires);
+        };
+        // Stop rule (same as the benchmark-calibrated single solver): no better layout for
+        // stallMs, or for half the time it took to find the last one. Never before the first.
+        const stalled = () => {
+            if (!best) return false;
+            if (firstOnly) return true;
+            return performance.now() - lastImprove > Math.max(stallMs, (lastImprove - t0) * 0.5);
+        };
+        const nWorkers = typeof Worker === 'undefined' ? 0 : this.workerCount();
+        const label = refine ? 'Compacting' : 'Wiring';
+        const cores = nWorkers > 1 ? ` on ${nWorkers} cores` : '';
+        const progressTick = () => {
+            const now = performance.now();
+            if (!best) {
+                this.onProgress?.(null, firstOnly ? 'Arranging parts until every net is wired…' : 'Searching for a first routable layout…',
+                    `${((now - t0) / 1000).toFixed(0)} s${cores}`);
+                return;
+            }
+            const window = Math.max(stallMs, (lastImprove - t0) * 0.5);
+            const since = (now - lastImprove) / 1000;
+            const m = best.metrics;
+            this.onProgress?.(Math.min(100, ((now - lastImprove) / window) * 100),
+                `${label}… best ${m.width}×${m.height} = ${m.area} holes`,
+                `last improvement ${since.toFixed(0)} s ago · stops after ${(window / 1000).toFixed(0)} s without one${cores}`);
         };
         const initial = refine && this.components.length ? this.components : null;
         this.onStatusUpdate?.({ title: refine ? 'Compacting layout…' : 'Arranging parts until every net is wired…', best: null });
+        const ticker = setInterval(progressTick, 200);
+        progressTick();
 
-        if (typeof Worker !== 'undefined') {
-            await new Promise((resolve) => {
-                const worker = new Worker(new URL('./solver/solver.worker.js', import.meta.url), { type: 'module' });
-                this.activeWorker = worker;
-                const finish = () => { worker.terminate(); this.activeWorker = null; resolve(); };
-                worker.onmessage = (e) => {
-                    const m = e.data;
-                    if (m.type === 'best') onBest(m.components, m.wires, m.metrics);
-                    else if (m.type === 'progress') onProgress(m.elapsed);
-                    else if (m.type === 'done') finish();
-                };
-                worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
-                worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs, variant, firstOnly });
-                if (this.gCancelRequested) worker.postMessage({ type: 'stop' });
-            });
-        } else {
-            let lastBest = null;
-            await solveBox(compDefs, {
-                budgetMs, initial, variant,
-                shouldStop: () => this.gCancelRequested || (lastBest !== null && (firstOnly || performance.now() - lastBest > Math.max(stallMs, (lastBest - t0) * 0.5))),
-                onBest: (c, w, m) => { lastBest = performance.now(); onBest(c, w, m); },
-                onProgress: () => onProgress(performance.now() - t0),
-            });
+        try {
+            if (nWorkers > 0) {
+                await new Promise((resolve) => {
+                    const workers = [];
+                    let open = nWorkers, stopping = false;
+                    const stopAll = () => { if (!stopping) { stopping = true; workers.forEach(w => w.postMessage({ type: 'stop' })); } };
+                    const watchdog = setInterval(() => { if (this.gCancelRequested || stalled()) stopAll(); }, 100);
+                    const finishOne = (w) => {
+                        w.terminate();
+                        if (--open === 0) { clearInterval(watchdog); this.activeWorkers = []; resolve(); }
+                    };
+                    for (let i = 0; i < nWorkers; i++) {
+                        const worker = new Worker(new URL('./solver/solver.worker.js', import.meta.url), { type: 'module' });
+                        workers.push(worker);
+                        let done = false;
+                        const finish = () => { if (!done) { done = true; finishOne(worker); } };
+                        worker.onmessage = (e) => {
+                            const m = e.data;
+                            if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly) stopAll(); }
+                            else if (m.type === 'live') { if (!stopping) onLive(m.components, m.wires); }
+                            else if (m.type === 'done') finish();
+                        };
+                        worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
+                        // the engine decides when to stop (stallMs: null), worker 0 streams its live state
+                        worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, live: this.liveView && i === 0 });
+                    }
+                    this.activeWorkers = workers;
+                    if (this.gCancelRequested) stopAll();
+                });
+            } else {
+                await solveBox(compDefs, {
+                    budgetMs, initial, variant,
+                    shouldStop: () => this.gCancelRequested || stalled(),
+                    onBest,
+                    onLive: this.liveView ? onLive : null,
+                });
+            }
+        } finally {
+            clearInterval(ticker);
         }
-        this.notify();
-        return { found, jumpers, topology: topo, score: found ? scoreState(this.components, this.wires) : null };
+        if (best) show(best.components, best.wires);
+        else show(before.components, before.wires);
+        return { found: !!best, jumpers: best?.metrics.jumpers || 0, topology: topo, score: best ? scoreState(this.components, this.wires) : null };
+    }
+
+    // One solver per spare core, at most layoutConfig.maxWorkers.
+    workerCount() {
+        const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 2;
+        return Math.max(1, Math.min(this.layoutConfig.maxWorkers, hc - 1));
     }
 
     async optimize() {
@@ -164,6 +230,7 @@ export class AutorouterEngine {
             onBestSnapshot: (snapshot) => { this.onBestSnapshot?.(snapshot); }
         };
 
+        const { compactBoard } = await legacyOptimizer();
         const res = await compactBoard(
             this.components,
             this.wires,
@@ -195,6 +262,7 @@ export class AutorouterEngine {
             onBestSnapshot: (snapshot) => { this.onBestSnapshot?.(snapshot); }
         };
 
+        const { optimizeBoard } = await legacyOptimizer();
         const res = await optimizeBoard(
             this.components,
             this.wires,

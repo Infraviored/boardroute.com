@@ -13,7 +13,7 @@ import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { TEMPLATE, processTemplate, generateJSONFromState } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
-import { scoreState } from './engine/optimizer-algorithms.js';
+import { scoreState } from './engine/metrics.js';
 
 function App() {
   // --- ENGINE ---
@@ -415,7 +415,7 @@ function App() {
   useEffect(() => {
     engine.setCallbacks({
       onStateChange: (newState) => setBoard(prev => ({ ...prev, ...newState })),
-      onProgress: (p, t) => setStatus(prev => ({ ...prev, progress: p, title: t })),
+      onProgress: (p, t, detail) => setStatus(prev => ({ ...prev, progress: p, title: t, detail })),
       onStatusUpdate: (upd) => setStatus(prev => ({ ...prev, ...upd })),
       onBestSnapshot: (snapshot) => {
         const safeWires = snapshot.wires.map(w => ({ ...w, path: w.path ? w.path.map(pt => ({ ...pt })) : null }));

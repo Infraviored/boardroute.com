@@ -28,3 +28,5 @@ problems/repro_result.json
 # benchmark scratch + per-experiment results (best layouts and reference stay tracked)
 bench/tmp/
 bench/results/
+.wt/
+.claude/worktrees/

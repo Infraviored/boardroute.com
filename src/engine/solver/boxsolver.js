@@ -59,6 +59,9 @@ function placementFromEngine(model, comps) {
 
 export async function solveBox(defs, opts = {}) {
     const { budgetMs = 30000, onBest = null, shouldStop = null, onProgress = null } = opts;
+    // onLive(components, wires): the state the search is looking at right now (overlaps and
+    // unfinished wiring included), at most every liveMs -- for showing the search at work.
+    const { onLive = null, liveMs = 80 } = opts;
     // Tunables (benchmark: node bench/run.js box --opt key=val,...)
     const V = {
         polish: 2,        // cold re-route when overuse <= polish (0 = off)
@@ -109,7 +112,7 @@ export async function solveBox(defs, opts = {}) {
     const setBox = (w, h) => { W = w; H = h; router = new BoxRouter(model, W, H); router.jumpCost = jumpersOn ? V.jumperCost : 0; };
     const enableJumpers = () => { jumpersOn = true; if (router) router.jumpCost = V.jumperCost; };
 
-    let evals = 0, lazyRejects = 0;
+    let evals = 0, lazyRejects = 0, lastLive = 0;
     const evaluate = (pl, base = null, maxIter = V.iters, rasterized = false) => {
         evals++;
         const overlap = rasterized ? router.overlap : router.setPlacement(pl);
@@ -119,6 +122,11 @@ export async function solveBox(defs, opts = {}) {
         if (overlap === 0 && route.miss === 0 && route.overuse > 0 && route.overuse <= V.polish) {
             const r2 = router.negotiate({ maxIter: V.polishIter, pres0: V.pres0, partial: false });
             if (r2.overuse === 0 && r2.miss === 0) route = r2;
+        }
+        if (onLive && now() - lastLive > liveMs) {
+            lastLive = now();
+            const out = toEngine(model, pl, route, W);
+            onLive(out.components, out.wires);
         }
         let cost = costOf(route, overlap, V.jumperWeight), edgeOcc = 0;
         if (edge) { edgeOcc = lineOccupancy(route, edge); cost += V.edgeW * edgeOcc; }

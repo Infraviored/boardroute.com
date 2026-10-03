@@ -73,9 +73,9 @@ export function Topbar({
             <Eraser size={16} />
             Clear
           </button>
-          <button className="tbtn" onClick={onRouteOnly} title="Connect Airwires" disabled={isProcessing}>
+          <button className="tbtn" onClick={onRouteOnly} title="Re-route the wires without moving any part (e.g. after moving parts by hand)" disabled={isProcessing}>
             <Zap size={16} />
-            Connect
+            Reroute
           </button>
         </div>
 

@@ -96,6 +96,8 @@ export function processTemplate(data) {
 // `body` of a placed component for the circuit JSON: its whole w x h box when that is larger
 // than the pins' bounding box, else null. Pins are written relative to the box origin
 // (dCol/dRow), so this stays exact in whatever rotation the part currently has.
+// Trade-off: the export writes the full box because pins are exported in the rotated frame,
+// preserving the exact visual/blocking envelope in the current orientation.
 export function bodyOf(c) {
     if (!c.pins?.length || !c.w || !c.h) return null;
     let minC = Infinity, minR = Infinity, maxC = -Infinity, maxR = -Infinity;

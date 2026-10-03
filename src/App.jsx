@@ -213,14 +213,12 @@ function App() {
 
   const saveHistory = useCallback(() => {
     const snap = JSON.stringify({ components: engine.components, wires: engine.wires, cols: engine.cols, rows: engine.rows });
-    setHistory(prev => {
-      const next = prev.slice(0, historyIndex + 1);
-      next.push(snap);
-      if (next.length > 30) next.shift();
-      setHistoryIndex(next.length - 1);
-      return next;
-    });
-  }, [engine, historyIndex]);
+    const next = history.slice(0, historyIndex + 1);
+    next.push(snap);
+    if (next.length > 30) next.shift();
+    setHistory(next);
+    setHistoryIndex(next.length - 1);
+  }, [engine, history, historyIndex]);
 
   const handleLoadTemplate = useCallback(() => {
     setWorkflowStep(0);

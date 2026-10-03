@@ -45,12 +45,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
             }
         };
 
-        if (side === 'both') {
-            await exportOne('top');
-            await exportOne('bottom');
-        } else {
-            await exportOne(side);
-        }
+        await exportOne(side);
 
         // onClose(); // Keep open to allow multiple exports if needed
     };

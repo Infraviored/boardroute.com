@@ -116,14 +116,15 @@ function jumperSVG(x1, y1, x2, y2, color, { width = 2.4, hidden = false } = {}) 
     + `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round"/>${legs}`;
 }
 
-export function generateWiresSVG(wires, activeNets = []) {
+// opts.solderSide: jumpers lie on the other side, so they show only as faint dashed lines.
+export function generateWiresSVG(wires, activeNets = [], opts = {}) {
   let out = '';
   let jumpers = '';
   wires.forEach(w => {
     if (w.jumper && !w.failed && w.path?.length === 2) {
       const [a, b] = w.path;
       const isActive = activeNets.includes(w.net);
-      jumpers += jumperSVG(a.col * SP + SP / 2, a.row * SP + SP / 2, b.col * SP + SP / 2, b.row * SP + SP / 2, netColor(w.net), { width: isActive ? 3.4 : 2.4 });
+      jumpers += jumperSVG(a.col * SP + SP / 2, a.row * SP + SP / 2, b.col * SP + SP / 2, b.row * SP + SP / 2, netColor(w.net), { width: isActive ? 3.4 : 2.4, hidden: !!opts.solderSide });
       return;
     }
     if (w.failed) {

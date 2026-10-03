@@ -482,6 +482,30 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo, requestDelete, activePin, engine, handleRouteOnly]);
 
+  // Single-key shortcuts: W wire, C compact, R rotate the selected part, F fit the board into
+  // view, B flip to the solder side. Ignored while typing and with modifier keys.
+  const [viewSide, setViewSide] = useState('top');
+  const toggleSide = useCallback(() => { setViewSide(s => (s === 'top' ? 'bottom' : 'top')); setSnapCounter(c => c + 1); }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
+      if (document.querySelector('.overlay-bg')) return; // a dialog is open
+      const k = e.key.toLowerCase();
+      if (k === 'b') toggleSide();
+      else if (k === 'f') setSnapCounter(c => c + 1);
+      else if (status.isProcessing) return;
+      else if (k === 'w' && workflowStep >= 1) runLayout(false);
+      else if (k === 'c' && workflowStep >= 2) runLayout(true);
+      else if (k === 'r' && selectedId && viewSide === 'top') handleRotateComp(selectedId);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleSide, status.isProcessing, workflowStep, runLayout, selectedId, viewSide, handleRotateComp]);
+
   // Example circuits load bare (no wires): placed on the board, all three steps still to do.
   const loadExample = useCallback((ex) => {
     setExamplesOpen(null);
@@ -584,6 +608,8 @@ function App() {
               tick={board.tick} isProcessing={status.isProcessing || !!status.results} isInitialProcessing={status.isInitial}
               workflowStep={workflowStep} snapCounter={snapCounter}
               boardView={boardView}
+              side={viewSide} onToggleSide={toggleSide}
+              conflicts={status.isProcessing ? board.conflicts : null}
             />
           </main>
           <ProcessingBar

@@ -13,7 +13,8 @@ import {
   ExternalLink,
   Eraser,
   FileJson,
-  BookOpen
+  BookOpen,
+  Share2
 } from 'lucide-react';
 
 export function Topbar({
@@ -27,8 +28,19 @@ export function Topbar({
   onReset,
   onExportSVG,
   onRouteOnly,
+  onShareLink,
+  hasLayout,
   isProcessing
 }) {
+  const [shareState, setShareState] = React.useState(null); // null | 'copied' | 'failed'
+  const share = async () => {
+    try {
+      const url = await onShareLink();
+      await navigator.clipboard.writeText(url);
+      setShareState('copied');
+    } catch { setShareState('failed'); }
+    setTimeout(() => setShareState(null), 2000);
+  };
   const wireRef = React.useRef(null);
   const compactRef = React.useRef(null);
   const logoRef = React.useRef(null);
@@ -63,7 +75,7 @@ export function Topbar({
             ref={wireRef}
             onClick={() => { markHint('wire'); onStepClick(2); }}
             disabled={workflowStep < 1 || isProcessing}
-            title="Arrange the parts until every connection is wired"
+            title="Arrange the parts until every connection is wired (W)"
             style={{ '--flow-color': 'var(--grn-bright)' }}
           >
             <Cable size={14} />
@@ -74,7 +86,7 @@ export function Topbar({
             ref={compactRef}
             onClick={() => { markHint('compact'); onStepClick(3); }}
             disabled={workflowStep < 2 || isProcessing}
-            title="Shrink the board as far as possible, starting from the current layout (also after moving parts by hand)"
+            title="Shrink the board as far as possible, starting from the current layout, also after moving parts by hand (C)"
             style={{ '--flow-color': '#a371f7' }}
           >
             <Minimize2 size={14} />
@@ -122,6 +134,11 @@ export function Topbar({
         <div className="sep"></div>
 
         <div className="spc" style={{ flex: 1 }}></div>
+
+        <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout, nothing is uploaded)">
+          <Share2 size={16} />
+          <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
+        </button>
 
         <a className="tbtn docs-link" href="/how-it-works/" title="How the autorouter works">
           <BookOpen size={16} />
@@ -298,6 +315,8 @@ export function Topbar({
         }
 
         .docs-link { text-decoration: none; }
+        .share-btn.copied { color: var(--grn-bright); border-color: rgba(63,185,80,.5); }
+        .share-btn.failed { color: var(--red); }
         @media (max-width: 1500px) and (min-width: 951px) { .docs-link-label { display: none; } }
 
         /* Phones: logo on its own line, the three workflow steps share the full width below */

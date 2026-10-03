@@ -623,6 +623,7 @@ function App() {
       <Topbar
         workflowStep={workflowStep} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
         onImportState={handleImportState} onExportState={handleExportState} onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
+        onShareLink={handleShareLink} hasLayout={board.components.length > 0}
         hasWires={board.wires.length > 0} isProcessing={status.isProcessing}
       />
       <div id="layout">

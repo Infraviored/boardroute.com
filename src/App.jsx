@@ -14,6 +14,7 @@ import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { TEMPLATE, processTemplate, generateJSONFromState } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/optimizer-algorithms.js';
+import { useBoardView } from './hooks/useBoardView.js';
 
 function App() {
   // --- ENGINE ---
@@ -132,6 +133,7 @@ function App() {
   const [bestSnapshot, setBestSnapshot] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [boardView, setBoardView] = useBoardView();
 
   // Modal states
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -549,6 +551,7 @@ function App() {
               onManualRoute={handleManualRoute} onPreviewRoute={handlePreviewRoute} previewPath={previewPath}
               tick={board.tick} isProcessing={status.isProcessing || !!status.results} isInitialProcessing={status.isInitial}
               workflowStep={workflowStep} snapCounter={snapCounter}
+              boardView={boardView}
             />
           </main>
           <ProcessingBar
@@ -580,6 +583,7 @@ function App() {
           components={board.components}
           wires={board.wires}
           bestSnapshot={bestSnapshot}
+          boardView={boardView} setBoardView={setBoardView}
         />
       </div>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
@@ -592,7 +596,7 @@ function App() {
         message={confirmData.type === 'pin' ? `Are you sure you want to disconnect ${confirmData.targetId}?` : confirmData.type === 'comp' ? `Are you sure you want to delete ${confirmData.targetId}?` : confirmData.type === 'net' ? `Are you sure you want to clear wires for net ${confirmData.targetId}?` : confirmData.type === 'reset' ? 'Clear all components and wires?' : 'Proceed?'}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmData({ isOpen: false, type: null, targetId: null })}
       />
-      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} />
+      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} />
       <style dangerouslySetInnerHTML={{
         __html: `
         .app-main { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg0); }

@@ -14,6 +14,31 @@ import { solveBox } from './solver/boxsolver.js';
  * AutorouterEngine - A "Headless" wrapper for the PCB autorouting logic.
  * This class encapsulates state and provides a clean API for the UI.
  */
+// What makes a live search state illegal, for drawing it: holes claimed by two nets (or a wire
+// on another net's pin) and parts that overlap. The negotiating router allows both while it
+// searches; watching them disappear is how the search becomes visible.
+function findConflicts(components, wires) {
+    const owner = new Map(), cells = new Map();
+    const key = (c, r) => c * 100003 + r;
+    for (const c of components) for (const p of c.pins) owner.set(key(c.ox + p.dCol, c.oy + p.dRow), p.net || '');
+    const bad = new Map();
+    for (const w of wires) {
+        if (w.failed || w.jumper || !w.path) continue;
+        for (const pt of w.path) {
+            const k = key(pt.col, pt.row);
+            const pinNet = owner.get(k);
+            if ((pinNet !== undefined && pinNet !== w.net) || (cells.has(k) && cells.get(k) !== w.net)) bad.set(k, { col: pt.col, row: pt.row });
+            cells.set(k, w.net);
+        }
+    }
+    const parts = [];
+    for (let i = 0; i < components.length; i++) for (let j = i + 1; j < components.length; j++) {
+        const a = components[i], b = components[j];
+        if (a.ox < b.ox + b.w && b.ox < a.ox + a.w && a.oy < b.oy + b.h && b.oy < a.oy + a.h) parts.push(a.id, b.id);
+    }
+    return { cells: [...bad.values()], parts: [...new Set(parts)] };
+}
+
 export class AutorouterEngine {
     constructor(cols = 30, rows = 20) {
         this.components = [];
@@ -65,6 +90,7 @@ export class AutorouterEngine {
         this.onStateChange?.({
             components: this.components,
             wires: this.wires,
+            conflicts: this.conflicts || null,
             cols: this.cols,
             rows: this.rows,
             tick: this.tick
@@ -110,9 +136,10 @@ export class AutorouterEngine {
             components.forEach(c => moveComp(c, c.ox + cx, c.oy + cy));
             wires.forEach(w => w.path.forEach(pt => { pt.col += cx; pt.row += cy; }));
         };
-        const show = (components, wires) => {
+        const show = (components, wires, conflicts = null) => {
             this.components = components;
             this.wires = wires;
+            this.conflicts = conflicts;
             this.tick++;
             this.notify();
         };
@@ -134,7 +161,7 @@ export class AutorouterEngine {
             if (t - lastLiveShown < 60) return;
             lastLiveShown = t;
             place(components, wires);
-            show(components, wires);
+            show(components, wires, findConflicts(components, wires));
         };
         // Stop rule (same as the benchmark-calibrated single solver): no better layout for
         // stallMs, or for half the time it took to find the last one. Never before the first.

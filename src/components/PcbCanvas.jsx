@@ -19,7 +19,8 @@ import {
     Plus,
     Minus,
     Maximize,
-    Crosshair
+    Crosshair,
+    FlipHorizontal2
 } from 'lucide-react';
 const TRACKING_MODES = { NONE: 'none', SNAP: 'snap', LIVE: 'live' };
 const { SNAP } = TRACKING_MODES;
@@ -46,6 +47,9 @@ export function PcbCanvas({
     onSelectNet,
     activePin,
     boardView = null, // physical board outline + hole coordinates (see useBoardView)
+    side = 'top',
+    onToggleSide,     // 'bottom': solder side, mirrored left/right like the board turned over (view only)
+    conflicts = null, // live search state: { cells: [{col,row}], parts: [id] } to draw in red
     customComponentsSvg // Optional prop if we want to override
 }) {
     const svgRef = useRef(null);
@@ -87,6 +91,13 @@ export function PcbCanvas({
 
     const handlePointerDown = (e) => {
         const pos = getMousePos(e);
+        if (side === 'bottom') {
+            // The solder-side view is mirrored and view-only: every drag pans.
+            setIsPanning(true);
+            lastPos.current = pos;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            return;
+        }
         const worldY = (pos.y - camera.y) / camera.z;
         const worldX = (pos.x - camera.x) / camera.z;
         const col = Math.floor(worldX / SP);
@@ -236,8 +247,8 @@ export function PcbCanvas({
             for (const p of w.path) {
                 minCol = Math.min(minCol, p.col);
                 minRow = Math.min(minRow, p.row);
-                maxCol = Math.max(maxCol, p.col);
-                maxRow = Math.max(maxRow, p.row);
+                maxCol = Math.max(maxCol, p.col + 1);
+                maxRow = Math.max(maxRow, p.row + 1);
             }
         }
         if (boardFrame) {
@@ -480,17 +491,43 @@ export function PcbCanvas({
     // bumps tick, so the array references alone don't change when the board does. Each memo
     // reads tick explicitly so the dependency is real (an exhaustive-deps suppression would
     // also switch off the React Compiler lint rules for this whole component).
-    const wiresSvg = useMemo(() => { void tick; return generateWiresSVG(wires, activeNets); }, [wires, activeNets, tick]);
-    const ratsnestSvg = useMemo(() => { void tick; return generateRatsnestSVG(components, wires); }, [components, wires, tick]);
-    const renderedComponentsSvg = useMemo(() => { void tick; return customComponentsSvg || components.map(c => renderCompSVG(c, c.id === selectedId, activePin)).join(''); }, [components, selectedId, activePin, tick, customComponentsSvg]);
+    // Solder side: mirror every column about the layout's bounds (same convention as the export).
+    const solder = side === 'bottom';
+    const mCenter = bounds.minCol + bounds.maxCol;
+    const view = useMemo(() => {
+        void tick;
+        if (!solder) return { components, wires };
+        return {
+            components: components.map(c => ({ ...c, ox: mCenter - c.ox - c.w, pins: c.pins.map(p => ({ ...p, col: mCenter - p.col - 1 })) })),
+            wires: wires.map(w => ({ ...w, path: w.path?.map(pt => ({ ...pt, col: mCenter - pt.col - 1 })) })),
+        };
+    }, [solder, components, wires, mCenter, tick]);
+    const wiresSvg = useMemo(() => { void tick; return generateWiresSVG(view.wires, activeNets, { solderSide: solder }); }, [view, activeNets, solder, tick]);
+    const ratsnestSvg = useMemo(() => { void tick; return solder ? '' : generateRatsnestSVG(components, wires); }, [solder, components, wires, tick]);
+    const compsSplit = useMemo(() => {
+        void tick;
+        if (customComponentsSvg) return { base: customComponentsSvg, labels: '' };
+        if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin)).join(''), labels: '' };
+        // solder side: part outlines under the copper, labels on top
+        const parts = view.components.map(c => renderCompSVG(c, 'split'));
+        return { base: parts.map(r => r.base).join(''), labels: parts.map(r => r.labels).join('') };
+    }, [solder, view, components, selectedId, activePin, tick, customComponentsSvg]);
+    const conflictsSvg = useMemo(() => {
+        if (!conflicts || solder) return '';
+        const ids = new Set(conflicts.parts);
+        let out = '';
+        for (const c of components) if (ids.has(c.id)) out += `<rect x="${c.ox * SP + 2}" y="${c.oy * SP + 2}" width="${c.w * SP - 4}" height="${c.h * SP - 4}" rx="6" fill="rgba(248,81,73,0.12)" stroke="#f85149" stroke-width="2" stroke-dasharray="5 4"/>`;
+        for (const p of conflicts.cells) out += `<circle class="conflict-cell" cx="${p.col * SP + SP / 2}" cy="${p.row * SP + SP / 2}" r="${SP * 0.42}" fill="rgba(248,81,73,0.25)" stroke="#f85149" stroke-width="2"/>`;
+        return out;
+    }, [conflicts, components, solder]);
     const boundingBoxSvg = useMemo(() => { void tick; return generateBoundingBoxSVG(components, wires); }, [components, wires, tick]);
     // Coordinate text grows when zoomed out so it stays readable; quantised so zooming doesn't
     // regenerate the layer on every frame.
     const coordScale = Math.min(3, Math.max(1, Math.round(4 / (camera.z || 1)) / 4));
     const coordsSvg = useMemo(() => {
         void tick;
-        return generateCoordinatesSVG({ frame: boardFrame, view: boardView, components, scale: coordScale, dimOutside: true });
-    }, [boardFrame, boardView, components, coordScale, tick]);
+        return generateCoordinatesSVG({ frame: boardFrame, view: boardView, components, side, mCenter, scale: coordScale, dimOutside: true });
+    }, [boardFrame, boardView, components, side, mCenter, coordScale, tick]);
 
     // Re-frame the camera when the board settings change the visible extent.
     const boardKey = boardFrame ? `${boardView.boardCols}x${boardView.boardRows}+${boardView.margin}:${boardView.showCoords}` : '';
@@ -537,9 +574,16 @@ export function PcbCanvas({
                     <g id="main-content">
                         <g dangerouslySetInnerHTML={{ __html: background }} />
                         {coordsSvg.board && <g dangerouslySetInnerHTML={{ __html: coordsSvg.board }} />}
-                        <g dangerouslySetInnerHTML={{ __html: wiresSvg }} />
-                        <g dangerouslySetInnerHTML={{ __html: ratsnestSvg }} />
-                        <g dangerouslySetInnerHTML={{ __html: renderedComponentsSvg }} />
+                        {solder ? <>
+                            <g dangerouslySetInnerHTML={{ __html: compsSplit.base }} />
+                            <g dangerouslySetInnerHTML={{ __html: wiresSvg }} />
+                            <g dangerouslySetInnerHTML={{ __html: compsSplit.labels }} />
+                        </> : <>
+                            <g dangerouslySetInnerHTML={{ __html: wiresSvg }} />
+                            <g dangerouslySetInnerHTML={{ __html: ratsnestSvg }} />
+                            <g dangerouslySetInnerHTML={{ __html: compsSplit.base }} />
+                            {conflictsSvg && <g className="conflicts-layer" dangerouslySetInnerHTML={{ __html: conflictsSvg }} />}
+                        </>}
                         <g dangerouslySetInnerHTML={{ __html: boundingBoxSvg }} />
                         {coordsSvg.labels && <g dangerouslySetInnerHTML={{ __html: coordsSvg.labels }} />}
 
@@ -595,7 +639,11 @@ export function PcbCanvas({
                 </g>
             </svg>
 
+            {solder && <div className="side-badge">Solder side · mirrored like the board turned over · view only</div>}
             <div className="canvas-controls">
+                <button className={`cbtn side-btn ${solder ? 'on' : ''}`} onClick={onToggleSide} title={solder ? 'Show the component side (B)' : 'Show the solder side, mirrored (B)'}>
+                    <FlipHorizontal2 size={18} />
+                </button>
                 <button className="cbtn" onClick={() => {
                     const nextZ = Math.min(Math.max(simZoom.current * 1.15, 0.1), 10.0);
                     const rect = svgRef.current.getBoundingClientRect();
@@ -647,6 +695,10 @@ export function PcbCanvas({
                 .canvas-container { user-select: none; -webkit-user-select: none; }
                 .canvas-controls { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 .canvas-container.pb-active .canvas-controls { bottom: calc(20px + var(--pb-height)); }
+                .cbtn.side-btn.on { color: var(--org); border-color: rgba(210,153,34,.6); }
+                .side-badge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 6px 14px; border-radius: 999px; background: rgba(13,17,23,.85); border: 1px solid rgba(210,153,34,.5); color: var(--org); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
+                .conflict-cell { animation: conflict-pulse 0.9s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+                @keyframes conflict-pulse { from { opacity: .45; transform: scale(.8); } to { opacity: 1; transform: scale(1.05); } }
                 .cbtn { 
                   width: 38px; 
                   height: 38px; 

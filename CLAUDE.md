@@ -73,6 +73,7 @@ node tools/analyze_layout.js <layout.json>     # bounding box + which components
   - `boxrouter.js` — negotiated-congestion (PathFinder-style) router inside a fixed W×H box. Nets may temporarily share cells at rising cost; the result's `overuse`/`miss` measure how far a placement is from routable. Warm starts `salvage()` the valid part of each net's previous Steiner tree and only re-route the broken branches -- this partial repair is the main speed lever (profiling: A* in `routeNet` is ~60 % of runtime).
   - `boxsolver.js` — fix the box, simulated-anneal placement against overlap + routing violations until legal, crop to the footprint, delete a row/column, repeat; restart after repeated failures. Start placement comes from a cheap wire-length (HPWL) anneal. Moves: shift, rotate, swap, random jump and the dominant "smart jump" (put a pin next to another pin of the same net). Metropolis draws its random number first so overlapping moves are rejected exactly without routing. All tunables live in the `V` object and can be set per benchmark run with `--opt`. Jumper wires are a router step (straight hop over 1–4 holes without parts) enabled by `V.jumpers` / `V.jumperAfterMs`; they come out as wires with `jumper: true`.
   - `model.js` — numeric circuit model (4 precomputed rotations matching `rotateComp90InPlace`) and `toEngine()` back to engine components/wires.
+- `share.js` — share links: board (parts in their current rotation + wires incl. jumpers) packed into `#b=1d<base64url deflate-raw JSON>`, format documented at the top of the file; App loads it on start/hashchange (before saved board and examples picker). Round-trip check: `node tools/share-roundtrip.js`.
 - `topology.js` — proves a circuit unroutable on one layer: contract every net's copper (wires + its pins) to a vertex, keep part bodies/pin clusters as grid graphs; the result must be planar for ANY placement. Non-planar → returns a K5/K3,3 certificate naming parts and nets. Planarity is necessary, not sufficient: it ignores capacity (e.g. `06_motor_l293d` is planar but its DIP-16 corridor of 2 holes is too narrow; with 3 holes it routes).
 
 Key invariants:
@@ -84,6 +85,7 @@ Key invariants:
 
 ### UI (`src/`)
 
+- Keyboard: W wire, C compact, R rotate selected, F fit view, B solder side (mirrored, view only); handled in `App.jsx` (ignored in inputs and while a dialog is open).
 - `App.jsx` owns all app state (board, workflow step, selection, active pin for manual routing, undo history, overlays) and a single `AutorouterEngine` instance; components are presentational and call back into `App`.
 - `components/PcbCanvas.jsx` — zoom/pan canvas rendering the SVGs from `render-utils.js`; camera auto-framing physics tuned in `engine/config.js` (`CAMERA_CONFIG`).
 - Overlays: `CompEditorOverlay` (component footprint editor), `LibraryOverlay` (loads `public/component_database.json`), `ExportOverlay` (pruned board export via `generatePrunedSVG`), `PromptOverlay`, `ConfirmOverlay`.

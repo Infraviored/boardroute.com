@@ -11,6 +11,8 @@ import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
+import { ResultCard } from './components/ResultCard.jsx';
+import { decodeShare, shareFromHash, shareUrl } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
@@ -135,6 +137,9 @@ function App() {
   const [bestSnapshot, setBestSnapshot] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  // Summary card after a finished Wire/Compact run; shown only while the board is unchanged
+  // since (its tick matches the board's), so any edit, undo or new run hides it.
+  const [resultCard, setResultCard] = useState(null);
   const [boardView, setBoardView] = useBoardView();
 
   // Modal states
@@ -143,6 +148,7 @@ function App() {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [examples, setExamples] = useState([]);
   const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
+  const [exampleTitle, setExampleTitle] = useState(null); // shown in the Circuit card while an example is loaded
   const [editingComp, setEditingComp] = useState(null);
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -216,6 +222,7 @@ function App() {
 
   const handleLoadTemplate = useCallback(() => {
     setWorkflowStep(0);
+    setExampleTitle(null);
     setJsonInput(JSON.stringify(TEMPLATE, null, 2));
     const defs = processTemplate(TEMPLATE);
     engine.initializeBoard(defs);
@@ -226,7 +233,7 @@ function App() {
   const parseCircuit = useCallback(() => {
     let data;
     try { data = JSON.parse(jsonInput); } catch (e) {
-      setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it in the Circuit Definition box.` });
+      setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it under Circuit → Edit JSON.` });
       return null;
     }
     let defs = null;
@@ -251,10 +258,11 @@ function App() {
 
   const handleLoadCircuit = useCallback(() => {
     const defs = parseCircuit();
-    if (!defs) return;
+    if (!defs) return false;
     setNotice(null);
     engine.mergeBoard(defs);
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+    return true;
   }, [engine, parseCircuit, saveHistory]);
 
   // Wire (step 2): fresh placement, rearranged only until every net is connected.
@@ -264,6 +272,8 @@ function App() {
     if (!defs) return;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
+    setResultCard(null);
+    const start = refine && engine.wires.length ? scoreState(engine.components, engine.wires) : null;
     // usage statistics: how many layouts people actually run (GoatCounter event, no personal data)
     window.goatcounter?.count?.({ path: refine ? 'compact' : 'wire', title: `${defs.length} parts`, event: true });
     setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
@@ -295,8 +305,22 @@ function App() {
           : `No layout without crossings turned up, most likely because some wires don't fit between closely spaced pins. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`,
       });
     }
+    if (res?.found) {
+      const s = scoreState(engine.components, engine.wires);
+      setResultCard({
+        mode: refine ? 'compact' : 'wire', tick: engine.tick,
+        width: s.width, height: s.height, area: s.area, wl: s.wl,
+        jumpers: engine.wires.filter(w => w.jumper && !w.failed).length,
+        start: start && { width: start.width, height: start.height, area: start.area },
+      });
+    }
     setSnapCounter(c => c + 1); saveHistory();
   }, [engine, parseCircuit, saveHistory]);
+
+  const handleShareLink = useCallback(() => {
+    window.goatcounter?.count?.({ path: 'share-create', event: true });
+    return shareUrl(engine.components, engine.wires);
+  }, [engine]);
 
   const handleStepClick = useCallback(async (step) => {
     if (step === 0) { engine.setState({ components: [], wires: [] }); setWorkflowStep(0); }
@@ -480,10 +504,45 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo, requestDelete, activePin, engine, handleRouteOnly]);
 
+  // Single-key shortcuts: W wire, C compact, R rotate the selected part, F fit the board into
+  // view, B flip to the solder side. Ignored while typing and with modifier keys.
+  const [viewSide, setViewSide] = useState('top');
+  const toggleSide = useCallback(() => {
+    setViewSide(s => {
+      const next = s === 'top' ? 'bottom' : 'top';
+      if (next === 'bottom') {
+        setActivePin(null);
+        setPreviewPath(null);
+      }
+      return next;
+    });
+    setSnapCounter(c => c + 1);
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
+      if (document.querySelector('.overlay-bg, .json-drawer')) return; // a dialog is open
+      const k = e.key.toLowerCase();
+      if (k === 'b') toggleSide();
+      else if (k === 'f') setSnapCounter(c => c + 1);
+      else if (status.isProcessing) return;
+      else if (k === 'w' && workflowStep >= 1) runLayout(false);
+      else if (k === 'c' && workflowStep >= 2) runLayout(true);
+      else if (k === 'r' && selectedId && viewSide === 'top') handleRotateComp(selectedId);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleSide, status.isProcessing, workflowStep, runLayout, selectedId, viewSide, handleRotateComp]);
+
   // Example circuits load bare (no wires): placed on the board, all three steps still to do.
   const loadExample = useCallback((ex) => {
     setExamplesOpen(null);
     setNotice(null);
+    setExampleTitle(ex.title);
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
@@ -503,10 +562,42 @@ function App() {
     fetch('/examples.json').then(r => r.json()).then(setExamples)
       .catch(err => { console.error('examples.json', err); setExamplesError(true); });
   }, []);
+  // Share link (#b=..., see engine/share.js): takes precedence over the saved board, ?example=
+  // and the first-visit picker. Loaded like an example, so Undo returns to the previous board.
+  const [shareValue] = useState(() => shareFromHash(window.location.hash));
+  const [shareState, setShareState] = useState(shareValue ? 'pending' : 'none'); // none | pending | done | failed
+  const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
+    engine.setState({ components, wires });
+    setNotice(null);
+    setExampleTitle(null);
+    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
+    setShareState('done');
+    window.goatcounter?.count?.({ path: 'share-open', title: `${components.length} parts`, event: true });
+  }).catch(err => {
+    console.error('share link', err);
+    setNotice({ kind: 'error', title: 'This share link could not be opened', text: `${err.message ? err.message[0].toUpperCase() + err.message.slice(1) : 'Unknown error'}. Ask for the link again, and make sure it was copied completely.` });
+    setShareState('failed');
+  }).finally(() => {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }), [engine, saveHistory]);
+  const shareStarted = useRef(false);
+  useEffect(() => {
+    if (!shareValue || shareStarted.current) return;
+    shareStarted.current = true;
+    loadShare(shareValue);
+  }, [shareValue, loadShare]);
+  // A link pasted into a tab that already shows boardroute only changes the fragment (no reload).
+  useEffect(() => {
+    const onHash = () => { const v = shareFromHash(window.location.hash); if (v) loadShare(v); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [loadShare]);
+
   const examplesStarted = useRef(false);
   useEffect(() => {
-    if (examplesStarted.current || (!examples.length && !examplesError)) return;
+    if (shareState === 'pending' || examplesStarted.current || (!examples.length && !examplesError)) return;
     examplesStarted.current = true;
+    if (shareState === 'done') return;
     const wanted = new URLSearchParams(window.location.search).get('example');
     const ex = wanted && examples.find(e => e.id === wanted);
     if (ex) {
@@ -515,7 +606,7 @@ function App() {
     } else if (firstVisit) {
       if (examples.length) setExamplesOpen('first'); else handleLoadTemplate();
     }
-  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate]);
+  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate, shareState]);
 
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
@@ -541,6 +632,7 @@ function App() {
       <Topbar
         workflowStep={workflowStep} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
         onImportState={handleImportState} onExportState={handleExportState} onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
+        onShareLink={handleShareLink} hasLayout={board.components.length > 0}
         hasWires={board.wires.length > 0} isProcessing={status.isProcessing}
       />
       <div id="layout">
@@ -548,6 +640,8 @@ function App() {
           onOpenPrompt={() => setIsPromptOpen(true)}
           onOpenExamples={() => setExamplesOpen('browse')}
           jsonInput={jsonInput} setJsonInput={setJsonInput}
+          exampleTitle={exampleTitle}
+          onLoadCircuit={(edited) => { const ok = handleLoadCircuit(); if (ok && edited) setExampleTitle(null); return ok; }}
           components={board.components} selectedId={selectedId}
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
           onOpenLibrary={() => setIsLibraryOpen(true)}
@@ -582,8 +676,20 @@ function App() {
               tick={board.tick} isProcessing={status.isProcessing || !!status.results} isInitialProcessing={status.isInitial}
               workflowStep={workflowStep} snapCounter={snapCounter}
               boardView={boardView}
+              side={viewSide} onToggleSide={toggleSide}
+              conflicts={status.isProcessing ? board.conflicts : null}
             />
           </main>
+          {resultCard && resultCard.tick === board.tick && !status.isProcessing && (
+            <ResultCard
+              key={resultCard.tick}
+              result={resultCard}
+              onClose={() => setResultCard(null)}
+              onCompact={() => runLayout(true)}
+              onExport={() => setIsExportOpen(true)}
+              onShare={handleShareLink}
+            />
+          )}
           <ProcessingBar
             status={status}
             bestSnapshot={bestSnapshot}

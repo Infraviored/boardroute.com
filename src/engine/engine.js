@@ -179,35 +179,53 @@ export class AutorouterEngine {
         progressTick();
 
         try {
+            let ranWorkers = false;
             if (nWorkers > 0) {
                 await new Promise((resolve) => {
                     const workers = [];
-                    let open = nWorkers, stopping = false;
+                    let open = 0, stopping = false;
                     const stopAll = () => { if (!stopping) { stopping = true; workers.forEach(w => w.postMessage({ type: 'stop' })); } };
                     const watchdog = setInterval(() => { if (this.gCancelRequested || stalled()) stopAll(); }, 100);
                     const finishOne = (w) => {
                         w.terminate();
                         if (--open === 0) { clearInterval(watchdog); this.activeWorkers = []; resolve(); }
                     };
-                    for (let i = 0; i < nWorkers; i++) {
-                        const worker = new Worker(new URL('./solver/solver.worker.js', import.meta.url), { type: 'module' });
-                        workers.push(worker);
-                        let done = false;
-                        const finish = () => { if (!done) { done = true; finishOne(worker); } };
-                        worker.onmessage = (e) => {
-                            const m = e.data;
-                            if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly) stopAll(); }
-                            else if (m.type === 'live') { if (!stopping) onLive(m.components, m.wires); }
-                            else if (m.type === 'done') finish();
-                        };
-                        worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
-                        // the engine decides when to stop (stallMs: null), worker 0 streams its live state
-                        worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, live: this.liveView && i === 0 });
+                    try {
+                        for (let i = 0; i < nWorkers; i++) {
+                            const worker = new Worker(new URL('./solver/solver.worker.js', import.meta.url), { type: 'module' });
+                            workers.push(worker);
+                            let done = false;
+                            const finish = () => { if (!done) { done = true; finishOne(worker); } };
+                            worker.onmessage = (e) => {
+                                const m = e.data;
+                                if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly) stopAll(); }
+                                else if (m.type === 'live') { if (!stopping) onLive(m.components, m.wires); }
+                                else if (m.type === 'done') finish();
+                            };
+                            worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
+                            // the engine decides when to stop (stallMs: null), worker 0 streams its live state
+                            worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, live: this.liveView && i === 0 });
+                        }
+                        open = workers.length;
+                        this.activeWorkers = workers;
+                        ranWorkers = true;
+                        if (this.gCancelRequested) stopAll();
+                    } catch (err) {
+                        console.error('Failed to create solver worker', err);
+                        if (workers.length === 0) {
+                            clearInterval(watchdog);
+                            this.activeWorkers = [];
+                            resolve();
+                        } else {
+                            open = workers.length;
+                            this.activeWorkers = workers;
+                            ranWorkers = true;
+                            if (this.gCancelRequested) stopAll();
+                        }
                     }
-                    this.activeWorkers = workers;
-                    if (this.gCancelRequested) stopAll();
                 });
-            } else {
+            }
+            if (!ranWorkers) {
                 await solveBox(compDefs, {
                     budgetMs, initial, variant,
                     shouldStop: () => this.gCancelRequested || stalled(),
@@ -227,11 +245,15 @@ export class AutorouterEngine {
     topology(defs) {
         if (typeof Worker === 'undefined') return Promise.resolve(analyzeTopology(defs));
         return new Promise((resolve) => {
-            const w = new Worker(new URL('./topology.worker.js', import.meta.url), { type: 'module' });
-            const done = (r) => { w.terminate(); resolve(r); };
-            w.onmessage = (e) => done(e.data.error ? analyzeTopology(defs) : e.data);
-            w.onerror = () => done(analyzeTopology(defs));
-            w.postMessage({ defs });
+            try {
+                const w = new Worker(new URL('./topology.worker.js', import.meta.url), { type: 'module' });
+                const done = (r) => { w.terminate(); resolve(r); };
+                w.onmessage = (e) => done(e.data.error ? analyzeTopology(defs) : e.data);
+                w.onerror = () => done(analyzeTopology(defs));
+                w.postMessage({ defs });
+            } catch {
+                resolve(analyzeTopology(defs));
+            }
         });
     }
 

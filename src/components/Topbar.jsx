@@ -1,5 +1,7 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
+  X,
   Zap,
   Cable,
   Minimize2,
@@ -27,10 +29,24 @@ export function Topbar({
   onRouteOnly,
   isProcessing
 }) {
+  const wireRef = React.useRef(null);
+  const compactRef = React.useRef(null);
+  const logoRef = React.useRef(null);
+  const [hintsSeen, setHintsSeen] = React.useState(readHints);
+  const markHint = (key, n = 1) => setHintsSeen(prev => {
+    const next = { ...prev, [key]: (prev[key] || 0) + n };
+    writeHints(next);
+    return next;
+  });
+
+  // Next-step coach mark: after Load point at Wire, after Wire at Compact; only for the first runs.
+  const hintKey = isProcessing ? null : workflowStep === 1 ? 'wire' : workflowStep === 2 ? 'compact' : null;
+  const hint = hintKey && (hintsSeen[hintKey] || 0) < HINT_RUNS ? HINTS[hintKey] : null;
+
   return (
     <header id="topbar">
       <div className="topbar-row-1">
-        <div className="logo">board<em>route.com</em></div>
+        <div className="logo" ref={logoRef}>board<em>route.com</em></div>
         <div className="sep logo-sep"></div>
         <div className="workflow-track">
           <button
@@ -44,7 +60,8 @@ export function Topbar({
           </button>
           <button
             className={`flow-btn ${workflowStep >= 2 && !(workflowStep === 2 && isProcessing) ? 'completed' : ''} ${workflowStep === 2 && isProcessing ? 'processing' : ''} ${workflowStep === 1 && !isProcessing ? 'next' : ''}`}
-            onClick={() => onStepClick(2)}
+            ref={wireRef}
+            onClick={() => { markHint('wire'); onStepClick(2); }}
             disabled={workflowStep < 1 || isProcessing}
             title="Arrange the parts until every connection is wired"
             style={{ '--flow-color': 'var(--grn-bright)' }}
@@ -54,7 +71,8 @@ export function Topbar({
           </button>
           <button
             className={`flow-btn ${workflowStep >= 3 && !(workflowStep === 3 && isProcessing) ? 'completed' : ''} ${workflowStep === 3 && isProcessing ? 'processing' : ''} ${workflowStep === 2 && !isProcessing ? 'next' : ''}`}
-            onClick={() => onStepClick(3)}
+            ref={compactRef}
+            onClick={() => { markHint('compact'); onStepClick(3); }}
             disabled={workflowStep < 2 || isProcessing}
             title="Shrink the board as far as possible, starting from the current layout (also after moving parts by hand)"
             style={{ '--flow-color': '#a371f7' }}
@@ -436,6 +454,121 @@ export function Topbar({
           border-color: var(--err-bright);
         }
       `}} />
+      {hint && (
+        <CoachMark
+          key={hintKey}
+          targetRef={hintKey === 'wire' ? wireRef : compactRef}
+          watchRef={logoRef}
+          color={hint.color}
+          onDismiss={() => markHint(hintKey, HINT_RUNS)}
+        >
+          {hint.text}
+        </CoachMark>
+      )}
     </header>
+  );
+}
+
+const HINTS_KEY = 'pcb_hints_seen';
+const HINT_RUNS = 2; // show each hint until its step has been run this many times
+const HINTS = {
+  wire: { color: 'var(--grn-bright)', text: <>Next: press <b>Wire</b> to connect everything</> },
+  compact: { color: '#a371f7', text: <>Now press <b>Compact</b> to shrink the board</> },
+};
+
+function readHints() {
+  try {
+    const v = JSON.parse(localStorage.getItem(HINTS_KEY) || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+function writeHints(v) {
+  try { localStorage.setItem(HINTS_KEY, JSON.stringify(v)); } catch { /* storage unavailable */ }
+}
+
+/**
+ * Speech bubble under a top-bar button. Rendered into <body> with fixed coordinates: the top bar
+ * clips overflow and its backdrop-filter would make it the containing block of a fixed child.
+ * Positioned by writing styles directly (no state), re-measured on resize and when the logo
+ * (whose width follows the left sidebar) changes size.
+ */
+function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
+  const bubbleRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    const place = () => {
+      const t = targetRef.current, b = bubbleRef.current;
+      if (!t || !b) return;
+      const r = t.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const w = b.offsetWidth;
+      const cx = r.left + r.width / 2;
+      const left = Math.max(8, Math.min(vw - w - 8, cx - w / 2));
+      b.style.top = `${Math.round(r.bottom + 12)}px`;
+      b.style.left = `${Math.round(left)}px`;
+      b.style.setProperty('--arrow-x', `${Math.round(Math.max(14, Math.min(w - 14, cx - left)))}px`);
+      b.style.visibility = r.width ? 'visible' : 'hidden';
+    };
+    place();
+    window.addEventListener('resize', place);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null;
+    if (ro) { if (watchRef.current) ro.observe(watchRef.current); if (bubbleRef.current) ro.observe(bubbleRef.current); }
+    return () => { window.removeEventListener('resize', place); ro?.disconnect(); };
+  }, [targetRef, watchRef]);
+
+  return createPortal(
+    <>
+      <div ref={bubbleRef} className="coach-mark" role="status" style={{ '--coach-color': color, visibility: 'hidden' }}>
+        <span className="coach-text">{children}</span>
+        <button type="button" className="coach-close" onClick={onDismiss} aria-label="Dismiss tip"><X size={13} /></button>
+      </div>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .coach-mark {
+          position: fixed;
+          z-index: 200;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          max-width: min(340px, calc(100vw - 16px));
+          padding: 8px 6px 8px 12px;
+          background: var(--glass-bg);
+          backdrop-filter: blur(12px);
+          border: 1px solid color-mix(in srgb, var(--coach-color), transparent 40%);
+          border-radius: 10px;
+          box-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 0 18px color-mix(in srgb, var(--coach-color), transparent 75%);
+          font-size: var(--fs-sm);
+          color: var(--txt0);
+          line-height: 1.35;
+          animation: coach-in 0.35s cubic-bezier(0.16, 1, 0.3, 1), coach-bob 2.4s 0.4s ease-in-out infinite;
+        }
+        .coach-mark::before {
+          content: '';
+          position: absolute;
+          top: -6px;
+          left: calc(var(--arrow-x, 50%) - 6px);
+          width: 10px;
+          height: 10px;
+          background: var(--bg2);
+          border-left: 1px solid color-mix(in srgb, var(--coach-color), transparent 40%);
+          border-top: 1px solid color-mix(in srgb, var(--coach-color), transparent 40%);
+          transform: rotate(45deg);
+        }
+        .coach-text b { color: var(--coach-color); font-weight: 800; }
+        .coach-close {
+          display: flex; align-items: center; justify-content: center;
+          width: 22px; height: 22px; flex-shrink: 0;
+          background: none; border: none; border-radius: 5px;
+          color: var(--txt1); cursor: pointer;
+        }
+        .coach-close:hover { color: var(--txt0); background: var(--bg4); }
+        @keyframes coach-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
+        @keyframes coach-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
+        @media (prefers-reduced-motion: reduce) { .coach-mark { animation: none; } }
+      `}} />
+    </>,
+    document.body
   );
 }

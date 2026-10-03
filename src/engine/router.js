@@ -257,8 +257,12 @@ export function incrementalReroute(components, wires, movedComps) {
 
   const grid = new Grid(gridCols, gridRows, gridMinC, gridMinR);
   components.forEach(c => grid.registerComp(c));
-  // Mark all kept wires on grid
-  keptWires.forEach(w => { if (!w.failed && w.path) grid.markWire(w.path); });
+  // Mark all kept wires on grid (a jumper has no interior cells: block its legs instead)
+  keptWires.forEach(w => {
+    if (w.failed || !w.path) return;
+    if (w.jumper) w.path.forEach(pt => grid.set(pt.col, pt.row, BLOCKED_WIRE));
+    else grid.markWire(w.path);
+  });
 
   // 5. Route only the affected nets
   const allNets = getAllNets(components);

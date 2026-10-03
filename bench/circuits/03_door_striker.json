@@ -1,0 +1,316 @@
+{
+  "components": [
+    {
+      "id": "U1",
+      "name": "ESP32-C3",
+      "value": "SuperMini",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": null,
+          "label": "5V"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "GND"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "3V3",
+          "label": "3V3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": null,
+          "label": "IO10"
+        },
+        {
+          "offset": [
+            0,
+            4
+          ],
+          "net": null,
+          "label": "IO9"
+        },
+        {
+          "offset": [
+            0,
+            5
+          ],
+          "net": null,
+          "label": "IO8"
+        },
+        {
+          "offset": [
+            0,
+            6
+          ],
+          "net": null,
+          "label": "RX"
+        },
+        {
+          "offset": [
+            0,
+            7
+          ],
+          "net": null,
+          "label": "TX"
+        },
+        {
+          "offset": [
+            6,
+            0
+          ],
+          "net": null,
+          "label": "IO0"
+        },
+        {
+          "offset": [
+            6,
+            1
+          ],
+          "net": null,
+          "label": "IO1"
+        },
+        {
+          "offset": [
+            6,
+            2
+          ],
+          "net": null,
+          "label": "IO2"
+        },
+        {
+          "offset": [
+            6,
+            3
+          ],
+          "net": null,
+          "label": "IO3"
+        },
+        {
+          "offset": [
+            6,
+            4
+          ],
+          "net": null,
+          "label": "IO4"
+        },
+        {
+          "offset": [
+            6,
+            5
+          ],
+          "net": "IO5",
+          "label": "IO5"
+        },
+        {
+          "offset": [
+            6,
+            6
+          ],
+          "net": null,
+          "label": "IO6"
+        },
+        {
+          "offset": [
+            6,
+            7
+          ],
+          "net": null,
+          "label": "IO7"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J_12V",
+      "name": "Power Connector",
+      "value": "12V Input",
+      "pins": [
+        {
+          "offset": [
+            10,
+            0
+          ],
+          "net": "+12V",
+          "label": "+12V_IN"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J_3V3",
+      "name": "Power Connector",
+      "value": "3.3V Input",
+      "pins": [
+        {
+          "offset": [
+            10,
+            2
+          ],
+          "net": "3V3",
+          "label": "3V3_IN"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J_GND",
+      "name": "Power Connector",
+      "value": "Ground",
+      "pins": [
+        {
+          "offset": [
+            10,
+            4
+          ],
+          "net": "GND",
+          "label": "GND_IN"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Rg",
+      "name": "Gate Resistor",
+      "value": "220Ω",
+      "pins": [
+        {
+          "offset": [
+            13,
+            5
+          ],
+          "net": "IO5",
+          "label": "A"
+        },
+        {
+          "offset": [
+            14,
+            5
+          ],
+          "net": "GATE",
+          "label": "B"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Rpd",
+      "name": "Pull-down",
+      "value": "47kΩ",
+      "pins": [
+        {
+          "offset": [
+            15,
+            6
+          ],
+          "net": "GATE",
+          "label": "A"
+        },
+        {
+          "offset": [
+            15,
+            7
+          ],
+          "net": "GND",
+          "label": "B"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q1",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            17,
+            5
+          ],
+          "net": "GATE",
+          "label": "G"
+        },
+        {
+          "offset": [
+            17,
+            6
+          ],
+          "net": "DRAIN",
+          "label": "D"
+        },
+        {
+          "offset": [
+            17,
+            7
+          ],
+          "net": "GND",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "L1",
+      "name": "Door Strike",
+      "value": "12V Coil",
+      "pins": [
+        {
+          "offset": [
+            22,
+            0
+          ],
+          "net": "+12V",
+          "label": "+"
+        },
+        {
+          "offset": [
+            22,
+            1
+          ],
+          "net": "DRAIN",
+          "label": "-"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D1",
+      "name": "Flyback Diode",
+      "value": "SS54",
+      "pins": [
+        {
+          "offset": [
+            20,
+            0
+          ],
+          "net": "+12V",
+          "label": "K"
+        },
+        {
+          "offset": [
+            20,
+            1
+          ],
+          "net": "DRAIN",
+          "label": "A"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

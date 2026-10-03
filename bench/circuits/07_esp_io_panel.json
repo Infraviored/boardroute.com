@@ -1,0 +1,492 @@
+{
+  "components": [
+    {
+      "id": "U1",
+      "name": "ESP32-C3 SuperMini",
+      "value": "ESP32-C3 SuperMini",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "5V",
+          "label": "5V"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "GND"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "3V3",
+          "label": "3V3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": "B1",
+          "label": "IO4"
+        },
+        {
+          "offset": [
+            0,
+            4
+          ],
+          "net": "B0",
+          "label": "IO3"
+        },
+        {
+          "offset": [
+            0,
+            5
+          ],
+          "net": "L2",
+          "label": "IO2"
+        },
+        {
+          "offset": [
+            0,
+            6
+          ],
+          "net": "L1",
+          "label": "IO1"
+        },
+        {
+          "offset": [
+            0,
+            7
+          ],
+          "net": "L0",
+          "label": "IO0"
+        },
+        {
+          "offset": [
+            6,
+            0
+          ],
+          "net": null,
+          "label": "IO5"
+        },
+        {
+          "offset": [
+            6,
+            1
+          ],
+          "net": null,
+          "label": "IO6"
+        },
+        {
+          "offset": [
+            6,
+            2
+          ],
+          "net": null,
+          "label": "IO7"
+        },
+        {
+          "offset": [
+            6,
+            3
+          ],
+          "net": "SDA",
+          "label": "IO8"
+        },
+        {
+          "offset": [
+            6,
+            4
+          ],
+          "net": "SCL",
+          "label": "IO9"
+        },
+        {
+          "offset": [
+            6,
+            5
+          ],
+          "net": null,
+          "label": "IO10"
+        },
+        {
+          "offset": [
+            6,
+            6
+          ],
+          "net": null,
+          "label": "IO20"
+        },
+        {
+          "offset": [
+            6,
+            7
+          ],
+          "net": null,
+          "label": "IO21"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R1",
+      "name": "Resistor",
+      "value": "330",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "L0",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "A0",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D1",
+      "name": "LED",
+      "value": "Red",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A0",
+          "label": "A"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "K"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R2",
+      "name": "Resistor",
+      "value": "330",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "L1",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "A1",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D2",
+      "name": "LED",
+      "value": "Red",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A1",
+          "label": "A"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "K"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R3",
+      "name": "Resistor",
+      "value": "330",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "L2",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "A2",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D3",
+      "name": "LED",
+      "value": "Red",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A2",
+          "label": "A"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "K"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R4",
+      "name": "Resistor",
+      "value": "10k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "3V3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "B0",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "S1",
+      "name": "Button",
+      "value": "6mm",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B0",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R5",
+      "name": "Resistor",
+      "value": "10k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "3V3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "B1",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "S2",
+      "name": "Button",
+      "value": "6mm",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B1",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R6",
+      "name": "Resistor",
+      "value": "4k7",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "3V3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "SDA",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R7",
+      "name": "Resistor",
+      "value": "4k7",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "3V3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "SCL",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J1",
+      "name": "Header",
+      "value": "I2C",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "3V3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "2"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "SDA",
+          "label": "3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": "SCL",
+          "label": "4"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J2",
+      "name": "Header",
+      "value": "Power",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "5V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

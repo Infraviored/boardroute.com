@@ -5,6 +5,8 @@ import { scoreState, recenterComponents } from './optimizer-algorithms.js';
 import { placeInitial } from './initial-placement.js';
 import { anneal, moveComp, rotateComp90InPlace } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
+import { analyzeTopology } from './topology.js';
+import { solveBox } from './solver/boxsolver.js';
 
 /**
  * AutorouterEngine - A "Headless" wrapper for the PCB autorouting logic.
@@ -26,6 +28,10 @@ export class AutorouterEngine {
         };
 
         this.gCancelRequested = false;
+        // Stop after stallMsPerPart · parts without improvement (clamped to stallMinMs..stallMaxMs).
+        // Calibrated by replaying the benchmark traces: near full-minute quality, ~19 s average.
+        this.layoutConfig = { budgetMs: 60000, stallMsPerPart: 1200, stallMinMs: 3000, stallMaxMs: 15000, jumperAfterMs: 10000 };
+        this.activeWorker = null;
 
         // Callbacks for UI updates
         this.onStateChange = null;
@@ -63,6 +69,84 @@ export class AutorouterEngine {
 
     cancel() {
         this.gCancelRequested = true;
+        this.activeWorker?.postMessage({ type: 'stop' });
+    }
+
+    /**
+     * Place, route and pack in one go with the box solver (src/engine/solver/).
+     * Runs in a Web Worker when available, inline otherwise (Node, tests).
+     * With `refine`, the search starts from the current layout instead of from scratch.
+     * Jumper wires are allowed right away if the circuit provably can't be built on one
+     * layer, otherwise only once no jumper-free layout turned up within jumperAfterMs.
+     * Returns { found, score, jumpers, topology } (topology.certificate when non-planar).
+     */
+    // Wire step: { firstOnly: true } -- fresh placement, stop at the first fully routed layout.
+    // Compact step: { refine: true } -- start from the current board and shrink until progress stalls.
+    async layout(compDefs, { refine = false, firstOnly = false } = {}) {
+        if (!compDefs?.length) return null;
+        this.gCancelRequested = false;
+
+        const topo = analyzeTopology(compDefs);
+        const variant = topo.planar ? { jumperAfterMs: this.layoutConfig.jumperAfterMs } : { jumpers: 1 };
+
+        const t0 = performance.now();
+        const { budgetMs, stallMsPerPart, stallMinMs, stallMaxMs } = this.layoutConfig;
+        const stallMs = Math.max(stallMinMs, Math.min(stallMaxMs, stallMsPerPart * compDefs.length));
+        let found = false, jumpers = 0;
+        // Keep results where the parts were, so the camera doesn't have to chase them.
+        let cx = 0, cy = 0;
+        if (this.components.length) {
+            const xs = this.components.flatMap(c => [c.ox, c.ox + c.w]), ys = this.components.flatMap(c => [c.oy, c.oy + c.h]);
+            cx = Math.round((Math.min(...xs) + Math.max(...xs)) / 2);
+            cy = Math.round((Math.min(...ys) + Math.max(...ys)) / 2);
+        }
+        const onBest = (components, wires, metrics) => {
+            found = true;
+            jumpers = metrics.jumpers || 0;
+            recenterComponents(components, wires);
+            components.forEach(c => moveComp(c, c.ox + cx, c.oy + cy));
+            wires.forEach(w => w.path.forEach(pt => { pt.col += cx; pt.row += cy; }));
+            this.components = components;
+            this.wires = wires;
+            this.tick++;
+            this.notify();
+            this.onBestSnapshot?.({ components, wires });
+            this.onStatusUpdate?.({ best: metrics });
+        };
+        const onProgress = (elapsed) => {
+            const best = found ? scoreState(this.components, this.wires) : null;
+            this.onProgress?.(Math.min(100, (elapsed / budgetMs) * 100),
+                best ? `Packing… best ${best.width}×${best.height} = ${best.area} holes` : 'Searching for a first routable layout…');
+        };
+        const initial = refine && this.components.length ? this.components : null;
+        this.onStatusUpdate?.({ title: refine ? 'Compacting layout…' : 'Arranging parts until every net is wired…', best: null });
+
+        if (typeof Worker !== 'undefined') {
+            await new Promise((resolve) => {
+                const worker = new Worker(new URL('./solver/solver.worker.js', import.meta.url), { type: 'module' });
+                this.activeWorker = worker;
+                const finish = () => { worker.terminate(); this.activeWorker = null; resolve(); };
+                worker.onmessage = (e) => {
+                    const m = e.data;
+                    if (m.type === 'best') onBest(m.components, m.wires, m.metrics);
+                    else if (m.type === 'progress') onProgress(m.elapsed);
+                    else if (m.type === 'done') finish();
+                };
+                worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
+                worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs, variant, firstOnly });
+                if (this.gCancelRequested) worker.postMessage({ type: 'stop' });
+            });
+        } else {
+            let lastBest = null;
+            await solveBox(compDefs, {
+                budgetMs, initial, variant,
+                shouldStop: () => this.gCancelRequested || (lastBest !== null && (firstOnly || performance.now() - lastBest > Math.max(stallMs, (lastBest - t0) * 0.5))),
+                onBest: (c, w, m) => { lastBest = performance.now(); onBest(c, w, m); },
+                onProgress: () => onProgress(performance.now() - t0),
+            });
+        }
+        this.notify();
+        return { found, jumpers, topology: topo, score: found ? scoreState(this.components, this.wires) : null };
     }
 
     async optimize() {
@@ -350,6 +434,7 @@ export class AutorouterEngine {
                 oldComp.id = def.id; // Apply rename if occurred
                 oldComp.name = def.name;
                 oldComp.value = def.value;
+                oldComp.color = def.color;
                 oldComp.routeUnder = def.routeUnder;
 
                 const incomingPins = def.offsets.map((off, idx) => ({

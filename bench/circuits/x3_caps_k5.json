@@ -1,0 +1,244 @@
+{
+  "components": [
+    {
+      "id": "CAB",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "B",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CAC",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "C",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CAD",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CAE",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CBC",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "C",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CBD",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CBE",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CCD",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CCE",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CDE",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "D",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

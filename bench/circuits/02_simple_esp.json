@@ -1,0 +1,220 @@
+{
+  "components": [
+    {
+      "id": "U1",
+      "name": "ESP32-C3",
+      "value": "SuperMini",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": null,
+          "label": "5V"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "GND"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "3V3",
+          "label": "3V3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": null,
+          "label": "IO10"
+        },
+        {
+          "offset": [
+            0,
+            4
+          ],
+          "net": null,
+          "label": "IO9"
+        },
+        {
+          "offset": [
+            0,
+            5
+          ],
+          "net": null,
+          "label": "IO8"
+        },
+        {
+          "offset": [
+            0,
+            6
+          ],
+          "net": null,
+          "label": "RX"
+        },
+        {
+          "offset": [
+            0,
+            7
+          ],
+          "net": null,
+          "label": "TX"
+        },
+        {
+          "offset": [
+            6,
+            0
+          ],
+          "net": null,
+          "label": "IO0"
+        },
+        {
+          "offset": [
+            6,
+            1
+          ],
+          "net": null,
+          "label": "IO1"
+        },
+        {
+          "offset": [
+            6,
+            2
+          ],
+          "net": null,
+          "label": "IO2"
+        },
+        {
+          "offset": [
+            6,
+            3
+          ],
+          "net": null,
+          "label": "IO3"
+        },
+        {
+          "offset": [
+            6,
+            4
+          ],
+          "net": null,
+          "label": "IO4"
+        },
+        {
+          "offset": [
+            6,
+            5
+          ],
+          "net": "LED_NET",
+          "label": "IO5"
+        },
+        {
+          "offset": [
+            6,
+            6
+          ],
+          "net": null,
+          "label": "IO6"
+        },
+        {
+          "offset": [
+            6,
+            7
+          ],
+          "net": null,
+          "label": "IO7"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R1",
+      "name": "Resistor",
+      "value": "220Ω",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "LED_NET",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "LED_ANODE",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D1",
+      "name": "LED",
+      "value": "Red",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "LED_ANODE",
+          "label": "A"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "K"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J_3V3",
+      "name": "VCC_IN",
+      "value": "3.3V",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "3V3",
+          "label": "P1"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J_GND",
+      "name": "GND_IN",
+      "value": "GND",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "GND",
+          "label": "P1"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

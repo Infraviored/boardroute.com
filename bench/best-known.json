@@ -1,0 +1,100 @@
+{
+  "01_default": {
+    "area": 15,
+    "width": 3,
+    "height": 5,
+    "strategy": "legacy",
+    "seed": 2
+  },
+  "02_simple_esp": {
+    "area": 70,
+    "width": 7,
+    "height": 10,
+    "strategy": "legacy",
+    "seed": 1
+  },
+  "03_door_striker": {
+    "area": 77,
+    "width": 11,
+    "height": 7,
+    "strategy": "box",
+    "seed": 2
+  },
+  "05_opamp_dual": {
+    "area": 60,
+    "width": 6,
+    "height": 10,
+    "strategy": "box",
+    "seed": 1
+  },
+  "08_rc_ladder": {
+    "area": 35,
+    "width": 5,
+    "height": 7,
+    "strategy": "box",
+    "seed": 2
+  },
+  "07_esp_io_panel": {
+    "area": 132,
+    "width": 11,
+    "height": 12,
+    "strategy": "box",
+    "seed": 2
+  },
+  "x2_caps_k33_minus1": {
+    "area": 20,
+    "width": 5,
+    "height": 4,
+    "strategy": "legacy",
+    "seed": 1
+  },
+  "x4_resistors_k5": {
+    "area": 40,
+    "width": 5,
+    "height": 8,
+    "strategy": "box",
+    "seed": 1
+  },
+  "x5_parallel_mosfets3": {
+    "area": 9,
+    "width": 3,
+    "height": 3,
+    "strategy": "legacy",
+    "seed": 1
+  },
+  "04_blinker555": {
+    "area": 56,
+    "width": 8,
+    "height": 7,
+    "strategy": "box",
+    "seed": 1
+  },
+  "09_mosfet_bank4": {
+    "area": 154,
+    "width": 14,
+    "height": 11,
+    "strategy": "box",
+    "seed": 4
+  },
+  "06_motor_l293d": {
+    "area": 198,
+    "width": 18,
+    "height": 11,
+    "strategy": "app",
+    "seed": 4
+  },
+  "x1_caps_k33": {
+    "area": 25,
+    "width": 5,
+    "height": 5,
+    "strategy": "app",
+    "seed": 1
+  },
+  "x3_caps_k5": {
+    "area": 30,
+    "width": 5,
+    "height": 6,
+    "strategy": "app",
+    "seed": 1
+  }
+}

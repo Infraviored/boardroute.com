@@ -113,6 +113,12 @@ export function SidebarRight({
               <span className="sl">Footprint</span>
               <span className="sv">{stats.footprint || '—'}</span>
             </div>
+            {stats.jumpers > 0 && (
+              <div className="scard w2">
+                <span className="sl">Jumper wires</span>
+                <span className="sv" style={{ color: 'var(--blu-bright)' }}>{stats.jumpers}</span>
+              </div>
+            )}
             <div className="scard w2">
               <span className="sl">Completion</span>
               <div className="progress-container-sleek">

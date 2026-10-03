@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AutorouterEngine } from './engine/engine.js';
 import { PcbCanvas } from './components/PcbCanvas.jsx';
 import { Topbar } from './components/Topbar.jsx';
@@ -10,6 +10,7 @@ import { CompEditorOverlay } from './components/CompEditorOverlay.jsx';
 import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
+import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { TEMPLATE, processTemplate, generateJSONFromState } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/optimizer-algorithms.js';
@@ -35,6 +36,10 @@ function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        // Boards saved before v2 had routeUnder=false as an implicit default, not a choice.
+        if (localStorage.getItem('pcb_model_version') !== '2') {
+          (parsed.components || []).forEach(c => { c.routeUnder = true; });
+        }
         return {
           components: parsed.components || [],
           wires: parsed.wires || [],
@@ -59,15 +64,17 @@ function App() {
     return localStorage.getItem('pcb_json_input') || '';
   });
 
-  // Sync board to engine on first load
+  // Sync the restored board to the engine on first load. Only the initial board is wanted here;
+  // later changes originate in the engine itself and flow back through onStateChange.
+  const [initialBoard] = useState(board);
   useEffect(() => {
     engine.setState({
-      components: board.components,
-      wires: board.wires,
-      cols: board.cols,
-      rows: board.rows
+      components: initialBoard.components,
+      wires: initialBoard.wires,
+      cols: initialBoard.cols,
+      rows: initialBoard.rows
     });
-  }, []);
+  }, [engine, initialBoard]);
 
   // Persist to localStorage
   useEffect(() => {
@@ -86,6 +93,8 @@ function App() {
     localStorage.setItem('pcb_json_input', jsonInput);
   }, [jsonInput]);
 
+  useEffect(() => { localStorage.setItem('pcb_model_version', '2'); }, []);
+
   useEffect(() => {
     localStorage.setItem('pcb_workflow_step', workflowStep.toString());
   }, [workflowStep]);
@@ -99,6 +108,8 @@ function App() {
         id: c.id,
         name: c.name,
         value: c.value,
+        ...(c.color ? { color: c.color } : {}),
+        ...(c.routeUnder === false ? { routeUnder: false } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
           label: p.lbl,
@@ -110,8 +121,8 @@ function App() {
         count: n.pins.length
       }))
     };
-    const newJson = JSON.stringify(doc, null, 2);
-    if (newJson !== jsonInput) setJsonInput(newJson);
+    // Setting an identical string is a no-op for React, so no comparison with jsonInput is needed.
+    setJsonInput(JSON.stringify(doc, null, 2));
   }, [board.components, board.tick]);
 
   const [status, setStatus] = useState({ title: '', progress: 0, best: null, isProcessing: false, isInitial: false });
@@ -119,12 +130,15 @@ function App() {
   const [selectedNet, setSelectedNet] = useState(null);
   const [hoveredNet, setHoveredNet] = useState(null);
   const [bestSnapshot, setBestSnapshot] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Modal states
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [examples, setExamples] = useState([]);
+  const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
   const [editingComp, setEditingComp] = useState(null);
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -214,42 +228,52 @@ function App() {
     } catch (e) { console.error(e); }
   }, [engine, jsonInput, saveHistory]);
 
-  const handleRoute = useCallback(async () => {
-    setWorkflowStep(2);
-    setStatus(prev => ({ ...prev, isProcessing: true, isInitial: true }));
+  // Wire (step 2): fresh placement, rearranged only until every net is connected.
+  // Compact (step 3): shrink from the current board (also after moving parts by hand).
+  const runLayout = useCallback(async (refine) => {
+    let defs = null;
+    try { defs = processTemplate(JSON.parse(jsonInput)); } catch (e) { console.error(e); }
+    if (!defs) return;
+    setWorkflowStep(refine ? 3 : 2);
+    setNotice(null);
+    // usage statistics: how many layouts people actually run (GoatCounter event, no personal data)
+    window.goatcounter?.count?.({ path: refine ? 'compact' : 'wire', title: `${defs.length} parts`, event: true });
+    setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
+    let res = null;
     try {
-      const data = JSON.parse(jsonInput);
-      const defs = processTemplate(data);
-      await engine.placeAndRoute(defs);
+      res = await engine.layout(defs, refine ? { refine: true } : { firstOnly: true });
     } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false }));
+      setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
+      setBestSnapshot(null);
+    }
+    const cert = res?.topology?.certificate;
+    const jumperText = (n) => `${n} jumper wire${n === 1 ? '' : 's'}`;
+    if (res && !res.found) {
+      setNotice({
+        kind: 'warn',
+        title: 'No fully routed layout found',
+        text: cert
+          ? `Parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure, so wires have to cross somewhere, and even with jumper wires no complete layout turned up. Try Wire again.`
+          : 'The search found no layout where every wire fits, even with jumper wires. Try Wire again, or give parts with many pins more room between their pin rows.',
+      });
+    } else if (res?.jumpers > 0) {
+      setNotice({
+        kind: 'info',
+        title: `Layout needs ${jumperText(res.jumpers)}`,
+        text: cert
+          ? `This circuit cannot be built on one layer without crossings: parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`
+          : `No layout without crossings turned up, most likely because some wires don't fit between closely spaced pins. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`,
+      });
     }
     setSnapCounter(c => c + 1); saveHistory();
   }, [engine, jsonInput, saveHistory]);
 
-  const handleCompact = useCallback(async () => {
-    setWorkflowStep(3);
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    await engine.optimize();
-    setStatus(prev => ({ ...prev, isProcessing: false }));
-    saveHistory();
-  }, [engine, saveHistory]);
-
-  const handleOptimizeBoard = useCallback(async () => {
-    setWorkflowStep(4);
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    await engine.plateau();
-    setStatus(prev => ({ ...prev, isProcessing: false }));
-    saveHistory();
-  }, [engine, saveHistory]);
-
   const handleStepClick = useCallback(async (step) => {
     if (step === 0) { engine.setState({ components: [], wires: [] }); setWorkflowStep(0); }
     else if (step === 1) handleLoadCircuit();
-    else if (step === 2) handleRoute();
-    else if (step === 3) handleCompact();
-    else if (step === 4) handleOptimizeBoard();
-  }, [handleLoadCircuit, handleRoute, handleCompact, handleOptimizeBoard, engine]);
+    else if (step === 2) runLayout(false);
+    else if (step === 3) runLayout(true);
+  }, [handleLoadCircuit, runLayout, engine]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -329,14 +353,17 @@ function App() {
       board.components.forEach(c => { minC = Math.min(minC, c.ox); maxC = Math.max(maxC, c.ox + c.w); minR = Math.min(minR, c.oy); maxR = Math.max(maxR, c.oy + c.h); });
       cx = Math.floor((minC + maxC) / 2) + Math.floor(Math.random() * 5); cy = Math.floor((minR + maxR) / 2) + Math.floor(Math.random() * 5);
     }
-    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, w: mw, h: mh, ox: cx, oy: cy, pins: compDef.pins.map(p => ({ dCol: p.offset[0], dRow: p.offset[1], col: cx + p.offset[0], row: cy + p.offset[1], lbl: p.label, net: '' })) };
+    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: compDef.routeUnder !== false, w: mw, h: mh, ox: cx, oy: cy, pins: compDef.pins.map(p => ({ dCol: p.offset[0], dRow: p.offset[1], col: cx + p.offset[0], row: cy + p.offset[1], lbl: p.label, net: '' })) };
     engine.setState({ components: [...board.components, newComp], wires: [] });
     setIsLibraryOpen(false); setSelectedId(newId); saveHistory();
   }, [board.components, engine, saveHistory]);
 
   const handleSaveEdit = useCallback(async (updated) => { 
     if (!editingComp) return;
-    const newComps = board.components.map(c => c.id === editingComp.id ? updated : c);
+    const isExisting = board.components.some(c => c.id === editingComp.id);
+    const newComps = isExisting
+      ? board.components.map(c => c.id === editingComp.id ? updated : c)
+      : [...board.components, updated]; // new part from the "New" button; mergeBoard places it
     
     // 1. Two-way sequence: Update text
     const newJson = generateJSONFromState(newComps);
@@ -421,15 +448,49 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo, requestDelete, activePin, engine, handleRouteOnly]);
 
+  // Example circuits load bare (no wires): placed on the board, all three steps still to do.
+  const loadExample = useCallback((ex) => {
+    setExamplesOpen(null);
+    setNotice(null);
+    setJsonInput(JSON.stringify(ex.circuit, null, 2));
+    engine.initializeBoard(processTemplate(ex.circuit));
+    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+    window.goatcounter?.count?.({ path: `example-${ex.id}`, title: ex.title, event: true });
+  }, [engine, saveHistory]);
+
+  const closeExamples = useCallback(() => {
+    // Skipping the first-visit picker still leaves a circuit to edit
+    if (examplesOpen === 'first' && !engine.components.length) handleLoadTemplate();
+    setExamplesOpen(null);
+  }, [examplesOpen, engine, handleLoadTemplate]);
+
+  // First visit: offer the examples. /?example=<id> (links from the explainer pages) loads one directly.
+  const [firstVisit] = useState(() => !localStorage.getItem('pcb_board_state'));
+  const [examplesError, setExamplesError] = useState(false);
   useEffect(() => {
-    if (!localStorage.getItem('pcb_board_state')) handleLoadTemplate();
-  }, [handleLoadTemplate]);
+    fetch('/examples.json').then(r => r.json()).then(setExamples)
+      .catch(err => { console.error('examples.json', err); setExamplesError(true); });
+  }, []);
+  const examplesStarted = useRef(false);
+  useEffect(() => {
+    if (examplesStarted.current || (!examples.length && !examplesError)) return;
+    examplesStarted.current = true;
+    const wanted = new URLSearchParams(window.location.search).get('example');
+    const ex = wanted && examples.find(e => e.id === wanted);
+    if (ex) {
+      loadExample(ex);
+      window.history.replaceState(null, '', window.location.pathname);
+    } else if (firstVisit) {
+      if (examples.length) setExamplesOpen('first'); else handleLoadTemplate();
+    }
+  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate]);
 
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
     const routedNum = board.wires.filter(w => !w.failed).length;
-    const totalConns = nets.reduce((sum, n) => sum + n.pins.length - 1, 0);
-    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: totalConns > 0 ? Math.round((routedNum / totalConns) * 100) : null };
+    const jumpers = board.wires.filter(w => w.jumper && !w.failed).length;
+    const failedNum = board.wires.length - routedNum;
+    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 ? Math.round((routedNum / (routedNum + failedNum)) * 100) : null, jumpers };
   }, [board]);
 
   const netsMap = useMemo(() => {
@@ -453,15 +514,32 @@ function App() {
       <div id="layout">
         <SidebarLeft
           onOpenPrompt={() => setIsPromptOpen(true)}
+          onOpenExamples={() => setExamplesOpen('browse')}
           jsonInput={jsonInput} setJsonInput={setJsonInput}
           components={board.components} selectedId={selectedId}
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
           onOpenLibrary={() => setIsLibraryOpen(true)}
-          onAddNewComponent={() => { setEditingComp(null); setIsEditorOpen(true); }}
+          onAddNewComponent={() => {
+            // The editor needs a component to edit; start from a blank 2-pin part with a free id.
+            const ids = new Set(board.components.map(c => c.id));
+            let n = board.components.length + 1; while (ids.has(`C${n}`)) n++;
+            setEditingComp({ id: `C${n}`, name: 'New part', value: '', w: 2, h: 1, routeUnder: true,
+              pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
+            setIsEditorOpen(true);
+          }}
           onEditComponent={(id) => { setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
         <div id="ca-col">
+          {notice && (
+            <div className={`notice-banner ${notice.kind}`} role="alert">
+              <div className="notice-body">
+                <div className="notice-title">{notice.title}</div>
+                <div className="notice-text">{notice.text}</div>
+              </div>
+              <button className="notice-close" onClick={() => setNotice(null)} aria-label="Dismiss">×</button>
+            </div>
+          )}
           <main id="ca">
             <PcbCanvas
               components={board.components} wires={board.wires} cols={board.cols} rows={board.rows}
@@ -504,6 +582,7 @@ function App() {
           bestSnapshot={bestSnapshot}
         />
       </div>
+      <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={handleAddFromLibrary} />
       <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => setIsEditorOpen(false)} onSave={handleSaveEdit} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
@@ -525,6 +604,27 @@ function App() {
         .resizer:hover::after, .resizer.active::after { background: var(--blu-bright); width: 2px; }
         .resizer.l { margin-right: -2px; margin-left: -2px; }
         .resizer.r { margin-left: -2px; margin-right: -2px; }
+        .notice-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 50; width: min(640px, calc(100% - 32px)); display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.45); }
+        .notice-banner.error { border-color: #f85149; }
+        .notice-banner.warn { border-color: #d29922; }
+        .notice-banner.info { border-color: var(--blu-bright); }
+        .notice-banner.info .notice-title { color: var(--blu-bright); }
+        .notice-body { flex: 1; min-width: 0; }
+        .notice-title { font-weight: 600; margin-bottom: 4px; }
+        .notice-banner.error .notice-title { color: #ff7b72; }
+        .notice-banner.warn .notice-title { color: #e3b341; }
+        .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); }
+        .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
+        .notice-close:hover { opacity: 1; }
+        /* Phone: the fixed-width sidebars would squeeze the canvas to zero width. Stack the
+           canvas on top and let both sidebars follow at full width in one scrolling column. */
+        @media (max-width: 700px) {
+          .app-main { height: 100dvh; }
+          #layout { flex-direction: column; overflow-y: auto; }
+          #ca-col { order: -1; flex: none; height: 60dvh; min-height: 300px; }
+          #lsb, #rsb { width: auto; flex: none; border-left: none; border-right: none; border-top: 1px solid var(--border); }
+          .resizer { display: none; }
+        }
       `}} />
     </div>
   );

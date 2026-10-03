@@ -57,7 +57,9 @@ export function processTemplate(data) {
             id: cd.id || ('C' + (idx + 1)),
             name: cd.name || '?',
             value: cd.value || '',
-            routeUnder: !!cd.routeUnder,
+            color: cd.color || null,
+            // Wiring runs on the solder side, so wires may pass under a part unless it says otherwise.
+            routeUnder: cd.routeUnder !== false,
             offsets: normalizedOffsets,
             pinNets: cd.pins.map(p => p.net || null),
             pinLbls: cd.pins.map(p => p.label || p.lbl || String(idx + 1)),
@@ -75,13 +77,14 @@ export function generateJSONFromState(components) {
             id: c.id,
             name: c.name || '',
             value: c.value || '',
+            ...(c.color ? { color: c.color } : {}),
             pins: c.pins.map(p => ({
                 offset: [p.dCol, p.dRow],
                 net: p.net,
                 label: p.lbl || ''
             }))
         };
-        if (c.routeUnder) compJson.routeUnder = true;
+        if (c.routeUnder === false) compJson.routeUnder = false;
         json.components.push(compJson);
     });
 

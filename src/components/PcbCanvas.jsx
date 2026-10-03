@@ -81,24 +81,6 @@ export function PcbCanvas({
         return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
-    const handleWheel = (e) => {
-        e.preventDefault();
-        const pos = getMousePos(e);
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-
-        const curZ = simZoom.current || 1; // Ensure simZoom.current is initialized
-        const curP = simPan.current;
-        const newZ = Math.min(Math.max(curZ * delta, 0.1), 10.0);
-        const newP = {
-            x: pos.x - (pos.x - curP.x) * (newZ / curZ),
-            y: pos.y - (pos.y - curP.y) * (newZ / curZ)
-        };
-
-        setCamera({ x: newP.x, y: newP.y, z: newZ });
-        simPan.current = { ...newP };
-        simZoom.current = newZ;
-    };
-
     const handlePointerDown = (e) => {
         const pos = getMousePos(e);
         const worldY = (pos.y - camera.y) / camera.z;
@@ -285,9 +267,10 @@ export function PcbCanvas({
         // Conditions for an automatic snap
         const shouldSnap = isMilestone || isCounterJump || justFinished || isInitialProcessing || (!hasInitializedFit.current && bounds);
 
+        let snapStarted = false;
         if (shouldSnap && viewportSize.width > 0) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             startSnap();
+            snapStarted = true;
             hasInitializedFit.current = true;
             lastSnapStep.current = workflowStep;
             lastSnapCounter.current = snapCounter;
@@ -299,7 +282,10 @@ export function PcbCanvas({
 
         if (shouldBeLive && trackingMode !== TRACKING_MODES.LIVE && !draggingId && trackingMode !== TRACKING_MODES.SNAP) {
             setTrackingMode(TRACKING_MODES.LIVE);
-        } else if (!shouldBeLive && trackingMode === TRACKING_MODES.LIVE) {
+        } else if (!shouldBeLive && trackingMode === TRACKING_MODES.LIVE && !snapStarted) {
+            // When processing ends, `trackingMode` here is still the stale LIVE value; switching
+            // to NONE would override the SNAP that startSnap() just requested, leaving the camera
+            // wherever live tracking happened to stop instead of framing the final layout.
             setTrackingMode(TRACKING_MODES.NONE);
         }
 
@@ -310,7 +296,7 @@ export function PcbCanvas({
             hasInitializedFit.current = false;
             localStorage.removeItem('pcb_camera_state');
         }
-    }, [workflowStep, snapCounter, isInitialProcessing, isProcessing, isAutoTracking, draggingId, bounds, viewportSize, startSnap, trackingMode, TRACKING_MODES.LIVE, TRACKING_MODES.SNAP, TRACKING_MODES.NONE]); // Added TRACKING_MODES to deps
+    }, [workflowStep, snapCounter, isInitialProcessing, isProcessing, isAutoTracking, draggingId, bounds, viewportSize, startSnap, trackingMode]);
 
     const zoomVelRef = useRef(0);
     const panVelRef = useRef({ x: 0, y: 0 });
@@ -325,6 +311,7 @@ export function PcbCanvas({
     const panCountRef = useRef(0);
 
     useEffect(() => { targetBoundsRef.current = bounds; }, [bounds]);
+
 
     const updatePhysics = useCallback((time) => {
         if (!svgRef.current) return;
@@ -439,7 +426,7 @@ export function PcbCanvas({
                 snapLockRef.current = null;
             }
         }
-    }, [trackingMode, isAutoTracking, isPanning, draggingId, viewportSize, isProcessing, TRACKING_MODES.SNAP, TRACKING_MODES.LIVE, TRACKING_MODES.NONE]);
+    }, [trackingMode, isAutoTracking, isPanning, draggingId, viewportSize, isProcessing]);
 
 
     useEffect(() => {
@@ -462,19 +449,52 @@ export function PcbCanvas({
         return () => {
             if (rAF) cancelAnimationFrame(rAF);
         };
-    }, [isAutoTracking, trackingMode, updatePhysics, TRACKING_MODES.NONE]);
+    }, [isAutoTracking, trackingMode, updatePhysics]);
 
 
     const background = useMemo(() => generateBackgroundSVG(cols, rows, bounds), [cols, rows, bounds]);
-    const wiresSvg = useMemo(() => generateWiresSVG(wires, activeNets), [wires, activeNets, tick]);
-    const ratsnestSvg = useMemo(() => generateRatsnestSVG(components, wires), [components, wires, tick]);
-    const renderedComponentsSvg = useMemo(() => customComponentsSvg || components.map(c => renderCompSVG(c, c.id === selectedId, activePin)).join(''), [components, selectedId, activePin, tick, customComponentsSvg]);
-    const boundingBoxSvg = useMemo(() => generateBoundingBoxSVG(components, wires), [components, wires, tick]);
+    // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
+    // bumps tick, so the array references alone don't change when the board does.
+    // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
+    // bumps tick, so the array references alone don't change when the board does. Each memo
+    // reads tick explicitly so the dependency is real (an exhaustive-deps suppression would
+    // also switch off the React Compiler lint rules for this whole component).
+    const wiresSvg = useMemo(() => { void tick; return generateWiresSVG(wires, activeNets); }, [wires, activeNets, tick]);
+    const ratsnestSvg = useMemo(() => { void tick; return generateRatsnestSVG(components, wires); }, [components, wires, tick]);
+    const renderedComponentsSvg = useMemo(() => { void tick; return customComponentsSvg || components.map(c => renderCompSVG(c, c.id === selectedId, activePin)).join(''); }, [components, selectedId, activePin, tick, customComponentsSvg]);
+    const boundingBoxSvg = useMemo(() => { void tick; return generateBoundingBoxSVG(components, wires); }, [components, wires, tick]);
 
-    // Removal of failing simZoom useEffect
+    // Wheel zoom. Registered natively with { passive: false }: React attaches onWheel as a
+    // passive listener, so preventDefault() there only logs an error and the page (or the
+    // stacked phone layout) scrolls along while zooming.
+    const containerRef = useRef(null);
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const onWheel = (e) => {
+            e.preventDefault();
+            const rect = svgRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const curZ = simZoom.current || 1;
+            const curP = simPan.current;
+            const newZ = Math.min(Math.max(curZ * delta, 0.1), 10.0);
+            const newP = {
+                x: pos.x - (pos.x - curP.x) * (newZ / curZ),
+                y: pos.y - (pos.y - curP.y) * (newZ / curZ)
+            };
+            setCamera({ x: newP.x, y: newP.y, z: newZ });
+            simPan.current = { ...newP };
+            simZoom.current = newZ;
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, []);
+
 
     return (
-        <div className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onWheel={handleWheel} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', '--pb-height': '240px' }}>
+        <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
             <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block' }}>
                 <g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.z})`}>
                     <g id="main-content">
@@ -549,7 +569,6 @@ export function PcbCanvas({
                         x: cx - (cx - curP.x) * (nextZ / curZ),
                         y: cy - (cy - curP.y) * (nextZ / curZ)
                     };
-                    // eslint-disable-next-line react-hooks/immutability
                     simZoom.current = nextZ;
                     setCamera({ ...simPan.current, z: nextZ });
                 }} title="Zoom In">
@@ -567,7 +586,6 @@ export function PcbCanvas({
                         x: cx - (cx - curP.x) * (nextZ / curZ),
                         y: cy - (cy - curP.y) * (nextZ / curZ)
                     };
-                    // eslint-disable-next-line react-hooks/immutability
                     simZoom.current = nextZ;
                     setCamera({ ...simPan.current, z: nextZ });
                 }} title="Zoom Out">

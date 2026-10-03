@@ -17,7 +17,7 @@ That gives a small set of rules:
 1. **Wires can't cross.** Two wires in the same hole are a short circuit.
 2. **Pins block.** A wire can't pass through a hole taken by another net's pin.
 3. **Wires may pass under parts.** The wiring is on the other side of the board, so a part body is no obstacle. Only its legs are. (Some parts really can't be routed under; you can mark those.)
-4. **Parts can go anywhere and turn in 90° steps.** They just can't overlap.
+4. **Parts can go anywhere and turn in 90° steps.** They just can't overlap, and on top a part takes up its whole housing, not just its legs: a relay covers about 8 × 6 holes with five legs. The circuit can give such parts a `body` rectangle; jumper wires, which lie on top, can't cross it either.
 
 The question boardroute answers: *where do the parts go, and where do the wires run, so that the board is as small as possible?*
 

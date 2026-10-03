@@ -197,6 +197,28 @@ export const route = async function (components, cols, rows, onProg, shouldCance
  * @param {Array|Object} movedComps - Component(s) that changed position/rotation
  * @returns {{ success: boolean, wires: Array }}
  */
+// All holes a jumper spans (legs included).
+function jumperCells(w) {
+  if (!w?.path || w.path.length < 2) return w?.path || [];
+  const a = w.path[0], b = w.path[w.path.length - 1];
+  const dx = b.col - a.col, dy = b.row - a.row;
+  // Non-orthogonal jumper: treat as its two legs only so we never step past endpoints or off-axis
+  if (dx !== 0 && dy !== 0) return [a, b];
+  const n = Math.abs(dx) + Math.abs(dy);
+  const sx = Math.sign(dx), sy = Math.sign(dy);
+  return Array.from({ length: n + 1 }, (_, i) => ({ col: a.col + sx * i, row: a.row + sy * i }));
+}
+
+// Whether a wire (normal or jumper) intersects a component's footprint or pins.
+// Wires may run under a routeUnder part, just not through its pins; a blocking part
+// displaces every wire under its body. A jumper may not lie over any part.
+function wireIntersectsComp(w, mc) {
+  const ox = mc.ox, oy = mc.oy, ox2 = mc.ox + mc.w, oy2 = mc.oy + mc.h;
+  const underBody = (pt) => pt.col >= ox && pt.col < ox2 && pt.row >= oy && pt.row < oy2;
+  const onPin = (pt) => mc.pins.some(p => p.col === pt.col && p.row === pt.row);
+  return w.jumper ? jumperCells(w).some(underBody) : (mc.routeUnder ? w.path?.some(onPin) : w.path?.some(underBody));
+}
+
 export function incrementalReroute(components, wires, movedComps) {
   const moved = Array.isArray(movedComps) ? movedComps : [movedComps];
 
@@ -218,12 +240,7 @@ export function incrementalReroute(components, wires, movedComps) {
   for (const w of wires) {
     if (w.failed || affectedNets.has(w.net)) continue;
     for (const mc of moved) {
-      if (mc.routeUnder) continue;
-      const ox = mc.ox, oy = mc.oy, ox2 = mc.ox + mc.w, oy2 = mc.oy + mc.h;
-      if (w.path && w.path.some(pt =>
-        pt.col >= ox && pt.col < ox2 &&
-        pt.row >= oy && pt.row < oy2
-      )) {
+      if (wireIntersectsComp(w, mc)) {
         displacedNets.add(w.net);
         break;
       }
@@ -258,10 +275,11 @@ export function incrementalReroute(components, wires, movedComps) {
   const grid = new Grid(gridCols, gridRows, gridMinC, gridMinR);
   components.forEach(c => grid.registerComp(c));
   // Mark all kept wires on grid (a jumper has no interior cells: block its legs instead)
+  // Every cell, ends included: box-solver wires end at branch points and jumper legs, which
+  // markWire (interior only) would leave open to other nets.
   keptWires.forEach(w => {
     if (w.failed || !w.path) return;
-    if (w.jumper) w.path.forEach(pt => grid.set(pt.col, pt.row, BLOCKED_WIRE));
-    else grid.markWire(w.path);
+    w.path.forEach(pt => grid.set(pt.col, pt.row, BLOCKED_WIRE));
   });
 
   // 5. Route only the affected nets
@@ -280,15 +298,7 @@ export function incrementalReroute(components, wires, movedComps) {
     // 1. Unblock own-net manual segments
     const manualWiresOfNet = wires.filter(w => w.manual && w.net === net.net);
     manualWiresOfNet.forEach(mw => {
-      let isDisplacedManual = false;
-      for (const mc of moved) {
-        if (mc.routeUnder) continue;
-        const ox = mc.ox, oy = mc.oy, ox2 = mc.ox + mc.w, oy2 = mc.oy + mc.h;
-        if (mw.path.some(pt => pt.col >= ox && pt.col < ox2 && pt.row >= oy && pt.row < oy2)) {
-          isDisplacedManual = true;
-          break;
-        }
-      }
+      const isDisplacedManual = moved.some(mc => wireIntersectsComp(mw, mc));
 
       if (!isDisplacedManual) {
         // Do NOT mark grid yet, but do add to seeds

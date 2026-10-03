@@ -75,9 +75,12 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
             <>
               <div className="pb-title">{status.title || 'Processing...'}</div>
               {renderMetrics(status.best)}
-              <div className="pb-track">
-                <div className="pb-fill" style={{ width: `${status.progress}%` }} />
+              {/* Before the first layout there is nothing to measure progress against; after it, the
+                  bar fills up as time passes without an improvement and the search stops when full. */}
+              <div className={`pb-track ${status.progress == null ? 'indeterminate' : ''}`}>
+                <div className="pb-fill" style={status.progress == null ? undefined : { width: `${status.progress}%` }} />
               </div>
+              {status.detail && <div className="pb-detail">{status.detail}</div>}
               <button className="pb-btn-glass" onClick={onGoodEnough} disabled={status.isProcessing && !bestSnapshot}>
                 Apply Current Best
               </button>
@@ -159,6 +162,13 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           transition: width 0.15s cubic-bezier(0.1, 0, 0, 1);
           box-shadow: 0 0 15px var(--grn);
         }
+        .pb-track.indeterminate .pb-fill {
+          width: 30%;
+          transition: none;
+          animation: pb-sweep 1.2s ease-in-out infinite;
+        }
+        @keyframes pb-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+        .pb-detail { font-size: var(--fs-xs); color: var(--txt1); margin-top: 6px; }
         .pb-title {
           font-family: 'Outfit', sans-serif;
           font-size: 1.25rem;

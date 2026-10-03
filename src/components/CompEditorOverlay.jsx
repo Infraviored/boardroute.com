@@ -250,6 +250,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                                     <input type="number" min="1" value={data.h} onChange={e => handleDimensionChange('h', e.target.value)} />
                                 </div>
                             </div>
+                            <p className="dim-hint">The part's outline in holes. Make it larger than the pins when the body is (relay, electrolytic, dev board): no other part or jumper may sit inside it. Wires on the solder side still pass under.</p>
                         </section>
 
                         <section className="settings-section">
@@ -469,6 +470,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
 
                 .dimension-row { display: flex; align-items: center; gap: 10px; }
                 .dim-times { font-weight: 800; color: var(--txt2); font-size: var(--fs-sm); }
+                .dim-hint { margin: 8px 0 0; font-size: var(--fs-xs); color: var(--txt1); line-height: 1.4; }
 
                 .color-picker-row { display: flex; gap: 10px; align-items: center; }
                 .color-picker-row input[type="color"] { 

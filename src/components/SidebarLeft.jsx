@@ -39,7 +39,7 @@ export function SidebarLeft({
             </button>
             <button className="prompt-help-btn" onClick={onOpenPrompt}>
               <Info size={14} />
-              How do I obtain this?
+              Get it from your AI
             </button>
           </div>
 

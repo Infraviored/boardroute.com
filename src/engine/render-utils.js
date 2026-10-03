@@ -35,8 +35,13 @@ export { compColor };
  * boostColor - For components manually assigned color, make them pop.
  * For auto-colored ones, we already have our HSL targets.
  */
+// Text from the user's circuit JSON ends up in SVG markup rendered via innerHTML: escape it.
+const escXml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// Only plain colour literals may reach a style attribute.
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*\)|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i;
+
 export function boostColor(hexOrHsl) {
-  if (!hexOrHsl) return '#555';
+  if (typeof hexOrHsl !== 'string' || !SAFE_COLOR.test(hexOrHsl)) return '#555';
   if (hexOrHsl.startsWith('hsl')) return hexOrHsl; // Already processed
 
   const hex = hexOrHsl;
@@ -262,7 +267,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
   const isGhost = activePin?.ghost || isSelected === 'ghost';
   const ghostOp = 0.4;
 
-  let out = `<g class="pcb-comp ${isSelected === true ? 'component-selected' : ''}" data-id="${c.id}" style="--comp-color: ${mainColor}; --anim-delay: ${animDelay}; --anim-dur: ${animDur}; opacity: ${isGhost ? ghostOp : 1}">`;
+  let out = `<g class="pcb-comp ${isSelected === true ? 'component-selected' : ''}" data-id="${escXml(c.id)}" style="--comp-color: ${mainColor}; --anim-delay: ${animDelay}; --anim-dur: ${animDur}; opacity: ${isGhost ? ghostOp : 1}">`;
 
   // 1. Draw Component Base (balanced shine-through, solid rim)
   const sw = isSelected ? 3.1 : 1.9; // Balanced selecion thickness
@@ -292,7 +297,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
 
 
     const textAttrs = `x="${px}" y="${py}" dy=".35em" fill="#fff" font-family="'Outfit', sans-serif" font-weight="900" font-size="${Math.min(SP * .22, 6)}" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-    labelsOut += `<text ${textAttrs}>${p.lbl}</text>`;
+    labelsOut += `<text ${textAttrs}>${escXml(p.lbl)}</text>`;
   });
 
   // 3. Draw Component Labels (Centered, two-line layout)
@@ -304,12 +309,12 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
 
   // Name line
   const nameAttrs = `x="${midX}" y="${midY}" fill="#fff" font-family="'Outfit', sans-serif" font-size="${fontSize}" font-weight="800" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${nameAttrs}>${c.id}</text>`;
+  labelsOut += `<text ${nameAttrs}>${escXml(c.id)}</text>`;
 
   // Value line (slightly smaller and dimmer)
   const valY = midY + fontSize * 0.8;
   const valAttrs = `x="${midX}" y="${valY}" fill="rgba(255,255,255,0.6)" font-family="'Outfit', sans-serif" font-size="${fontSize * 0.8}" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${valAttrs}>${c.value}</text>`;
+  labelsOut += `<text ${valAttrs}>${escXml(c.value)}</text>`;
 
   out += `</g>`;
 
@@ -321,7 +326,245 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
   return `<g>${out}${labelsOut}</g>`;
 }
 
-export function generatePrunedSVG({ components, wires, side = 'top', padding = 3 }) {
+// ---------------------------------------------------------------------------
+// Hole coordinates ("show it the way it looks on MY perfboard")
+//
+// The engine works in unbounded treadmill coordinates, so absolute grid numbers mean nothing
+// to a user. Everything here is relative to a *board frame*: either the layout footprint
+// ("auto") or a physical board of cols x rows holes with the layout at its top-left corner,
+// inset by `margin` holes. Labels follow the user's printed board: letters or numbers per
+// axis, counting from 0 or 1, from any corner.
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_BOARD_VIEW = {
+  showCoords: false, // master toggle: axis labels along the board/footprint edges
+  pinCoords: false,  // additionally label every pin ("C7")
+  boardCols: null,   // null = auto (layout footprint)
+  boardRows: null,
+  margin: 1,         // holes between the board edge and the layout (only for a set size)
+  colStyle: 'num',   // 'num' | 'alpha'
+  rowStyle: 'alpha',
+  start: 1,          // numbers count from 1 or 0 (letters always start at A)
+  origin: 'tl',      // corner of label 1/A: 'tl' | 'tr' | 'bl' | 'br'
+};
+
+export function normalizeBoardView(v) {
+  const o = { ...DEFAULT_BOARD_VIEW, ...(v && typeof v === 'object' ? v : {}) };
+  const dim = (x) => {
+    if (x === null || x === '' || x === undefined) return null;
+    const n = Math.floor(Number(x));
+    return Number.isFinite(n) && n >= 1 ? Math.min(n, 500) : null;
+  };
+  const m = Math.floor(Number(o.margin));
+  return {
+    showCoords: !!o.showCoords,
+    pinCoords: !!o.pinCoords,
+    boardCols: dim(o.boardCols),
+    boardRows: dim(o.boardRows),
+    margin: Number.isFinite(m) ? Math.min(Math.max(m, 0), 50) : 1,
+    colStyle: o.colStyle === 'alpha' ? 'alpha' : 'num',
+    rowStyle: o.rowStyle === 'num' ? 'num' : 'alpha',
+    start: Number(o.start) === 0 ? 0 : 1,
+    origin: ['tl', 'tr', 'bl', 'br'].includes(o.origin) ? o.origin : 'tl',
+  };
+}
+
+/** Layout footprint in grid cells, max exclusive (same extent as generateBoundingBoxSVG). */
+export function layoutBounds(components = [], wires = []) {
+  let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
+  components.forEach(c => {
+    if (!isFinite(c.ox) || !isFinite(c.oy)) return;
+    minC = Math.min(minC, c.ox); maxC = Math.max(maxC, c.ox + c.w);
+    minR = Math.min(minR, c.oy); maxR = Math.max(maxR, c.oy + c.h);
+  });
+  wires.forEach(w => {
+    if (w.failed) return;
+    w.path?.forEach(pt => {
+      minC = Math.min(minC, pt.col); maxC = Math.max(maxC, pt.col + 1);
+      minR = Math.min(minR, pt.row); maxR = Math.max(maxR, pt.row + 1);
+    });
+  });
+  if (!isFinite(minC) || !isFinite(minR)) return null;
+  return { minC, minR, maxC, maxR };
+}
+
+/**
+ * Where the physical board sits in engine coordinates. A set axis is anchored `margin` holes
+ * before the layout's first column/row; an auto axis is exactly the footprint.
+ */
+export function computeBoardFrame(components, wires, view) {
+  const b = layoutBounds(components, wires);
+  if (!b) return null;
+  const v = normalizeBoardView(view);
+  const fw = b.maxC - b.minC, fh = b.maxR - b.minR;
+  const sizedC = !!v.boardCols, sizedR = !!v.boardRows;
+  const need = { cols: fw + (sizedC ? v.margin : 0), rows: fh + (sizedR ? v.margin : 0) };
+  const cols = sizedC ? v.boardCols : fw;
+  const rows = sizedR ? v.boardRows : fh;
+  return {
+    c0: sizedC ? b.minC - v.margin : b.minC,
+    r0: sizedR ? b.minR - v.margin : b.minR,
+    cols, rows,
+    sized: sizedC || sizedR,
+    layout: b,
+    footprint: { cols: fw, rows: fh },
+    need,
+    fits: cols >= need.cols && rows >= need.rows,
+  };
+}
+
+function lettersFor(i) {
+  let s = '';
+  for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
+}
+
+/** Index along each axis counted from the origin corner (0-based), or null off the board. */
+function axisIndex(frame, view, col, row) {
+  let i = col - frame.c0, j = row - frame.r0;
+  if (view.origin[1] === 'r') i = frame.cols - 1 - i;
+  if (view.origin[0] === 'b') j = frame.rows - 1 - j;
+  return {
+    i: i >= 0 && i < frame.cols ? i : null,
+    j: j >= 0 && j < frame.rows ? j : null,
+  };
+}
+
+function fmtAxis(idx, style, start) {
+  if (idx === null) return null;
+  return style === 'alpha' ? lettersFor(idx) : String(idx + start);
+}
+
+/** Label of one hole relative to the board frame, e.g. "C7"; null when off the board. */
+export function holeLabel(frame, view, col, row) {
+  const v = normalizeBoardView(view);
+  const { i, j } = axisIndex(frame, v, col, row);
+  const c = fmtAxis(i, v.colStyle, v.start), r = fmtAxis(j, v.rowStyle, v.start);
+  if (c === null || r === null) return null;
+  if (v.colStyle !== v.rowStyle) return v.colStyle === 'alpha' ? c + r : r + c; // letters first
+  return `${c},${r}`;
+}
+
+const COORD_GAP = 4; // px between the board edge and the label strip
+
+function coordFont(scale) { return 10 * scale; }
+
+function maxLabelChars(n, style, start) {
+  return style === 'alpha' ? lettersFor(Math.max(n - 1, 0)).length : String(Math.max(n - 1 + start, start)).length;
+}
+
+/**
+ * Which display edges carry the axis labels: the two edges meeting at the origin corner.
+ * The solder-side view is mirrored left/right, so the row labels move to the other side.
+ */
+function labelEdges(view, side) {
+  let h = view.origin[1] === 'r' ? 'right' : 'left';
+  if (side === 'bottom') h = h === 'left' ? 'right' : 'left';
+  return { colEdge: view.origin[0] === 'b' ? 'bottom' : 'top', rowEdge: h };
+}
+
+/** Extra room (px) the axis labels need outside the board frame, per display edge. */
+export function coordGutters(frame, view, side = 'top', scale = 1) {
+  const g = { top: 0, right: 0, bottom: 0, left: 0 };
+  const v = normalizeBoardView(view);
+  if (!frame || !v.showCoords) return g;
+  const font = coordFont(scale);
+  const { colEdge, rowEdge } = labelEdges(v, side);
+  g[colEdge] = COORD_GAP + font + 8;
+  g[rowEdge] = COORD_GAP + Math.max(font + 8, maxLabelChars(frame.rows, v.rowStyle, v.start) * font * (v.rowStyle === 'alpha' ? 0.75 : 0.62) + 10);
+  return g;
+}
+
+/**
+ * Board outline + coordinate labels as SVG strings, in the same pixel space as the rest of
+ * the drawing: a hole at engine (col,row) is drawn at ((col' - offC) * SP, (row - offR) * SP)
+ * with col' = col, or mCenter - col - 1 for the mirrored solder-side view. Labels are
+ * computed from the engine hole, so on the mirrored view they read right-to-left exactly like
+ * the physical board turned over (the glyphs themselves stay readable).
+ *
+ * Returns { board, labels }: `board` goes below the components, `labels` on top.
+ * `scale` (>= 1) enlarges the text when the canvas is zoomed out; labels thin out when they
+ * would collide. `dimOutside` darkens everything off the board (canvas only).
+ */
+export function generateCoordinatesSVG({
+  frame, view, components = [], side = 'top', mCenter = 0, offC = 0, offR = 0, scale = 1, dimOutside = false,
+}) {
+  if (!frame) return { board: '', labels: '' };
+  const v = normalizeBoardView(view);
+  const mirror = side === 'bottom';
+  const X = (c) => ((mirror ? mCenter - c - 1 : c) - offC) * SP; // left edge of the cell
+  const Y = (r) => (r - offR) * SP;
+
+  const x0 = Math.min(X(frame.c0), X(frame.c0 + frame.cols - 1));
+  const y0 = Y(frame.r0);
+  const w = frame.cols * SP, h = frame.rows * SP;
+
+  let board = '';
+  if (frame.sized) {
+    const stroke = frame.fits ? 'rgba(240,246,252,0.55)' : '#f85149';
+    if (dimOutside) {
+      const B = 50000;
+      board += `<path d="M${x0 - B},${y0 - B}h${w + 2 * B}v${h + 2 * B}h${-(w + 2 * B)}Z M${x0 - 3},${y0 - 3}v${h + 6}h${w + 6}v${-(h + 6)}Z" fill="#050706" fill-opacity="0.6" fill-rule="evenodd" style="pointer-events:none"/>`;
+    }
+    board += `<rect x="${x0 - 3}" y="${y0 - 3}" width="${w + 6}" height="${h + 6}" rx="6" fill="none" stroke="${stroke}" stroke-width="1.6" style="pointer-events:none"/>`;
+  }
+
+  if (!v.showCoords) return { board, labels: '' };
+
+  const font = coordFont(scale);
+  const textBase = `font-family="'Outfit', sans-serif" font-weight="700" text-anchor="middle" dy=".35em" paint-order="stroke" stroke="#05070a" stroke-width="2.5" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
+  const { colEdge, rowEdge } = labelEdges(v, side);
+  const gut = coordGutters(frame, v, side, scale);
+  let labels = '';
+
+  // Label strips: a dark backing so the text stays readable over the copper pads.
+  const strip = (x, y, sw, sh) => `<rect x="${x}" y="${y}" width="${sw}" height="${sh}" rx="4" fill="#0d1117" fill-opacity="0.82" stroke="rgba(255,255,255,0.08)" style="pointer-events:none"/>`;
+  const colStripH = gut[colEdge] - COORD_GAP;
+  const colStripY = colEdge === 'top' ? y0 - gut.top : y0 + h + COORD_GAP;
+  const rowStripW = gut[rowEdge] - COORD_GAP;
+  const rowStripX = rowEdge === 'left' ? x0 - gut.left : x0 + w + COORD_GAP;
+  labels += strip(x0, colStripY, w, colStripH) + strip(rowStripX, y0, rowStripW, h);
+
+  // Thin out labels that would overlap (only when zoomed far out or on huge numbers).
+  const steps = [1, 2, 5, 10, 20, 50, 100];
+  const colW = maxLabelChars(frame.cols, v.colStyle, v.start) * font * (v.colStyle === 'alpha' ? 0.75 : 0.62) + 6;
+  const colStep = steps.find(k => k * SP >= colW) || 100;
+  const rowStep = steps.find(k => k * SP >= font * 1.25) || 100;
+  const shown = (idx, style, k) => k === 1 || (style === 'alpha' ? idx % k === 0 : (idx + v.start) % k === 0);
+  // Every 5th number brighter: makes counting holes on the real board easier.
+  const tone = (idx, style) => (style === 'num' && (idx + v.start) % 5 === 0 ? '#f0f6fc' : '#8b949e');
+
+  for (let c = frame.c0; c < frame.c0 + frame.cols; c++) {
+    const { i } = axisIndex(frame, v, c, frame.r0);
+    if (i === null || !shown(i, v.colStyle, colStep)) continue;
+    labels += `<text x="${X(c) + SP / 2}" y="${colStripY + colStripH / 2}" font-size="${font}" fill="${tone(i, v.colStyle)}" ${textBase}>${fmtAxis(i, v.colStyle, v.start)}</text>`;
+  }
+  for (let r = frame.r0; r < frame.r0 + frame.rows; r++) {
+    const { j } = axisIndex(frame, v, frame.c0, r);
+    if (j === null || !shown(j, v.rowStyle, rowStep)) continue;
+    labels += `<text x="${rowStripX + rowStripW / 2}" y="${Y(r) + SP / 2}" font-size="${font}" fill="${tone(j, v.rowStyle)}" ${textBase}>${fmtAxis(j, v.rowStyle, v.start)}</text>`;
+  }
+
+  if (v.pinCoords) {
+    // Small tag at the pad's upper-right, in the gap between holes, on a dark pill so it reads
+    // over part bodies and their name/value text.
+    const pf = 6.5 * Math.min(scale, 1.6);
+    const ph = pf + 3;
+    components.forEach(comp => comp.pins?.forEach(p => {
+      if (!isFinite(p.col) || !isFinite(p.row)) return;
+      const lbl = holeLabel(frame, v, p.col, p.row) || 'off';
+      const pw = lbl.length * pf * 0.66 + 4;
+      const cx = X(p.col) + SP / 2, cy = Y(p.row) + SP / 2;
+      const lx = cx + SP * 0.1, ly = cy - SP * 0.2 - ph; // pill's top-left
+      labels += `<rect x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" width="${pw.toFixed(1)}" height="${ph.toFixed(1)}" rx="${(ph / 2).toFixed(1)}" fill="#05070a" fill-opacity="0.85" style="pointer-events:none"/>`
+        + `<text x="${(lx + pw / 2).toFixed(1)}" y="${(ly + ph / 2).toFixed(1)}" font-size="${pf}" fill="${lbl === 'off' ? '#f85149' : '#58a6ff'}" font-family="'Outfit', sans-serif" font-weight="800" text-anchor="middle" dy=".35em" style="pointer-events:none;user-select:none">${lbl}</text>`;
+    }));
+  }
+
+  return { board, labels };
+}
+
+export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null }) {
   if (!components?.length) return null;
 
   let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
@@ -344,6 +587,14 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     });
   });
 
+  // Hole coordinates / physical board: a set board size widens the export to the whole board.
+  const bv = view ? normalizeBoardView(view) : null;
+  const frame = bv && (bv.showCoords || bv.boardCols || bv.boardRows) ? computeBoardFrame(components, wires, bv) : null;
+  if (frame?.sized) {
+    minC = Math.min(minC, frame.c0); maxC = Math.max(maxC, frame.c0 + frame.cols);
+    minR = Math.min(minR, frame.r0); maxR = Math.max(maxR, frame.r0 + frame.rows);
+  }
+
   const mCenter = minC + maxC; // The symmetric center bounds for mirroring
 
   // Physically mirror the data structures for the layout flip
@@ -359,9 +610,9 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     path: w.path?.map(pt => ({ ...pt, col: mCenter - pt.col - 1 }))
   })) : wires;
 
-  const pad = padding / SP;
-  minC -= pad; minR -= pad;
-  maxC += pad; maxR += pad;
+  const gut = coordGutters(frame, bv, side);
+  minC -= (padding + gut.left) / SP; minR -= (padding + gut.top) / SP;
+  maxC += (padding + gut.right) / SP; maxR += (padding + gut.bottom) / SP;
 
   const W = Math.round((maxC - minC) * SP);
   const H = Math.round((maxR - minR) * SP);
@@ -415,7 +666,8 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     content = wiresContent + compsBases.join('') + compsLabels.join('') + jumpersContent;
   }
 
-  inner += `<g>${content}</g>`;
+  const coords = generateCoordinatesSVG({ frame, view: bv, components, side, mCenter, offC: minC, offR: minR });
+  inner += `${coords.board}<g>${content}</g>${coords.labels}`;
 
   // Border
   const strokeWidth = 2;
@@ -463,7 +715,8 @@ export function generateBoardSVG(components, wires = [], options = {}) {
     components,
     wires,
     side: options.side || 'top',
-    padding: 3
+    padding: 3,
+    view: options.view || null
   });
   if (!result) return '';
   const { W, H, inner } = result;

@@ -106,7 +106,7 @@ function page({ title, description, path, body, jsonld, type = 'article' }) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap">
 <link rel="stylesheet" href="${BASE}site.css">
-${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j)}</script>`).join('\n')}
+${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, "\\u003c")}</script>`).join("\n")}
 ${ANALYTICS}
 </head>
 <body>
@@ -180,15 +180,15 @@ articles.forEach((a, i) => {
 // Hub page
 const hubBody = `<main class="hub">
   <section class="hero">
-    <h1>How boardroute lays out your perfboard</h1>
-    <p class="lead">boardroute turns a circuit into a compact perfboard layout: it places the parts, wires every connection without crossings, and keeps shrinking the board. These pages explain how, without assuming you know graph theory or routing algorithms.</p>
+    <h1>Your AI designs the circuit.<br>boardroute lays it out.</h1>
+    <p class="lead">Every AI assistant knows thousands of parts and how to connect them. What it can't do is arrange them on a perfboard. boardroute is that missing half: it places the parts, wires every connection without crossings, and keeps shrinking the board. These pages explain how, without assuming you know graph theory or routing algorithms.</p>
     ${boardFigure('blinker555', 'A 555 LED blinker, laid out by boardroute on 8 × 7 = 56 holes.')}
   </section>
   <ol class="cards">${articles.map((a, i) => `<li><a href="${a.path}"><span class="num">${i + 1}</span><h2>${esc(a.nav)}</h2><p>${esc(a.summary)}</p></a></li>`).join('')}</ol>
 </main>`;
 writeFileSync(join(OUT, 'how-it-works', 'index.html'), page({
-    title: 'How the perfboard autorouter works · boardroute',
-    description: 'How boardroute places parts, routes wires without crossings, proves when a circuit needs jumper wires, and shrinks perfboard layouts. Plain-language explanations with examples.',
+    title: 'AI circuit to perfboard layout: how the autorouter works · boardroute',
+    description: 'Your AI picks the parts and connections; boardroute places them on a perfboard, routes every wire without crossings, adds jumper wires only when needed, and shrinks the board. How it works, in plain language.',
     path: BASE, body: hubBody, type: 'website',
     jsonld: [breadcrumb([['boardroute', '/'], ['How it works', BASE]]),
         { '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: articles.map((a, i) => ({ '@type': 'ListItem', position: i + 1, url: SITE + a.path, name: a.nav })) }],

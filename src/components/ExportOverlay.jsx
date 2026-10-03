@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Download, Settings, Layers } from 'lucide-react';
 import { generateBoardSVG, generateCombinedSVG } from '../engine/render-utils.js';
 
-export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot }) {
+export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null }) {
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
     const [side, setSide] = useState('top'); // 'top' | 'bottom' | 'both'
 
@@ -13,13 +13,13 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         const source = bestSnapshot || { components, wires };
 
         if (format === 'svg' && side === 'both') {
-            const svg = generateCombinedSVG(source.components, source.wires, { padding: 3 });
+            const svg = generateCombinedSVG(source.components, source.wires, { padding: 3, view: boardView });
             downloadFile(svg, `pcb_combined.svg`, 'image/svg+xml');
             return;
         }
 
         if (format === 'png' && side === 'both') {
-            const svg = generateCombinedSVG(source.components, source.wires, { padding: 3 });
+            const svg = generateCombinedSVG(source.components, source.wires, { padding: 3, view: boardView });
             const pngBlob = await svgToPng(svg);
             if (pngBlob) downloadFile(pngBlob, `pcb_combined.png`, 'image/png');
             return;
@@ -28,6 +28,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         const exportOne = async (exportSide) => {
             const svg = generateBoardSVG(source.components, source.wires, {
                 padding: 3,
+                view: boardView,
 
                 side: exportSide
             });
@@ -44,12 +45,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
             }
         };
 
-        if (side === 'both') {
-            await exportOne('top');
-            await exportOne('bottom');
-        } else {
-            await exportOne(side);
-        }
+        await exportOne(side);
 
         // onClose(); // Keep open to allow multiple exports if needed
     };
@@ -151,7 +147,12 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                         </div>
                     </div>
 
-
+                    <div className="export-coords-note">
+                        {boardView?.showCoords
+                            ? `Includes hole coordinates${boardView.pinCoords ? ' on every pin' : ''}; the bottom view is mirrored like the flipped board.`
+                            : 'Hole coordinates are off. Turn them on in the Board card to include them.'}
+                        {(boardView?.boardCols || boardView?.boardRows) ? ' The board outline is included.' : ''}
+                    </div>
                 </div>
 
                 <button className="btn blu export-action-btn" onClick={handleExport}>
@@ -228,6 +229,11 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
             width: 16px;
             height: 16px;
             cursor: pointer;
+          }
+          .export-coords-note {
+            font-size: 0.75rem;
+            line-height: 1.45;
+            color: var(--txt1);
           }
           .export-action-btn {
             margin-top: 10px;

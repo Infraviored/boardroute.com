@@ -11,9 +11,11 @@ import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
-import { TEMPLATE, processTemplate, generateJSONFromState } from './engine/templates.js';
+import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
-import { scoreState } from './engine/optimizer-algorithms.js';
+import { scoreState } from './engine/metrics.js';
+import { netCompletion } from './engine/net-completion.js';
+import { useBoardView } from './hooks/useBoardView.js';
 
 function App() {
   // --- ENGINE ---
@@ -114,7 +116,8 @@ function App() {
           offset: [p.dCol, p.dRow],
           label: p.lbl,
           net: p.net || ''
-        }))
+        })),
+        ...(bodyOf(c) ? { body: bodyOf(c) } : {})
       })),
       connections: nets.map(n => ({
         net: n.net,
@@ -132,6 +135,7 @@ function App() {
   const [bestSnapshot, setBestSnapshot] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [boardView, setBoardView] = useBoardView();
 
   // Modal states
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -145,8 +149,11 @@ function App() {
   const [previewPath, setPreviewPath] = useState(null);
 
   // History
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // The restored board is the first history entry, so Undo can always get back to it
+  // (e.g. after loading an example over it).
+  const [history, setHistory] = useState(() => board.components.length
+    ? [JSON.stringify({ components: board.components, wires: board.wires, cols: board.cols, rows: board.rows })] : []);
+  const [historyIndex, setHistoryIndex] = useState(() => (board.components.length ? 0 : -1));
 
   // Resizing
   const [lsbWidth, setLsbWidth] = useState(() => {
@@ -200,14 +207,12 @@ function App() {
 
   const saveHistory = useCallback(() => {
     const snap = JSON.stringify({ components: engine.components, wires: engine.wires, cols: engine.cols, rows: engine.rows });
-    setHistory(prev => {
-      const next = prev.slice(0, historyIndex + 1);
-      next.push(snap);
-      if (next.length > 30) next.shift();
-      setHistoryIndex(next.length - 1);
-      return next;
-    });
-  }, [engine, historyIndex]);
+    const next = history.slice(0, historyIndex + 1);
+    next.push(snap);
+    if (next.length > 30) next.shift();
+    setHistory(next);
+    setHistoryIndex(next.length - 1);
+  }, [engine, history, historyIndex]);
 
   const handleLoadTemplate = useCallback(() => {
     setWorkflowStep(0);
@@ -217,22 +222,45 @@ function App() {
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
   }, [engine, saveHistory]);
 
-  const handleLoadCircuit = useCallback(() => {
-    try {
-      const data = JSON.parse(jsonInput);
-      const defs = processTemplate(data);
-      if (defs) {
-        engine.mergeBoard(defs);
-        setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+  // Parse the circuit JSON; problems become a visible notice instead of a silent no-op.
+  const parseCircuit = useCallback(() => {
+    let data;
+    try { data = JSON.parse(jsonInput); } catch (e) {
+      setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it in the Circuit Definition box.` });
+      return null;
+    }
+    let defs = null;
+    try { defs = processTemplate(data); } catch (e) { console.error(e); }
+    if (!defs?.length) {
+      setNotice({ kind: 'error', title: 'No parts found', text: 'The JSON needs a "components" list, each part with an "id" and its "pins" (offset, net, label).' });
+      return null;
+    }
+    for (const d of defs) {
+      const seen = new Set();
+      for (const [col, row] of d.offsets) {
+        const k = `${col},${row}`;
+        if (seen.has(k)) {
+          setNotice({ kind: 'error', title: `Part ${d.id} has two pins in the same hole`, text: 'Each pin needs its own offset. Fix the offsets of this part, then try again.' });
+          return null;
+        }
+        seen.add(k);
       }
-    } catch (e) { console.error(e); }
-  }, [engine, jsonInput, saveHistory]);
+    }
+    return defs;
+  }, [jsonInput]);
+
+  const handleLoadCircuit = useCallback(() => {
+    const defs = parseCircuit();
+    if (!defs) return;
+    setNotice(null);
+    engine.mergeBoard(defs);
+    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+  }, [engine, parseCircuit, saveHistory]);
 
   // Wire (step 2): fresh placement, rearranged only until every net is connected.
   // Compact (step 3): shrink from the current board (also after moving parts by hand).
   const runLayout = useCallback(async (refine) => {
-    let defs = null;
-    try { defs = processTemplate(JSON.parse(jsonInput)); } catch (e) { console.error(e); }
+    const defs = parseCircuit();
     if (!defs) return;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
@@ -248,7 +276,9 @@ function App() {
     }
     const cert = res?.topology?.certificate;
     const jumperText = (n) => `${n} jumper wire${n === 1 ? '' : 's'}`;
-    if (res && !res.found) {
+    if (res && !res.found && engine.gCancelRequested) {
+      setNotice({ kind: 'info', title: 'Stopped before a layout was found', text: 'Press Wire again and give it a little longer.' });
+    } else if (res && !res.found) {
       setNotice({
         kind: 'warn',
         title: 'No fully routed layout found',
@@ -266,7 +296,7 @@ function App() {
       });
     }
     setSnapCounter(c => c + 1); saveHistory();
-  }, [engine, jsonInput, saveHistory]);
+  }, [engine, parseCircuit, saveHistory]);
 
   const handleStepClick = useCallback(async (step) => {
     if (step === 0) { engine.setState({ components: [], wires: [] }); setWorkflowStep(0); }
@@ -346,14 +376,16 @@ function App() {
   const handleReset = useCallback(() => setConfirmData({ isOpen: true, type: 'reset', targetId: 'board' }), []);
   const handleAddFromLibrary = useCallback((compDef) => {
     const newId = `C${board.components.length + 1}`;
-    let mw = 0, mh = 0; compDef.pins.forEach(p => { mw = Math.max(mw, p.offset[0] + 1); mh = Math.max(mh, p.offset[1] + 1); });
+    // footprint = pins + optional body, pin offsets relative to its origin
+    const def = processTemplate({ components: [{ ...compDef, id: newId }] })?.[0];
+    if (!def) return;
     let cx = 5, cy = 5;
     if (board.components.length > 0) {
       let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
       board.components.forEach(c => { minC = Math.min(minC, c.ox); maxC = Math.max(maxC, c.ox + c.w); minR = Math.min(minR, c.oy); maxR = Math.max(maxR, c.oy + c.h); });
       cx = Math.floor((minC + maxC) / 2) + Math.floor(Math.random() * 5); cy = Math.floor((minR + maxR) / 2) + Math.floor(Math.random() * 5);
     }
-    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: compDef.routeUnder !== false, w: mw, h: mh, ox: cx, oy: cy, pins: compDef.pins.map(p => ({ dCol: p.offset[0], dRow: p.offset[1], col: cx + p.offset[0], row: cy + p.offset[1], lbl: p.label, net: '' })) };
+    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     engine.setState({ components: [...board.components, newComp], wires: [] });
     setIsLibraryOpen(false); setSelectedId(newId); saveHistory();
   }, [board.components, engine, saveHistory]);
@@ -415,7 +447,7 @@ function App() {
   useEffect(() => {
     engine.setCallbacks({
       onStateChange: (newState) => setBoard(prev => ({ ...prev, ...newState })),
-      onProgress: (p, t) => setStatus(prev => ({ ...prev, progress: p, title: t })),
+      onProgress: (p, t, detail) => setStatus(prev => ({ ...prev, progress: p, title: t, detail })),
       onStatusUpdate: (upd) => setStatus(prev => ({ ...prev, ...upd })),
       onBestSnapshot: (snapshot) => {
         const safeWires = snapshot.wires.map(w => ({ ...w, path: w.path ? w.path.map(pt => ({ ...pt })) : null }));
@@ -487,10 +519,10 @@ function App() {
 
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
+    const nc = netCompletion(board.components, board.wires);
     const routedNum = board.wires.filter(w => !w.failed).length;
     const jumpers = board.wires.filter(w => w.jumper && !w.failed).length;
-    const failedNum = board.wires.length - routedNum;
-    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 ? Math.round((routedNum / (routedNum + failedNum)) * 100) : null, jumpers };
+    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 && nc.total > 0 ? Math.round((nc.done / nc.total) * 100) : null, jumpers };
   }, [board]);
 
   const netsMap = useMemo(() => {
@@ -549,6 +581,7 @@ function App() {
               onManualRoute={handleManualRoute} onPreviewRoute={handlePreviewRoute} previewPath={previewPath}
               tick={board.tick} isProcessing={status.isProcessing || !!status.results} isInitialProcessing={status.isInitial}
               workflowStep={workflowStep} snapCounter={snapCounter}
+              boardView={boardView}
             />
           </main>
           <ProcessingBar
@@ -580,6 +613,7 @@ function App() {
           components={board.components}
           wires={board.wires}
           bestSnapshot={bestSnapshot}
+          boardView={boardView} setBoardView={setBoardView}
         />
       </div>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
@@ -592,7 +626,7 @@ function App() {
         message={confirmData.type === 'pin' ? `Are you sure you want to disconnect ${confirmData.targetId}?` : confirmData.type === 'comp' ? `Are you sure you want to delete ${confirmData.targetId}?` : confirmData.type === 'net' ? `Are you sure you want to clear wires for net ${confirmData.targetId}?` : confirmData.type === 'reset' ? 'Clear all components and wires?' : 'Proceed?'}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmData({ isOpen: false, type: null, targetId: null })}
       />
-      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} />
+      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} />
       <style dangerouslySetInnerHTML={{
         __html: `
         .app-main { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg0); }

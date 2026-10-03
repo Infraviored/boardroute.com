@@ -1,0 +1,692 @@
+{
+  "components": [
+    {
+      "id": "U1",
+      "name": "ESP32-C3 SuperMini",
+      "value": "ESP32-C3 SuperMini",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "5V",
+          "label": "5V"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "GND"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": null,
+          "label": "3V3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": null,
+          "label": "IO4"
+        },
+        {
+          "offset": [
+            0,
+            4
+          ],
+          "net": "G3IN",
+          "label": "IO3"
+        },
+        {
+          "offset": [
+            0,
+            5
+          ],
+          "net": "G2IN",
+          "label": "IO2"
+        },
+        {
+          "offset": [
+            0,
+            6
+          ],
+          "net": "G1IN",
+          "label": "IO1"
+        },
+        {
+          "offset": [
+            0,
+            7
+          ],
+          "net": "G0IN",
+          "label": "IO0"
+        },
+        {
+          "offset": [
+            6,
+            0
+          ],
+          "net": null,
+          "label": "IO5"
+        },
+        {
+          "offset": [
+            6,
+            1
+          ],
+          "net": null,
+          "label": "IO6"
+        },
+        {
+          "offset": [
+            6,
+            2
+          ],
+          "net": null,
+          "label": "IO7"
+        },
+        {
+          "offset": [
+            6,
+            3
+          ],
+          "net": null,
+          "label": "IO8"
+        },
+        {
+          "offset": [
+            6,
+            4
+          ],
+          "net": null,
+          "label": "IO9"
+        },
+        {
+          "offset": [
+            6,
+            5
+          ],
+          "net": null,
+          "label": "IO10"
+        },
+        {
+          "offset": [
+            6,
+            6
+          ],
+          "net": null,
+          "label": "IO20"
+        },
+        {
+          "offset": [
+            6,
+            7
+          ],
+          "net": null,
+          "label": "IO21"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RG0",
+      "name": "Resistor",
+      "value": "220",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G0IN",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "G0",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RP0",
+      "name": "Resistor",
+      "value": "47k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G0",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q0",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G0",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D0",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D0",
+      "name": "Diode",
+      "value": "SS54",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "K"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D0",
+          "label": "A"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JL0",
+      "name": "Screw Terminal",
+      "value": "Load 0",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "D0",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RG1",
+      "name": "Resistor",
+      "value": "220",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G1IN",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "G1",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RP1",
+      "name": "Resistor",
+      "value": "47k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G1",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q1",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G1",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D1",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D1",
+      "name": "Diode",
+      "value": "SS54",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "K"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D1",
+          "label": "A"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JL1",
+      "name": "Screw Terminal",
+      "value": "Load 1",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "D1",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RG2",
+      "name": "Resistor",
+      "value": "220",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G2IN",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "G2",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RP2",
+      "name": "Resistor",
+      "value": "47k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G2",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q2",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G2",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D2",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D2",
+      "name": "Diode",
+      "value": "SS54",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "K"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D2",
+          "label": "A"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JL2",
+      "name": "Screw Terminal",
+      "value": "Load 2",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "D2",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RG3",
+      "name": "Resistor",
+      "value": "220",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G3IN",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "G3",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RP3",
+      "name": "Resistor",
+      "value": "47k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q3",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G3",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D3",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D3",
+      "name": "Diode",
+      "value": "SS54",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "K"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D3",
+          "label": "A"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JL3",
+      "name": "Screw Terminal",
+      "value": "Load 3",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "D3",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JP",
+      "name": "Screw Terminal",
+      "value": "12V in",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "+12V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J5V",
+      "name": "Terminal",
+      "value": "5V",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "5V",
+          "label": "5V"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

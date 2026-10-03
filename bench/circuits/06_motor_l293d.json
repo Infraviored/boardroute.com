@@ -1,0 +1,396 @@
+{
+  "components": [
+    {
+      "id": "U1",
+      "name": "Wemos D1 Mini",
+      "value": "Wemos D1 Mini",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": null,
+          "label": "RST"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": null,
+          "label": "A0"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "EN2",
+          "label": "D0"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": "IN3",
+          "label": "D5"
+        },
+        {
+          "offset": [
+            0,
+            4
+          ],
+          "net": "IN4",
+          "label": "D6"
+        },
+        {
+          "offset": [
+            0,
+            5
+          ],
+          "net": "EN1",
+          "label": "D7"
+        },
+        {
+          "offset": [
+            0,
+            6
+          ],
+          "net": null,
+          "label": "D8"
+        },
+        {
+          "offset": [
+            0,
+            7
+          ],
+          "net": null,
+          "label": "3V3"
+        },
+        {
+          "offset": [
+            8,
+            0
+          ],
+          "net": null,
+          "label": "TX"
+        },
+        {
+          "offset": [
+            8,
+            1
+          ],
+          "net": null,
+          "label": "RX"
+        },
+        {
+          "offset": [
+            8,
+            2
+          ],
+          "net": "IN1",
+          "label": "D1"
+        },
+        {
+          "offset": [
+            8,
+            3
+          ],
+          "net": "IN2",
+          "label": "D2"
+        },
+        {
+          "offset": [
+            8,
+            4
+          ],
+          "net": null,
+          "label": "D3"
+        },
+        {
+          "offset": [
+            8,
+            5
+          ],
+          "net": null,
+          "label": "D4"
+        },
+        {
+          "offset": [
+            8,
+            6
+          ],
+          "net": "GND",
+          "label": "G"
+        },
+        {
+          "offset": [
+            8,
+            7
+          ],
+          "net": "5V",
+          "label": "5V"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "U2",
+      "name": "L293D",
+      "value": "DIP-16",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "EN1",
+          "label": "1"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "IN1",
+          "label": "2"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "OUT1",
+          "label": "3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": "GND",
+          "label": "4"
+        },
+        {
+          "offset": [
+            0,
+            4
+          ],
+          "net": "GND",
+          "label": "5"
+        },
+        {
+          "offset": [
+            0,
+            5
+          ],
+          "net": "OUT2",
+          "label": "6"
+        },
+        {
+          "offset": [
+            0,
+            6
+          ],
+          "net": "IN2",
+          "label": "7"
+        },
+        {
+          "offset": [
+            0,
+            7
+          ],
+          "net": "VM",
+          "label": "8"
+        },
+        {
+          "offset": [
+            3,
+            7
+          ],
+          "net": "EN2",
+          "label": "9"
+        },
+        {
+          "offset": [
+            3,
+            6
+          ],
+          "net": "IN3",
+          "label": "10"
+        },
+        {
+          "offset": [
+            3,
+            5
+          ],
+          "net": "OUT3",
+          "label": "11"
+        },
+        {
+          "offset": [
+            3,
+            4
+          ],
+          "net": "GND",
+          "label": "12"
+        },
+        {
+          "offset": [
+            3,
+            3
+          ],
+          "net": "GND",
+          "label": "13"
+        },
+        {
+          "offset": [
+            3,
+            2
+          ],
+          "net": "OUT4",
+          "label": "14"
+        },
+        {
+          "offset": [
+            3,
+            1
+          ],
+          "net": "IN4",
+          "label": "15"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "5V",
+          "label": "16"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JM1",
+      "name": "Screw Terminal",
+      "value": "Motor A",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "OUT1",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "OUT2",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JM2",
+      "name": "Screw Terminal",
+      "value": "Motor B",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "OUT3",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "OUT4",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "JP",
+      "name": "Screw Terminal",
+      "value": "VM in",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VM",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "C1",
+      "name": "Capacitor",
+      "value": "100uF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VM",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "C2",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "5V",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

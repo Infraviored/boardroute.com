@@ -1,121 +1,81 @@
-# boardroute.com Mathematical & Algorithmic Architecture
+# Layout engine architecture
 
-This document serves as a technical deep-dive into the engine and mathematics powering boardroute.com. The core of this project is an advanced, heuristic-driven constraint solver and placement engine that simultaneously handles 2D bin packing, pathfinding, and graph optimization algorithms to lay out components and route wired connections on a discrete boardroute.com grid.
+Technical reference for the box solver and the topology check. For the user-facing explanation see [how-it-works/](how-it-works/README.md); the previous pipeline is described in [legacy-optimizer.md](legacy-optimizer.md).
 
-## Core Objective
+## Problem model
 
-The solver aims to find the global minimum of a highly non-convex, multi-objective cost function:
+- Board: unbounded grid of holes. A layout is a placement (position + rotation in 90° steps per part) plus one wire forest per net.
+- A part is its pin offsets; its body is the pins' bounding box (`w × h`). Bodies may not overlap.
+- Wires move between 4-neighbouring holes. A hole holds at most one net. A wire may not enter a pin of another net (or an unconnected pin), and may not enter the body of a part with `routeUnder: false`. A net may pass through its own pins.
+- `routeUnder` defaults to **true** (`processTemplate`): wiring is on the solder side, so only pins block.
+- Objective, lexicographic: every net connected, then minimal bounding-box area (bodies + wire cells), then minimal wire length.
 
-`E_total = W_f * failed_routes + W_a * area + W_p * perimeter + W_w * wire_length`
+## Data flow in the app
 
-Since finding the absolute minimum for standard placement and routing (which is an NP-Hard problem akin to the Traveling Salesperson, Steiner Tree, and 2D Bin Packing) is computationally infeasible in polynomial time, we employ a hybrid metaheuristic approach combining Simulated Annealing, greedy local search, graph-based pathfinding, and topographical plateau exploration.
+```mermaid
+flowchart LR
+    JSON[circuit JSON] -->|processTemplate| defs[component defs]
+    defs -->|analyzeTopology| topo{planar?}
+    topo -- no --> notice[red notice: K5 / K3,3 certificate]
+    topo -- yes --> worker[solver.worker.js]
+    worker -->|solveBox| best[best layouts, streamed]
+    best -->|engine.layout onBest| canvas[canvas + preview bar]
+```
 
----
+`AutorouterEngine.layout(defs, { refine })` (`src/engine/engine.js`) runs the topology check, then `solveBox` in a Web Worker (inline when `Worker` is undefined, e.g. Node). Each new best layout is recentred on the previous layout's centre, written to the engine state and pushed to the UI. Stopping: `engine.cancel()` posts `stop`; the worker also stops on stagnation (no improvement for `max(stallMs, ½ · time of last improvement)`, with `stallMs` = 1.2 s per part clamped to 3–15 s) or after `budgetMs` = 60 s (`engine.layoutConfig`). The stall constants were calibrated by replaying the recorded benchmark traces: score 1.017 vs 1.006 for the full minute, ~19 s average run time. `refine: true` passes the current components as `initial`.
 
-## 1. Initial State & Representation
+## `src/engine/topology.js`: unroutability proof
 
-The boardroute.com grid is represented as a discrete 2D coordinate system. 
-- **Components** define bounding boxes (`w` x `h`) and local pin offsets.
-- **Nets** represent topological graphs of pins that must be electrically connected.
-- **Treadmill Coordinate System:** The global coordinate space is conceptually infinite. To counteract coordinate drift during continuous optimization, the entire system utilizes a center-of-mass "treadmill" translation algorithm. After any major global mutation, the bounding box of the active layout is calculated, and all atomic coordinates (components and wire paths) are translated simultaneously such that the bounding box center maps perfectly to `(0, 0)`.
+Builds graph Q: one vertex per net with ≥ 2 pins; every blocking cell of a part (pins, plus all body cells if `routeUnder` is false) is a vertex with its grid adjacencies; every pin is identified with its net's vertex. Contracting each net's copper (wires + its pins, a connected set) in any valid layout yields a planar drawing of Q, so Q non-planar ⇒ unroutable for every placement and board size.
 
----
+- `isPlanar(n, edges)`: biconnected blocks (iterative Tarjan) + Demoucron–Malgrange–Pertuiset path addition per block. Cross-checked against NetworkX `check_planarity` on 3000 random graphs, zero mismatches.
+- `kuratowskiSubgraph`: greedy edge deletion to a minimal non-planar subgraph; branch vertices give K5 vs K3,3.
+- `analyzeTopology(defs)` → `{ planar, walls, certificate?: { type, parts, nets, branch }, explanation? }`.
 
-## 2. Component Placement Engine
+Not sufficient for routability: it ignores capacity (e.g. the 2-hole corridor of a DIP), and the constraint that two walls must not cross at a shared net vertex. A planar circuit can still be unroutable; `bench/circuits/06_motor_l293d` is the known example.
 
-The placement engine's job is to arrange the component bounding boxes such that the resultant geometry maximizes the probability of successful routing while minimizing physical board real estate.
+## `src/engine/solver/`
 
-### Simulated Annealing (SA)
+### `model.js`
 
-We utilize Simulated Annealing as the baseline macro-optimizer for placement.
-1. **State Generation:** Randomly select a component and apply a transformation:
-   - Translation step: `(dx, dy)` up to a max magnitude.
-   - Rotation step: 90, 180, or 270 degrees.
-2. **Energy Function (HPWL):** Calculating full pathfinding for every micro-movement is too expensive. Instead, the Annealer evaluates the Half-Perimeter WireLength (HPWL). The HPWL calculates the bounding box of all pins connected to a net and sums the half-perimeters `(width + height)` of these boxes. This serves as a rapid, lower-bound mathematical approximation of the final Steiner Tree routing length.
-3. **Acceptance Probability:** A proposed perturbation is always accepted if it decreases the HPWL (`ΔE < 0`). If it increases the cost, it is accepted with a probability defined by the Boltzmann distribution: `P = e^(-ΔE / T)`, where `T` is the geometric cooling temperature.
-4. **Hard Constraints:** Any perturbation that physically overlaps two component bodies is immediately rejected to maintain physical validity (unless overlapping is intentionally authorized).
+`buildModel(defs)`: numeric nets, per part 4 precomputed rotations (`w, h, dc[], dr[]`, same convention as `rotateComp90InPlace`), `routedNets` (≥ 2 pins), total body area. `toEngine(model, pl, routing, W)` converts back to engine components (via `makeComp` + rotation) and wires (`{ net, path, failed: false }`).
 
-### Local Micro-Mutations and Deep Scrambles
+A placement `pl` is `{ ox, oy, rot }` as typed arrays indexed by part.
 
-Since Simulated Annealing cools down, it eventually becomes rigid. To prevent the layout from getting trapped in local minima:
-- **Micro Search:** If the global score stagnates, we randomly select a subset (e.g., 15%) of components and apply localized rotations or 1-unit nudges, searching for greedy instant improvements in the surrounding state space.
-- **Deep Scramble / Macro Mutation:** If stagnation crosses a deep threshold, the solver forcefully translates all components by a wider randomized vector `[-3, +3]`, effectively "shaking" the entire board configuration to kick the system out of a deep local minimum.
+### `boxrouter.js`: negotiated-congestion router in a W×H box
 
----
+- `setPlacement(pl)` rasterises bodies and pins (`pinNet`: net id, `CELL_FREE` or `CELL_DEAD` for unconnected/colliding pins) and returns the overlap count (out-of-box cells count 4 each).
+- `routeNet(n, occ, pres, seed)`: Steiner tree by repeated multi-source/multi-target A* from the current tree to the remaining pins. Step cost `1 + hist + pres · occ(other nets) + turnCost` (0.2 per bend). Returns `{ conns, cells, missing }`; `cells` are the non-pin wire cells used for occupancy.
+- `negotiate({ state, maxIter, pres0, presMul, histInc, partial })`: PathFinder loop. With a warm `state`, nets whose old tree is still intact (`salvage().intact`) are kept untouched; damaged nets regrow from their salvage. Each round re-routes only nets on overused cells; present cost × `presMul` per round, history cost += `histInc` on overused cells. Returns `{ conns, cells, missing, occ, overuse, miss, wl, badNets }`.
+- `salvage(n, conns, occ?)`: drops connections that cross a now-illegal cell (or, during negotiation, a cell another net uses) or no longer end on an own pin; keeps the connected piece touching the most pins. This partial repair is the main speed lever.
+- `trim()` (during search) cuts dangling non-pin ends; `prune()` (on output) rebuilds each net as a clean tree: BFS spanning forest over the copper, leaf trimming, split into paths between pins/junctions. Salvage can otherwise leave loops.
 
-## 3. The Pathfinding Router
+Profile (MOSFET bank, 23 parts): A* in `routeNet` ≈ 60 % of runtime.
 
-Whenever the placement engine proposes a new topological candidate, the routing engine takes over to construct the physical traces.
+### `boxsolver.js`: `solveBox(defs, opts)`
 
-### Discrete A* / Lee Algorithm
+Cost of a state: `6 · overlap + 10 · missing pins + 2 · overused cells + 0.02 · wire length`. Legal ⇔ the first three are zero.
 
-Routing is fundamentally an execution of the discrete A* search algorithm combined with a breadth-first search wave-propagation approach on the grid.
-1. **Heuristics:** The A* node heuristic heavily weights Manhattan distance toward the target pin.
-2. **Routing Costs:** 
-   - Moving one grid space costs `1` baseline.
-   - Moving through a cell already occupied by another net is strictly forbidden (infinite cost).
-   - Moving under a component body is prohibited unless the component explicitly holds a `routeUnder` flag.
-3. **Multi-Point Nets:** For nets containing more than two pins, the router solves a Minimum Spanning Tree approximation. It routes the first two closest pins, marks the newly generated path as "active" for that net, and then treats the entire geometric line segment as a valid target for the next closest unrouted pin in the net.
+1. **Start.** Square box of side `≈ √(3 · body area)` (or `√(1.6 · best area)` on restarts). Random placement, then `hpwlPlace`: a fast anneal on half-perimeter wire length with a 1-hole keep-out around bodies, no routing. With `opts.initial` (Refine), the first attempt uses the given layout in its bounding box + 1 hole margin instead.
+2. **Anneal to legality** (`anneal`): Metropolis with geometric cooling (`T0` → `T1`). The acceptance threshold `-T · ln(u)` is drawn first; a move whose overlap lower bound already exceeds it is rejected without routing (exact, saves 20–35 % of evaluations). Returns at the first legal state.
+3. **Crop** to the real footprint (`crop`, remaps the routing), record the best layout (with `prune`d trees).
+4. **Shrink**: for W−1 or H−1 (larger area cut first), try `lines` random rows/columns, remove the one with the lowest resulting cost (`removeLine`: parts beyond it shift by one, the rest is clamped), anneal with effort `effort · nParts · (1 + fails)`. On failure try the other axis; after `fails` consecutive failures, restart.
+5. Near-misses (no overlap, no missing pin, ≤ `polish` overused cells) get a cold re-route with `polishIter` rounds before being judged.
 
----
+Moves (`propose`, weights in `V`): shift ±1/±2, rotate (about the centre), swap two parts' centres, random jump, **smart jump** (move the part so one of its pins lands next to another pin of the same net, rotation randomised half the time), push (off). Parts involved in a violation are chosen with probability `pViol`; with `local: 1` "involved" means within `radius` of an overused cell rather than on a conflicting net.
 
-## 4. Advanced Geometric & Topological Solvers
+All tunables live in the `V` object at the top of `solveBox` and can be overridden per call (`opts.variant`) or per benchmark run (`--opt key=val,...`). Current defaults came out of the quick benchmark; the table of what helped is in [how-it-works/05-measuring-progress.md](how-it-works/05-measuring-progress.md).
 
-Between placement and routing steps, the engine applies specialized algorithms directly to the topological structure. All passes that move individual components use **incremental routing** — only the nets touching moved components are ripped up and re-routed, rather than re-routing the entire board from scratch.
+Determinism: the solver uses `Math.random`; the benchmark seeds it. Runs with the same seed still diverge slightly because budgets are wall-clock.
 
-### Recursive Push Packing
-As the layout routes successfully, it inherently holds "slack" space. The Push Packer greedily analyzes the centroid of the board and systematically applies inward gravity vectors to outer components. If moving a component inward causes an overlap, it uses a recursive push pattern, effectively shifting columns or rows of components simultaneously toward the center to tightly compress the physical footprint.
+### `solver.worker.js`
 
-### Affinity Packing (Wire Loop Resolution)
-Detects component pairs sharing ≥2 nets (high topological affinity) that ended up far apart. When two tightly-connected components are separated, their shared-net wires must route long detours ("loops") around obstacles. This pass generates candidate positions by targeting pin-to-pin proximity (Manhattan distance 1-2) for shared nets, and moves the smaller component adjacent to the larger one. This resolves wire loops early so subsequent geometric passes work on a better topology.
+Message protocol: in `{ type: 'solve', defs, initial, budgetMs, stallMs }` / `{ type: 'stop' }`; out `{ type: 'best', components, wires, metrics }`, `{ type: 'progress', elapsed, text }`, `{ type: 'done', found }`.
 
-### Orthogonal Rotate Optimize (`tryRotateOptimize`)
-Iterates sequentially over every component and tests all four 90-degree orthogonal orientations. It permanently commits to the orientation that locally maximizes the successful wire completion and minimizes wire length.
+## Benchmark (`bench/`)
 
-### Wire-Driven Shrink (`tryShrinkAlongWires`)
-Instead of blind push-packing, this algorithm calculates the mathematical vectors of the physical wire paths. It evaluates the tension/distance between connected components and attempts to translate the components directly along the axis of their traces, reeling them in to eliminate unnecessary zig-zag geometries.
+See the Commands section of the repository's `CLAUDE.md`. Key points: 14 circuits (`make-circuits.js` generates 04+ and the `x*` (un)routability cases), parallel worker processes with seeded `Math.random`, independent `validate.js`, score = geometric mean of area / frozen `reference.json` (unrouted = 2), quick mode on three hard boards for iteration. Reference runs: `bench/baselines/`.
 
-### Topological Wire Absorption
-Iteratively pulls components along their connected wire paths toward their connections. For each pin, follows the actual wire path direction and moves the component 1 step along it. The cell was already occupied by the wire, so the move is provably safe and wirelength monotonically improves. Repeats until no more progress, "peeling the onion" from the outside in — creating internal free space for subsequent compaction passes.
+## Legacy code still in use
 
-### Targeted Chain Compaction (TCC)
-A sliding-puzzle-style optimizer that finds multi-step component relocations to shrink the bounding box. For each boundary component (small first, few-nets first), it tries to move it inward. If a blocker is in the way, it recursively searches for positions to relocate the blocker (and the blocker's blocker, up to depth 2) into nearby free space or air gaps. Routing is checked only once at the end of a successful sequence. Can temporarily grow the BB by +1 for a blocker if the net result is still a BB reduction.
-
----
-
-## 5. Plateau Exploration
-
-The energy landscape of discrete grid routing is highly step-like—it produces massive "plateaus" where hundreds of different component placements yield the exact same physical wire length, area, and routing completion. 
-
-Standard gradient descent algorithms fail on plateaus because there is no defined downward slope to follow. 
-`doPlateauExplore` activates when standard mutations fail sequentially. It systematically branches out into adjacent state definitions:
-1. It calculates the neighborhood of the current optimal state by permuting single components.
-2. It fully routes these neighbors.
-3. It filters neighbors tightly. It explicitly accepts new states that have *identical* area and perimeter, even if the internal wirelength is very slightly worse.
-4. By hopping between these mathematically equivalent area states, the system walks across the "flat" top of the plateau until it blindly uncovers the edge of a new gradient descent valley resulting in a suddenly smaller bounding box.
-
----
-
-## Summary of the Optimization Loop
-
-1. **Initialize:** `placeInitial` populates the board around `(0,0)`.
-2. **Anneal:** Fast HPWL placement estimation via Simulated Annealing.
-3. **Primary Route:** Full A* execution across all nets.
-4. **Search Loop (Epochs × Iterations):**
-
-   | # | Pass | Trigger | Routing |
-   |---|------|---------|---------|
-   | 1 | **Micro Search** — nudge/rotate ~15% of components randomly | Every iteration | Full re-route |
-   | 2 | **Deep Scramble** — randomize all positions within ±3 | `stagnation ≥ 12` | Full re-route |
-   | 3 | **Simulated Annealing** — HPWL-based placement pass | Every 10th iter or `stagnation ≥ 8` | Full re-route |
-   | 4 | **Recursive Push Packing** — inward gravity with chain-push | Every iteration | Incremental |
-   | 5 | **Affinity Packing** — pair up components sharing ≥2 nets | Every iteration | Incremental |
-   | 6 | **Rotate Optimize** — test all 4 orientations per component | Every iteration | Incremental |
-   | 7 | **Global Nudge** — translate all components ±1 in each direction | Every iteration | Full re-route |
-   | 8 | **Wire-Driven Shrink** — pull boundary components along wire tension vectors | Every iteration | Incremental |
-   | 9 | **Wire Absorption** — slide components along their actual wire paths | Every iteration | Incremental |
-   | 10 | **Chained Compaction (TCC)** — sliding-puzzle boundary shrink | Every iteration | Incremental |
-   | 11 | **Plateau Exploration** — BFS over equal-area states | `stagnation ≥ threshold` | Incremental |
-
-5. **Evaluate:** If `scoreState()` mathematically beats the globally cached optimal state (based on routing % → area → perimeter → wire length), cache the new state map.
-6. **Plateau / Break:** If stagnation triggers, execute Plateau Exploration to traverse the flat energy topology. Return the absolute best state discovered.
+The UI's manual tools still use the old modules: `router.js` (`route`, `incrementalReroute`) for Connect, manual wires and repairs after edits; `grid.js`; `placer.js` geometry helpers; `scoreState` / `recenterComponents` from `optimizer-algorithms.js`. The old optimisation pipeline (`optimizer.js`, the passes in `optimizer-algorithms.js`, `engine.placeAndRoute/optimize/plateau`) is no longer reachable from the UI. Only `bench/strategies.js` → `legacy` still runs it, for comparison; it can be removed once that isn't needed.

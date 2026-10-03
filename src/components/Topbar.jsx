@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Zap,
-  Wrench,
   Compass,
   Undo2,
   Redo2,
@@ -45,28 +44,21 @@ export function Topbar({
             className={`flow-btn ${workflowStep >= 2 && !(workflowStep === 2 && isProcessing) ? 'completed' : ''} ${workflowStep === 2 && isProcessing ? 'processing' : ''} ${workflowStep === 1 && !isProcessing ? 'next' : ''}`}
             onClick={() => onStepClick(2)}
             disabled={workflowStep < 1 || isProcessing}
+            title="Place, route and pack the circuit from scratch"
             style={{ '--flow-color': 'var(--grn-bright)' }}
           >
             <Zap size={14} />
-            Route
+            Layout
           </button>
           <button
             className={`flow-btn ${workflowStep >= 3 && !(workflowStep === 3 && isProcessing) ? 'completed' : ''} ${workflowStep === 3 && isProcessing ? 'processing' : ''} ${workflowStep === 2 && !isProcessing ? 'next' : ''}`}
             onClick={() => onStepClick(3)}
             disabled={workflowStep < 2 || isProcessing}
-            style={{ '--flow-color': 'var(--blu-bright)' }}
-          >
-            <Wrench size={14} />
-            Compact
-          </button>
-          <button
-            className={`flow-btn ${workflowStep >= 4 && !(workflowStep === 4 && isProcessing) ? 'completed' : ''} ${workflowStep === 4 && isProcessing ? 'processing' : ''} ${workflowStep >= 3 && !isProcessing ? 'next' : ''}`}
-            onClick={() => onStepClick(4)}
-            disabled={workflowStep < 3 || isProcessing}
+            title="Keep searching from the current layout (also after moving parts by hand)"
             style={{ '--flow-color': '#a371f7' }}
           >
             <Compass size={14} />
-            Optimize
+            Refine
           </button>
         </div>
       </div>

@@ -35,6 +35,10 @@ function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        // Boards saved before v2 had routeUnder=false as an implicit default, not a choice.
+        if (localStorage.getItem('pcb_model_version') !== '2') {
+          (parsed.components || []).forEach(c => { c.routeUnder = true; });
+        }
         return {
           components: parsed.components || [],
           wires: parsed.wires || [],
@@ -86,6 +90,8 @@ function App() {
     localStorage.setItem('pcb_json_input', jsonInput);
   }, [jsonInput]);
 
+  useEffect(() => { localStorage.setItem('pcb_model_version', '2'); }, []);
+
   useEffect(() => {
     localStorage.setItem('pcb_workflow_step', workflowStep.toString());
   }, [workflowStep]);
@@ -99,6 +105,7 @@ function App() {
         id: c.id,
         name: c.name,
         value: c.value,
+        ...(c.routeUnder === false ? { routeUnder: false } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
           label: p.lbl,
@@ -119,6 +126,7 @@ function App() {
   const [selectedNet, setSelectedNet] = useState(null);
   const [hoveredNet, setHoveredNet] = useState(null);
   const [bestSnapshot, setBestSnapshot] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Modal states
@@ -214,42 +222,48 @@ function App() {
     } catch (e) { console.error(e); }
   }, [engine, jsonInput, saveHistory]);
 
-  const handleRoute = useCallback(async () => {
-    setWorkflowStep(2);
-    setStatus(prev => ({ ...prev, isProcessing: true, isInitial: true }));
+  // Layout (step 2): place, route and pack from scratch. Refine (step 3): keep searching
+  // from the current layout, e.g. after moving parts by hand.
+  const runLayout = useCallback(async (refine) => {
+    let defs = null;
+    try { defs = processTemplate(JSON.parse(jsonInput)); } catch (e) { console.error(e); }
+    if (!defs) return;
+    setWorkflowStep(refine ? 3 : 2);
+    setNotice(null);
+    setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
+    let res = null;
     try {
-      const data = JSON.parse(jsonInput);
-      const defs = processTemplate(data);
-      await engine.placeAndRoute(defs);
+      res = await engine.layout(defs, { refine });
     } finally {
-      setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false }));
+      setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
+      setBestSnapshot(null);
+    }
+    if (res?.unroutable) {
+      const c = res.unroutable.certificate;
+      setNotice({
+        kind: 'error',
+        title: 'This circuit cannot be built on one layer',
+        text: `Parts ${c.parts.join(', ')} and nets ${c.nets.join(', ')} form a ${c.type} structure: some wires would have to cross, wherever the parts are placed. Add a jumper wire (split one of these nets), or change a footprint so wires can pass between its pins.`,
+      });
+      setWorkflowStep(1);
+      return;
+    }
+    if (res && !res.found) {
+      setNotice({
+        kind: 'warn',
+        title: 'No fully routed layout found',
+        text: 'The circuit passed the topology check, but the search found no layout where every wire fits. A common cause is too little room between pin rows (e.g. a DIP chip with many signals between its rows). Try Layout again, or add a jumper wire.',
+      });
     }
     setSnapCounter(c => c + 1); saveHistory();
   }, [engine, jsonInput, saveHistory]);
 
-  const handleCompact = useCallback(async () => {
-    setWorkflowStep(3);
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    await engine.optimize();
-    setStatus(prev => ({ ...prev, isProcessing: false }));
-    saveHistory();
-  }, [engine, saveHistory]);
-
-  const handleOptimizeBoard = useCallback(async () => {
-    setWorkflowStep(4);
-    setStatus(prev => ({ ...prev, isProcessing: true }));
-    await engine.plateau();
-    setStatus(prev => ({ ...prev, isProcessing: false }));
-    saveHistory();
-  }, [engine, saveHistory]);
-
   const handleStepClick = useCallback(async (step) => {
     if (step === 0) { engine.setState({ components: [], wires: [] }); setWorkflowStep(0); }
     else if (step === 1) handleLoadCircuit();
-    else if (step === 2) handleRoute();
-    else if (step === 3) handleCompact();
-    else if (step === 4) handleOptimizeBoard();
-  }, [handleLoadCircuit, handleRoute, handleCompact, handleOptimizeBoard, engine]);
+    else if (step === 2) runLayout(false);
+    else if (step === 3) runLayout(true);
+  }, [handleLoadCircuit, runLayout, engine]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -329,7 +343,7 @@ function App() {
       board.components.forEach(c => { minC = Math.min(minC, c.ox); maxC = Math.max(maxC, c.ox + c.w); minR = Math.min(minR, c.oy); maxR = Math.max(maxR, c.oy + c.h); });
       cx = Math.floor((minC + maxC) / 2) + Math.floor(Math.random() * 5); cy = Math.floor((minR + maxR) / 2) + Math.floor(Math.random() * 5);
     }
-    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, w: mw, h: mh, ox: cx, oy: cy, pins: compDef.pins.map(p => ({ dCol: p.offset[0], dRow: p.offset[1], col: cx + p.offset[0], row: cy + p.offset[1], lbl: p.label, net: '' })) };
+    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: compDef.routeUnder !== false, w: mw, h: mh, ox: cx, oy: cy, pins: compDef.pins.map(p => ({ dCol: p.offset[0], dRow: p.offset[1], col: cx + p.offset[0], row: cy + p.offset[1], lbl: p.label, net: '' })) };
     engine.setState({ components: [...board.components, newComp], wires: [] });
     setIsLibraryOpen(false); setSelectedId(newId); saveHistory();
   }, [board.components, engine, saveHistory]);
@@ -428,8 +442,8 @@ function App() {
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
     const routedNum = board.wires.filter(w => !w.failed).length;
-    const totalConns = nets.reduce((sum, n) => sum + n.pins.length - 1, 0);
-    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: totalConns > 0 ? Math.round((routedNum / totalConns) * 100) : null };
+    const failedNum = board.wires.length - routedNum;
+    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 ? Math.round((routedNum / (routedNum + failedNum)) * 100) : null };
   }, [board]);
 
   const netsMap = useMemo(() => {
@@ -462,6 +476,15 @@ function App() {
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
         <div id="ca-col">
+          {notice && (
+            <div className={`notice-banner ${notice.kind}`} role="alert">
+              <div className="notice-body">
+                <div className="notice-title">{notice.title}</div>
+                <div className="notice-text">{notice.text}</div>
+              </div>
+              <button className="notice-close" onClick={() => setNotice(null)} aria-label="Dismiss">×</button>
+            </div>
+          )}
           <main id="ca">
             <PcbCanvas
               components={board.components} wires={board.wires} cols={board.cols} rows={board.rows}
@@ -525,6 +548,16 @@ function App() {
         .resizer:hover::after, .resizer.active::after { background: var(--blu-bright); width: 2px; }
         .resizer.l { margin-right: -2px; margin-left: -2px; }
         .resizer.r { margin-left: -2px; margin-right: -2px; }
+        .notice-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 50; width: min(640px, calc(100% - 32px)); display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.45); }
+        .notice-banner.error { border-color: #f85149; }
+        .notice-banner.warn { border-color: #d29922; }
+        .notice-body { flex: 1; min-width: 0; }
+        .notice-title { font-weight: 600; margin-bottom: 4px; }
+        .notice-banner.error .notice-title { color: #ff7b72; }
+        .notice-banner.warn .notice-title { color: #e3b341; }
+        .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); }
+        .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
+        .notice-close:hover { opacity: 1; }
       `}} />
     </div>
   );

@@ -1,0 +1,100 @@
+{
+  "components": [
+    {
+      "id": "Q1",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "S",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q2",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "S",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q3",
+      "name": "MOSFET",
+      "value": "IRLB8721",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "G",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "D",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "S",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

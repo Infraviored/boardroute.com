@@ -1,0 +1,268 @@
+{
+  "components": [
+    {
+      "id": "U1",
+      "name": "NE555",
+      "value": "DIP-8",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "GND",
+          "label": "1"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "TH",
+          "label": "2"
+        },
+        {
+          "offset": [
+            0,
+            2
+          ],
+          "net": "OUT",
+          "label": "3"
+        },
+        {
+          "offset": [
+            0,
+            3
+          ],
+          "net": "VCC",
+          "label": "4"
+        },
+        {
+          "offset": [
+            3,
+            3
+          ],
+          "net": "CV",
+          "label": "5"
+        },
+        {
+          "offset": [
+            3,
+            2
+          ],
+          "net": "TH",
+          "label": "6"
+        },
+        {
+          "offset": [
+            3,
+            1
+          ],
+          "net": "DIS",
+          "label": "7"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "VCC",
+          "label": "8"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R1",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "DIS",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R2",
+      "name": "Resistor",
+      "value": "10k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "DIS",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "TH",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "C1",
+      "name": "Capacitor",
+      "value": "10uF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "TH",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "C2",
+      "name": "Capacitor",
+      "value": "10nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "CV",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R3",
+      "name": "Resistor",
+      "value": "330",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "OUT",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "LEDA",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D1",
+      "name": "LED",
+      "value": "Red",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "LEDA",
+          "label": "A"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "K"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "C3",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "J1",
+      "name": "Header",
+      "value": "Power",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "1"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

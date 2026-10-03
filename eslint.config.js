@@ -26,4 +26,9 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Benchmark scripts run under Node
+    files: ['bench/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

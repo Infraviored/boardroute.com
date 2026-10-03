@@ -1,0 +1,244 @@
+{
+  "components": [
+    {
+      "id": "RAB",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "B",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RAC",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "C",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RAD",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RAE",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RBC",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "C",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RBD",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RBE",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RCD",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "D",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RCE",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RDE",
+      "name": "Resistor",
+      "value": "1k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "D",
+          "label": "1"
+        },
+        {
+          "offset": [
+            3,
+            0
+          ],
+          "net": "E",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

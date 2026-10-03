@@ -1,0 +1,14 @@
+{
+  "_note": "Frozen reference areas for scoring (box solver, 2026-10-03). Do not update casually: scores are only comparable against the same reference.",
+  "01_default": 15,
+  "02_simple_esp": 70,
+  "03_door_striker": 77,
+  "05_opamp_dual": 64,
+  "08_rc_ladder": 36,
+  "07_esp_io_panel": 132,
+  "x2_caps_k33_minus1": 20,
+  "x4_resistors_k5": 40,
+  "x5_parallel_mosfets3": 9,
+  "04_blinker555": 63,
+  "09_mosfet_bank4": 168
+}

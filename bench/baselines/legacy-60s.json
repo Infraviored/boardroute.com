@@ -1,0 +1,2390 @@
+{
+ "strategy": "legacy",
+ "tag": "",
+ "seeds": 5,
+ "budget": 60000,
+ "date": "2026-10-02T23:46:51.396Z",
+ "results": [
+  {
+   "strategy": "legacy",
+   "circuit": "01_default",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 3876,
+   "routed": true,
+   "area": 16,
+   "width": 4,
+   "height": 4,
+   "wl": 8,
+   "tBest": 446,
+   "trace": [
+    [
+     331,
+     42
+    ],
+    [
+     396,
+     16
+    ],
+    [
+     446,
+     16
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "01_default",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 3070,
+   "routed": true,
+   "area": 15,
+   "width": 3,
+   "height": 5,
+   "wl": 8,
+   "tBest": 1046,
+   "trace": [
+    [
+     276,
+     72
+    ],
+    [
+     308,
+     45
+    ],
+    [
+     418,
+     35
+    ],
+    [
+     436,
+     30
+    ],
+    [
+     812,
+     25
+    ],
+    [
+     955,
+     21
+    ],
+    [
+     1032,
+     18
+    ],
+    [
+     1046,
+     15
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "01_default",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 3889,
+   "routed": true,
+   "area": 16,
+   "width": 4,
+   "height": 4,
+   "wl": 8,
+   "tBest": 3866,
+   "trace": [
+    [
+     39,
+     36
+    ],
+    [
+     153,
+     36
+    ],
+    [
+     176,
+     35
+    ],
+    [
+     257,
+     28
+    ],
+    [
+     420,
+     24
+    ],
+    [
+     444,
+     24
+    ],
+    [
+     489,
+     24
+    ],
+    [
+     503,
+     20
+    ],
+    [
+     3866,
+     16
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "01_default",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 3314,
+   "routed": true,
+   "area": 15,
+   "width": 3,
+   "height": 5,
+   "wl": 8,
+   "tBest": 901,
+   "trace": [
+    [
+     222,
+     40
+    ],
+    [
+     249,
+     20
+    ],
+    [
+     278,
+     16
+    ],
+    [
+     886,
+     16
+    ],
+    [
+     901,
+     15
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "01_default",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 4280,
+   "routed": true,
+   "area": 20,
+   "width": 4,
+   "height": 5,
+   "wl": 11,
+   "tBest": 296,
+   "trace": [
+    [
+     162,
+     104
+    ],
+    [
+     246,
+     45
+    ],
+    [
+     296,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "02_simple_esp",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 3099,
+   "routed": true,
+   "area": 70,
+   "width": 7,
+   "height": 10,
+   "wl": 18,
+   "tBest": 2823,
+   "trace": [
+    [
+     44,
+     126
+    ],
+    [
+     153,
+     96
+    ],
+    [
+     301,
+     88
+    ],
+    [
+     329,
+     88
+    ],
+    [
+     538,
+     80
+    ],
+    [
+     706,
+     77
+    ],
+    [
+     721,
+     77
+    ],
+    [
+     1130,
+     70
+    ],
+    [
+     1206,
+     70
+    ],
+    [
+     2697,
+     70
+    ],
+    [
+     2823,
+     70
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "02_simple_esp",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 3464,
+   "routed": true,
+   "area": 72,
+   "width": 9,
+   "height": 8,
+   "wl": 15,
+   "tBest": 3339,
+   "trace": [
+    [
+     39,
+     99
+    ],
+    [
+     95,
+     90
+    ],
+    [
+     302,
+     88
+    ],
+    [
+     314,
+     77
+    ],
+    [
+     333,
+     77
+    ],
+    [
+     1360,
+     72
+    ],
+    [
+     1379,
+     72
+    ],
+    [
+     3339,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "02_simple_esp",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 3895,
+   "routed": true,
+   "area": 70,
+   "width": 7,
+   "height": 10,
+   "wl": 18,
+   "tBest": 3407,
+   "trace": [
+    [
+     37,
+     81
+    ],
+    [
+     104,
+     70
+    ],
+    [
+     149,
+     70
+    ],
+    [
+     3407,
+     70
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "02_simple_esp",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 3496,
+   "routed": true,
+   "area": 70,
+   "width": 7,
+   "height": 10,
+   "wl": 20,
+   "tBest": 3097,
+   "trace": [
+    [
+     49,
+     88
+    ],
+    [
+     128,
+     80
+    ],
+    [
+     172,
+     80
+    ],
+    [
+     195,
+     80
+    ],
+    [
+     485,
+     77
+    ],
+    [
+     497,
+     77
+    ],
+    [
+     555,
+     70
+    ],
+    [
+     2251,
+     70
+    ],
+    [
+     3097,
+     70
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "02_simple_esp",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 3345,
+   "routed": true,
+   "area": 70,
+   "width": 7,
+   "height": 10,
+   "wl": 18,
+   "tBest": 3029,
+   "trace": [
+    [
+     39,
+     108
+    ],
+    [
+     115,
+     90
+    ],
+    [
+     177,
+     84
+    ],
+    [
+     189,
+     77
+    ],
+    [
+     198,
+     77
+    ],
+    [
+     265,
+     77
+    ],
+    [
+     463,
+     72
+    ],
+    [
+     499,
+     72
+    ],
+    [
+     1538,
+     70
+    ],
+    [
+     3029,
+     70
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "03_door_striker",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 6427,
+   "routed": true,
+   "area": 84,
+   "width": 7,
+   "height": 12,
+   "wl": 29,
+   "tBest": 5831,
+   "trace": [
+    [
+     205,
+     264
+    ],
+    [
+     270,
+     126
+    ],
+    [
+     434,
+     98
+    ],
+    [
+     482,
+     91
+    ],
+    [
+     766,
+     91
+    ],
+    [
+     795,
+     84
+    ],
+    [
+     819,
+     84
+    ],
+    [
+     5831,
+     84
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "03_door_striker",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 6945,
+   "routed": true,
+   "area": 88,
+   "width": 11,
+   "height": 8,
+   "wl": 27,
+   "tBest": 3507,
+   "trace": [
+    [
+     115,
+     620
+    ],
+    [
+     256,
+     144
+    ],
+    [
+     311,
+     132
+    ],
+    [
+     2169,
+     126
+    ],
+    [
+     2189,
+     104
+    ],
+    [
+     2210,
+     96
+    ],
+    [
+     2231,
+     96
+    ],
+    [
+     2294,
+     88
+    ],
+    [
+     3507,
+     88
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "03_door_striker",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 5474,
+   "routed": true,
+   "area": 84,
+   "width": 12,
+   "height": 7,
+   "wl": 31,
+   "tBest": 2769,
+   "trace": [
+    [
+     71,
+     238
+    ],
+    [
+     125,
+     96
+    ],
+    [
+     248,
+     96
+    ],
+    [
+     299,
+     96
+    ],
+    [
+     2632,
+     91
+    ],
+    [
+     2746,
+     84
+    ],
+    [
+     2769,
+     84
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "03_door_striker",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 6371,
+   "routed": true,
+   "area": 96,
+   "width": 12,
+   "height": 8,
+   "wl": 25,
+   "tBest": 5516,
+   "trace": [
+    [
+     189,
+     333
+    ],
+    [
+     259,
+     224
+    ],
+    [
+     378,
+     196
+    ],
+    [
+     430,
+     120
+    ],
+    [
+     510,
+     112
+    ],
+    [
+     2040,
+     96
+    ],
+    [
+     5516,
+     96
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "03_door_striker",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 5873,
+   "routed": true,
+   "area": 84,
+   "width": 7,
+   "height": 12,
+   "wl": 32,
+   "tBest": 365,
+   "trace": [
+    [
+     66,
+     168
+    ],
+    [
+     184,
+     120
+    ],
+    [
+     229,
+     108
+    ],
+    [
+     313,
+     108
+    ],
+    [
+     329,
+     105
+    ],
+    [
+     365,
+     84
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "04_blinker555",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 12085,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "04_blinker555",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 17337,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "04_blinker555",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 14771,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": false,
+   "finalErrors": [
+    "net TH touches foreign pin at -1,4",
+    "net TH touches foreign pin at -1,2",
+    "net TH touches foreign pin at -1,1"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "04_blinker555",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 29002,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "04_blinker555",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 15299,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": false,
+   "finalErrors": [
+    "net GND touches foreign pin at -1,2",
+    "net GND touches foreign pin at -1,2",
+    "net TH touches foreign pin at -1,1",
+    "net OUT touches foreign pin at -1,0",
+    "net VCC touches foreign pin at -1,3",
+    "net VCC touches foreign pin at -4,2",
+    "net DIS touches foreign pin at -4,1"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "05_opamp_dual",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 27642,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "05_opamp_dual",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 32320,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "05_opamp_dual",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 15187,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "05_opamp_dual",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 11691,
+   "routed": true,
+   "area": 80,
+   "width": 10,
+   "height": 8,
+   "wl": 48,
+   "tBest": 10441,
+   "trace": [
+    [
+     3261,
+     99
+    ],
+    [
+     3294,
+     88
+    ],
+    [
+     9959,
+     80
+    ],
+    [
+     9962,
+     80
+    ],
+    [
+     10207,
+     80
+    ],
+    [
+     10441,
+     80
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "05_opamp_dual",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 11907,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": false,
+   "finalErrors": [
+    "net SIG2 touches foreign pin at -6,-1"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "06_motor_l293d",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 31156,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "06_motor_l293d",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 32084,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "06_motor_l293d",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 31327,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "06_motor_l293d",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 29313,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "06_motor_l293d",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 30948,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "07_esp_io_panel",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 35360,
+   "routed": true,
+   "area": 351,
+   "width": 27,
+   "height": 13,
+   "wl": 201,
+   "tBest": 35359,
+   "trace": [
+    [
+     3941,
+     528
+    ],
+    [
+     32726,
+     528
+    ],
+    [
+     33304,
+     480
+    ],
+    [
+     33874,
+     480
+    ],
+    [
+     34143,
+     480
+    ],
+    [
+     34441,
+     429
+    ],
+    [
+     34790,
+     390
+    ],
+    [
+     35359,
+     351
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "07_esp_io_panel",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 36981,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "07_esp_io_panel",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 33028,
+   "routed": true,
+   "area": 342,
+   "width": 18,
+   "height": 19,
+   "wl": 188,
+   "tBest": 31018,
+   "trace": [
+    [
+     3415,
+     342
+    ],
+    [
+     31018,
+     342
+    ]
+   ],
+   "finalValid": false,
+   "finalErrors": [
+    "net B1 touches foreign pin at 6,3",
+    "net B1 touches foreign pin at 6,0",
+    "nets B1/L1 share 6,3",
+    "nets B1/A1 share 6,0"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "07_esp_io_panel",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 22215,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "07_esp_io_panel",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 17104,
+   "routed": true,
+   "area": 221,
+   "width": 13,
+   "height": 17,
+   "wl": 135,
+   "tBest": 17104,
+   "trace": [
+    [
+     12897,
+     266
+    ],
+    [
+     12943,
+     266
+    ],
+    [
+     13550,
+     266
+    ],
+    [
+     15496,
+     252
+    ],
+    [
+     16252,
+     252
+    ],
+    [
+     16511,
+     252
+    ],
+    [
+     16799,
+     238
+    ],
+    [
+     17104,
+     221
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "08_rc_ladder",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 10549,
+   "routed": true,
+   "area": 63,
+   "width": 7,
+   "height": 9,
+   "wl": 37,
+   "tBest": 10491,
+   "trace": [
+    [
+     3471,
+     96
+    ],
+    [
+     6565,
+     63
+    ],
+    [
+     9862,
+     63
+    ],
+    [
+     10491,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "08_rc_ladder",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 10535,
+   "routed": true,
+   "area": 66,
+   "width": 6,
+   "height": 11,
+   "wl": 32,
+   "tBest": 10535,
+   "trace": [
+    [
+     3225,
+     234
+    ],
+    [
+     3646,
+     170
+    ],
+    [
+     3726,
+     144
+    ],
+    [
+     3888,
+     104
+    ],
+    [
+     3987,
+     91
+    ],
+    [
+     4011,
+     91
+    ],
+    [
+     4034,
+     84
+    ],
+    [
+     4099,
+     84
+    ],
+    [
+     9652,
+     77
+    ],
+    [
+     9978,
+     77
+    ],
+    [
+     10164,
+     77
+    ],
+    [
+     10344,
+     77
+    ],
+    [
+     10535,
+     66
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "08_rc_ladder",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 10588,
+   "routed": true,
+   "area": 70,
+   "width": 7,
+   "height": 10,
+   "wl": 39,
+   "tBest": 10588,
+   "trace": [
+    [
+     3018,
+     378
+    ],
+    [
+     3090,
+     224
+    ],
+    [
+     3216,
+     168
+    ],
+    [
+     3286,
+     168
+    ],
+    [
+     3319,
+     156
+    ],
+    [
+     3358,
+     120
+    ],
+    [
+     3452,
+     108
+    ],
+    [
+     3502,
+     96
+    ],
+    [
+     3693,
+     84
+    ],
+    [
+     3764,
+     84
+    ],
+    [
+     3917,
+     72
+    ],
+    [
+     7563,
+     72
+    ],
+    [
+     8442,
+     70
+    ],
+    [
+     10588,
+     70
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "08_rc_ladder",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 9554,
+   "routed": true,
+   "area": 63,
+   "width": 7,
+   "height": 9,
+   "wl": 35,
+   "tBest": 9554,
+   "trace": [
+    [
+     1769,
+     756
+    ],
+    [
+     1850,
+     418
+    ],
+    [
+     1946,
+     224
+    ],
+    [
+     1979,
+     108
+    ],
+    [
+     2029,
+     96
+    ],
+    [
+     2258,
+     77
+    ],
+    [
+     2290,
+     77
+    ],
+    [
+     2348,
+     70
+    ],
+    [
+     7771,
+     70
+    ],
+    [
+     9299,
+     70
+    ],
+    [
+     9481,
+     63
+    ],
+    [
+     9554,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "08_rc_ladder",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 10011,
+   "routed": true,
+   "area": 72,
+   "width": 9,
+   "height": 8,
+   "wl": 37,
+   "tBest": 9270,
+   "trace": [
+    [
+     2720,
+     714
+    ],
+    [
+     3024,
+     408
+    ],
+    [
+     3619,
+     221
+    ],
+    [
+     3800,
+     187
+    ],
+    [
+     4075,
+     150
+    ],
+    [
+     4179,
+     140
+    ],
+    [
+     5342,
+     140
+    ],
+    [
+     5388,
+     117
+    ],
+    [
+     5533,
+     108
+    ],
+    [
+     5567,
+     90
+    ],
+    [
+     5697,
+     80
+    ],
+    [
+     5756,
+     72
+    ],
+    [
+     9270,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "09_mosfet_bank4",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 35402,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "09_mosfet_bank4",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 48567,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "09_mosfet_bank4",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 34172,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "09_mosfet_bank4",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 61074,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "09_mosfet_bank4",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 45947,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x1_caps_k33",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 8434,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x1_caps_k33",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 7849,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": false,
+   "finalErrors": [
+    "net A touches foreign pin at 2,-2"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x1_caps_k33",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 10141,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x1_caps_k33",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 9118,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x1_caps_k33",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 10577,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 4789,
+   "routed": true,
+   "area": 20,
+   "width": 5,
+   "height": 4,
+   "wl": 13,
+   "tBest": 4133,
+   "trace": [
+    [
+     131,
+     60
+    ],
+    [
+     176,
+     42
+    ],
+    [
+     338,
+     36
+    ],
+    [
+     371,
+     30
+    ],
+    [
+     441,
+     25
+    ],
+    [
+     461,
+     25
+    ],
+    [
+     470,
+     25
+    ],
+    [
+     1040,
+     20
+    ],
+    [
+     4133,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 3719,
+   "routed": true,
+   "area": 25,
+   "width": 5,
+   "height": 5,
+   "wl": 15,
+   "tBest": 433,
+   "trace": [
+    [
+     128,
+     64
+    ],
+    [
+     163,
+     56
+    ],
+    [
+     204,
+     48
+    ],
+    [
+     235,
+     48
+    ],
+    [
+     258,
+     40
+    ],
+    [
+     314,
+     35
+    ],
+    [
+     433,
+     25
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 5287,
+   "routed": true,
+   "area": 24,
+   "width": 6,
+   "height": 4,
+   "wl": 15,
+   "tBest": 4770,
+   "trace": [
+    [
+     672,
+     77
+    ],
+    [
+     738,
+     56
+    ],
+    [
+     752,
+     48
+    ],
+    [
+     779,
+     48
+    ],
+    [
+     823,
+     30
+    ],
+    [
+     842,
+     30
+    ],
+    [
+     4543,
+     25
+    ],
+    [
+     4770,
+     24
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 5481,
+   "routed": true,
+   "area": 20,
+   "width": 5,
+   "height": 4,
+   "wl": 14,
+   "tBest": 5318,
+   "trace": [
+    [
+     1488,
+     105
+    ],
+    [
+     1538,
+     35
+    ],
+    [
+     1599,
+     30
+    ],
+    [
+     1609,
+     25
+    ],
+    [
+     1623,
+     25
+    ],
+    [
+     4850,
+     25
+    ],
+    [
+     5318,
+     20
+    ]
+   ],
+   "finalValid": false,
+   "finalErrors": [
+    "net B touches foreign pin at 0,-2",
+    "net B touches foreign pin at 0,-2"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 4369,
+   "routed": true,
+   "area": 28,
+   "width": 4,
+   "height": 7,
+   "wl": 17,
+   "tBest": 2580,
+   "trace": [
+    [
+     1335,
+     147
+    ],
+    [
+     1642,
+     66
+    ],
+    [
+     1695,
+     45
+    ],
+    [
+     2240,
+     40
+    ],
+    [
+     2251,
+     32
+    ],
+    [
+     2269,
+     32
+    ],
+    [
+     2580,
+     28
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x3_caps_k5",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 25368,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x3_caps_k5",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 12209,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x3_caps_k5",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 13135,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x3_caps_k5",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 12437,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x3_caps_k5",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 8889,
+   "routed": false,
+   "area": null,
+   "width": null,
+   "height": null,
+   "wl": null,
+   "tBest": null,
+   "trace": [],
+   "finalValid": false,
+   "finalErrors": [
+    "net A touches foreign pin at 1,-3"
+   ]
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x4_resistors_k5",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 3816,
+   "routed": true,
+   "area": 55,
+   "width": 5,
+   "height": 11,
+   "wl": 39,
+   "tBest": 2351,
+   "trace": [
+    [
+     105,
+     306
+    ],
+    [
+     251,
+     154
+    ],
+    [
+     292,
+     80
+    ],
+    [
+     428,
+     80
+    ],
+    [
+     1357,
+     66
+    ],
+    [
+     1976,
+     66
+    ],
+    [
+     2040,
+     66
+    ],
+    [
+     2351,
+     55
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x4_resistors_k5",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 4838,
+   "routed": true,
+   "area": 56,
+   "width": 7,
+   "height": 8,
+   "wl": 29,
+   "tBest": 4812,
+   "trace": [
+    [
+     292,
+     391
+    ],
+    [
+     360,
+     192
+    ],
+    [
+     393,
+     136
+    ],
+    [
+     458,
+     91
+    ],
+    [
+     493,
+     70
+    ],
+    [
+     3268,
+     64
+    ],
+    [
+     3316,
+     64
+    ],
+    [
+     3370,
+     64
+    ],
+    [
+     4112,
+     64
+    ],
+    [
+     4206,
+     64
+    ],
+    [
+     4478,
+     64
+    ],
+    [
+     4578,
+     64
+    ],
+    [
+     4775,
+     56
+    ],
+    [
+     4812,
+     56
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x4_resistors_k5",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 4709,
+   "routed": true,
+   "area": 56,
+   "width": 7,
+   "height": 8,
+   "wl": 33,
+   "tBest": 4699,
+   "trace": [
+    [
+     427,
+     299
+    ],
+    [
+     486,
+     162
+    ],
+    [
+     531,
+     120
+    ],
+    [
+     877,
+     99
+    ],
+    [
+     950,
+     90
+    ],
+    [
+     977,
+     81
+    ],
+    [
+     1024,
+     80
+    ],
+    [
+     3017,
+     72
+    ],
+    [
+     3038,
+     72
+    ],
+    [
+     3172,
+     64
+    ],
+    [
+     4019,
+     64
+    ],
+    [
+     4107,
+     64
+    ],
+    [
+     4194,
+     56
+    ],
+    [
+     4304,
+     56
+    ],
+    [
+     4482,
+     56
+    ],
+    [
+     4565,
+     56
+    ],
+    [
+     4654,
+     56
+    ],
+    [
+     4699,
+     56
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x4_resistors_k5",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 4625,
+   "routed": true,
+   "area": 56,
+   "width": 8,
+   "height": 7,
+   "wl": 30,
+   "tBest": 4163,
+   "trace": [
+    [
+     69,
+     224
+    ],
+    [
+     150,
+     140
+    ],
+    [
+     203,
+     110
+    ],
+    [
+     225,
+     80
+    ],
+    [
+     235,
+     70
+    ],
+    [
+     278,
+     70
+    ],
+    [
+     2495,
+     63
+    ],
+    [
+     2535,
+     56
+    ],
+    [
+     3780,
+     56
+    ],
+    [
+     4163,
+     56
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x4_resistors_k5",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 4519,
+   "routed": true,
+   "area": 56,
+   "width": 8,
+   "height": 7,
+   "wl": 31,
+   "tBest": 4518,
+   "trace": [
+    [
+     228,
+     228
+    ],
+    [
+     298,
+     136
+    ],
+    [
+     349,
+     88
+    ],
+    [
+     390,
+     80
+    ],
+    [
+     443,
+     80
+    ],
+    [
+     480,
+     72
+    ],
+    [
+     507,
+     72
+    ],
+    [
+     657,
+     72
+    ],
+    [
+     681,
+     64
+    ],
+    [
+     3298,
+     56
+    ],
+    [
+     3321,
+     56
+    ],
+    [
+     3786,
+     56
+    ],
+    [
+     4503,
+     56
+    ],
+    [
+     4518,
+     56
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 3355,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "tBest": 31,
+   "trace": [
+    [
+     31,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 3061,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "tBest": 84,
+   "trace": [
+    [
+     84,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 2692,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "tBest": 433,
+   "trace": [
+    [
+     127,
+     30
+    ],
+    [
+     179,
+     16
+    ],
+    [
+     235,
+     15
+    ],
+    [
+     433,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 2712,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "tBest": 28,
+   "trace": [
+    [
+     28,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  },
+  {
+   "strategy": "legacy",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 2724,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "tBest": 338,
+   "trace": [
+    [
+     32,
+     24
+    ],
+    [
+     103,
+     15
+    ],
+    [
+     338,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": []
+  }
+ ]
+}

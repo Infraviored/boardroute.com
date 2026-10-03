@@ -1,0 +1,178 @@
+{
+  "components": [
+    {
+      "id": "J1",
+      "name": "Power Connector",
+      "value": "2-pin",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "+"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "GND",
+          "label": "-"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "R1",
+      "name": "Resistor",
+      "value": "10k",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "1"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "GATE",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "Q1",
+      "name": "N-MOSFET",
+      "value": "IRLZ44N",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "GATE",
+          "label": "G"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "DRAIN",
+          "label": "D"
+        },
+        {
+          "offset": [
+            2,
+            0
+          ],
+          "net": "SOURCE",
+          "label": "S"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "RL1",
+      "name": "Load/Relay",
+      "value": "Coil",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "A"
+        },
+        {
+          "offset": [
+            0,
+            1
+          ],
+          "net": "DRAIN",
+          "label": "B"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "C1",
+      "name": "Capacitor",
+      "value": "100uF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "VCC",
+          "label": "+"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "-"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "D1",
+      "name": "Flyback Diode",
+      "value": "1N4007",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "SOURCE",
+          "label": "K"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "GND",
+          "label": "A"
+        }
+      ],
+      "routeUnder": true
+    }
+  ],
+  "connections": [
+    {
+      "net": "VCC",
+      "comment": "J1+ → R1 pin1, RL1 coil A, C1+"
+    },
+    {
+      "net": "GND",
+      "comment": "J1- → C1-, D1 anode"
+    },
+    {
+      "net": "GATE",
+      "comment": "R1 pin2 → Q1 Gate"
+    },
+    {
+      "net": "DRAIN",
+      "comment": "Q1 Drain → RL1 coil B"
+    },
+    {
+      "net": "SOURCE",
+      "comment": "Q1 Source → D1 Kathode"
+    }
+  ]
+}

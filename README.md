@@ -11,11 +11,11 @@ boardroute.com is a sophisticated web-based EDA tool specifically designed for p
 boardroute.com solves the complex problem of arranging electronic components and routing their connections on a standard 2.54mm grid. Unlike traditional PCB tools, it is optimized for the constraints of "through-hole" prototyping, where space is at a premium and every wire must navigate a discrete matrix of pins.
 
 ### Key Features
-- **Heuristic Placement Engine:** Uses Simulated Annealing and Targeted Chain Compaction (TCC) to find the most compact component arrangement.
-- **Advanced A* Router:** Handles discrete grid routing with support for multi-point nets, Steiner Tree approximations, and obstacle avoidance.
-- **Topographical Optimization:** Employs "Plateau Exploration" to navigate flat energy landscapes where traditional gradient descent fails.
-- **Real-time Camera Physics:** Smooth, reactive canvas with auto-framing and zoom-to-fit logic for a premium design experience.
-- **Workflow-Driven UI:** Guided steps from initial JSON circuit definition to fully optimized physical layout.
+- **One-click layout:** places, routes and packs the whole circuit, streaming every smaller layout it finds to the screen. Runs in a Web Worker, entirely in the browser.
+- **Routability check:** proves up front when a circuit can't be built on one layer (planarity test) and names the parts and nets that cause it.
+- **Negotiating router:** nets share contested holes at rising cost until conflicts dissolve (PathFinder-style), with partial repair of wire trees when a part moves.
+- **Fixed-box packing search:** simulated annealing inside a fixed board size, then shrink row by row.
+- **Benchmark suite:** 14 reference circuits, an independent validator, and a quick mode for iterating on the engine (`bench/`).
 
 ---
 
@@ -51,59 +51,34 @@ boardroute.com solves the complex problem of arranging electronic components and
 
 ---
 
-## 🧠 Mathematical & Algorithmic Architecture
+## 🧠 How the layout engine works
 
-The core of boardroute.com is an advanced, heuristic-driven constraint solver that simultaneously handles 2D bin packing, pathfinding, and graph optimization.
+Explained for users (source material for the website): [docs/how-it-works/](docs/how-it-works/README.md)
 
-### 1. Core Objective
-The solver aims to find the global minimum of a highly non-convex, multi-objective cost function:
-`E_total = W_f * failed_routes + W_a * area + W_p * perimeter + W_w * wire_length`
+1. [From circuit to perfboard](docs/how-it-works/01-perfboard-layout-explained.md): the rules and the three ideas behind the engine
+2. [Can your circuit be built on one layer?](docs/how-it-works/02-can-it-be-routed.md): planarity, walls of pins, jumper wires
+3. [How wires find their way](docs/how-it-works/03-how-wires-negotiate.md): the negotiating router
+4. [Making the board small](docs/how-it-works/04-shrinking-the-board.md): the packing search
+5. [How we know it got better](docs/how-it-works/05-measuring-progress.md): benchmark and results
+6. [FAQ](docs/how-it-works/06-faq.md)
 
-We employ a hybrid metaheuristic approach combining Simulated Annealing, greedy local search, graph-based pathfinding, and topographical plateau exploration.
+Technical reference: [docs/architecture.md](docs/architecture.md). The previous optimizer pipeline is documented in [docs/legacy-optimizer.md](docs/legacy-optimizer.md).
 
-### 2. Initial State & Representation
-- **Components:** Bounding boxes (`w` x `h`) with local pin offsets.
-- **Nets:** Topological graphs of pins requiring electrical connection.
-- **Treadmill Coordinate System:** Moves the entire board center-of-mass to `(0, 0)` after mutations to prevent coordinate drift.
+### Benchmark
 
-### 3. Component Placement Engine
-Placement aims to maximize routing success while minimizing board real estate.
-- **Simulated Annealing (SA):** Baseline macro-optimizer using HPWL (Half-Perimeter WireLength) as a fast energy approximation.
-- **Boltzmann Distribution:** Propsals are accepted if they improve the state, or with a probability `P = e^(-ΔE / T)` if they don't, allowing the system to escape local minima.
-- **Deep Scrambles:** If stagnation occurs, the solver applies wider randomized vectors to "shake" the board configuration.
+```bash
+node bench/run.js box --quick     # ~15 s: 3 hard boards x 4 seeds, for iterating
+node bench/run.js box             # full set: 14 circuits x 5 seeds x 60 s
+node bench/topology.js            # which circuits are provably unroutable
+node bench/show.js 04_blinker555  # ASCII view of the best known layout
+```
 
-### 4. Pathfinding Router (Discrete A*)
-Constructs physical traces using wave-propagation and heuristics.
-- **Multi-Point Nets:** Solves MST (Minimum Spanning Tree) approximations, treating existing paths as valid targets for subsequent pins.
-- **Costs:** Weights Manhattan distance, penalizing occupied cells and unauthorized component traversal.
-
-### 5. Advanced Geometric Solvers
-These passes use **incremental routing** (ripping up only affected nets) for extreme speed:
-- **Recursive Push Packing:** Inward gravity with chain-reaction shifts.
-- **Affinity Packing:** Clusters components sharing multiple nets to resolve long "loops" early.
-- **Orthogonal Rotate Optimize:** Tests all four orientations sequentially per component.
-- **Wire-Driven Shrink:** Translates components along the tension vectors of their physical wire paths.
-- **Topological Wire Absorption:** Slides components 1-step at a time along their actual traces ("peeling the onion").
-- **Targeted Chain Compaction (TCC):** A sliding-puzzle optimizer that relocates "blockers" to shrink the overall bounding box.
-
-### 6. Plateau Exploration
-When standard mutations fail, `doPlateauExplore` walks across "flat" energy landscapes where area and completion are identical but internal topology varies. This BFS search discovers new "valleys" in the cost function that traditional descent cannot see.
-
----
-
-## 📉 Optimization Pass Summary
-
-| # | Pass | Trigger | Method |
-|---|------|---------|--------|
-| 1 | **Micro Search** | Every iter | Random nudge/rotate |
-| 2 | **Deep Scramble** | Stagnation ≥ 12 | Global vector shake |
-| 3 | **Simulated Annealing** | Step 8+ | HPWL placement pass |
-| 4 | **Recursive Push** | Every iter | Inward gravity |
-| 5 | **Affinity Packing** | Every iter | Cluster high-conn pairs |
-| 6 | **Rotate Optimize** | Every iter | Exhausive 4-axis test |
-| 7 | **Wire Absorption** | Every iter | Slide along traces |
-| 8 | **TCC** | Every iter | Blocker relocation |
-| 9 | **Plateau Explore** | High Stagnation | BFS equal-area states |
+| Typical board area after 60 s (holes) | Old engine | New engine |
+|---|---|---|
+| 555 blinker (9 parts) | not routed | 63 |
+| ESP32 panel (15 parts) | 286 | 143 |
+| RC filter chain (14 parts) | 66 | 36 |
+| 4-channel MOSFET switch (23 parts) | not routed | 168 |
 
 ---
 

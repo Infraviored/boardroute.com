@@ -1,0 +1,220 @@
+{
+  "components": [
+    {
+      "id": "CAX",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "X",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CAY",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "Y",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CAZ",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "A",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "Z",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CBX",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "X",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CBY",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "Y",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CBZ",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "B",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "Z",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CCX",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "X",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CCY",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "Y",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    },
+    {
+      "id": "CCZ",
+      "name": "Capacitor",
+      "value": "100nF",
+      "pins": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "net": "C",
+          "label": "1"
+        },
+        {
+          "offset": [
+            1,
+            0
+          ],
+          "net": "Z",
+          "label": "2"
+        }
+      ],
+      "routeUnder": true
+    }
+  ]
+}

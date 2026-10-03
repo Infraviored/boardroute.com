@@ -11,7 +11,7 @@ import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
-import { TEMPLATE, processTemplate, generateJSONFromState } from './engine/templates.js';
+import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { useBoardView } from './hooks/useBoardView.js';
@@ -115,7 +115,8 @@ function App() {
           offset: [p.dCol, p.dRow],
           label: p.lbl,
           net: p.net || ''
-        }))
+        })),
+        ...(bodyOf(c) ? { body: bodyOf(c) } : {})
       })),
       connections: nets.map(n => ({
         net: n.net,
@@ -348,14 +349,16 @@ function App() {
   const handleReset = useCallback(() => setConfirmData({ isOpen: true, type: 'reset', targetId: 'board' }), []);
   const handleAddFromLibrary = useCallback((compDef) => {
     const newId = `C${board.components.length + 1}`;
-    let mw = 0, mh = 0; compDef.pins.forEach(p => { mw = Math.max(mw, p.offset[0] + 1); mh = Math.max(mh, p.offset[1] + 1); });
+    // footprint = pins + optional body, pin offsets relative to its origin
+    const def = processTemplate({ components: [{ ...compDef, id: newId }] })?.[0];
+    if (!def) return;
     let cx = 5, cy = 5;
     if (board.components.length > 0) {
       let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
       board.components.forEach(c => { minC = Math.min(minC, c.ox); maxC = Math.max(maxC, c.ox + c.w); minR = Math.min(minR, c.oy); maxR = Math.max(maxR, c.oy + c.h); });
       cx = Math.floor((minC + maxC) / 2) + Math.floor(Math.random() * 5); cy = Math.floor((minR + maxR) / 2) + Math.floor(Math.random() * 5);
     }
-    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: compDef.routeUnder !== false, w: mw, h: mh, ox: cx, oy: cy, pins: compDef.pins.map(p => ({ dCol: p.offset[0], dRow: p.offset[1], col: cx + p.offset[0], row: cy + p.offset[1], lbl: p.label, net: '' })) };
+    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     engine.setState({ components: [...board.components, newComp], wires: [] });
     setIsLibraryOpen(false); setSelectedId(newId); saveHistory();
   }, [board.components, engine, saveHistory]);

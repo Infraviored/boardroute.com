@@ -134,6 +134,16 @@
           "label": "IO7"
         }
       ],
+      "body": {
+        "offset": [
+          0,
+          -1
+        ],
+        "size": [
+          7,
+          10
+        ]
+      },
       "routeUnder": true
     },
     {

@@ -13,6 +13,7 @@ Every component is a collection of pins. You must define the position of every p
 - RESISTORS/DIODES: Usually two pins. For a resistor spanning 3 holes horizontally, use offsets [0,0] and [2,0].
 - INTEGRATED CIRCUITS (DIP): If it has two rows of pins 3 holes apart, Row 1 pins are at [0,0], [0,1], [0,2]... and Row 2 pins are at [3,0], [3,1], [3,2]...
 - MODULES (ESP32/Arduino): You must map the exact physical pinout. If the module is 7 holes wide, the left pins are at x=0 and right pins are at x=6.
+- BODIES (optional): if the part's housing is larger than its pin area (relay, electrolytic capacitor, screw terminal, standing TO-220, a dev board whose PCB extends past its pin rows), add "body": { "offset": [x,y], "size": [w,h] }: the rectangle of holes the housing covers, in the same coordinates as the pin offsets (it may start at negative values). No other part may sit inside it; wires underneath are fine. 1 hole = 2.54 mm, round up. Example, 5 V relay (19 x 15.5 mm) with its coil pins at [0,0] and [0,1]: "body": { "offset": [-1,-2], "size": [8,6] }. Leave it out for resistors, diodes, DIP chips and pin headers.
 
 ### 2. LOGICAL CONNECTIVITY (Nets)
 To connect two or more pins, assign them the EXACT same string in their "net" field. 
@@ -30,7 +31,8 @@ To connect two or more pins, assign them the EXACT same string in their "net" fi
         { "offset": [0,0], "label": "5V", "net": "5V" },
         { "offset": [0,1], "label": "GND", "net": "GND" },
         { "offset": [6,5], "label": "IO5", "net": "LED_CONTROL" }
-      ]
+      ],
+      "body": { "offset": [0,-1], "size": [7,10] }
     },
     {
       "id": "R1",

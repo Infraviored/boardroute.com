@@ -134,6 +134,16 @@
           "label": "5V"
         }
       ],
+      "body": {
+        "offset": [
+          0,
+          -5
+        ],
+        "size": [
+          9,
+          14
+        ]
+      },
       "routeUnder": true
     },
     {
@@ -294,6 +304,16 @@
           "label": "2"
         }
       ],
+      "body": {
+        "offset": [
+          0,
+          -1
+        ],
+        "size": [
+          4,
+          3
+        ]
+      },
       "routeUnder": true
     },
     {
@@ -318,6 +338,16 @@
           "label": "2"
         }
       ],
+      "body": {
+        "offset": [
+          0,
+          -1
+        ],
+        "size": [
+          4,
+          3
+        ]
+      },
       "routeUnder": true
     },
     {
@@ -342,6 +372,16 @@
           "label": "2"
         }
       ],
+      "body": {
+        "offset": [
+          0,
+          -1
+        ],
+        "size": [
+          4,
+          3
+        ]
+      },
       "routeUnder": true
     },
     {
@@ -366,6 +406,16 @@
           "label": "2"
         }
       ],
+      "body": {
+        "offset": [
+          0,
+          -1
+        ],
+        "size": [
+          2,
+          3
+        ]
+      },
       "routeUnder": true
     },
     {

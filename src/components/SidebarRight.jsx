@@ -48,17 +48,17 @@ export function SidebarRight({
 
   const toggle = (sec) => setOpen(prev => ({ ...prev, [sec]: !prev[sec] }));
 
-  // Auto-open on a new selection (adjusting state during render, not in an effect).
+  // Auto-open on a new selection.
   const selKey = selectedComp?.id ?? null;
-  const [prevSel, setPrevSel] = React.useState({ comp: selKey, net: selectedNet });
-  if (prevSel.comp !== selKey || prevSel.net !== selectedNet) {
-    const openComp = selKey && selKey !== prevSel.comp;
-    const openNets = selectedNet && selectedNet !== prevSel.net;
-    setPrevSel({ comp: selKey, net: selectedNet });
-    if ((openComp && !open.comp) || (openNets && !open.nets)) {
+  const prevSel = React.useRef({ comp: selKey, net: selectedNet });
+  React.useEffect(() => {
+    const openComp = Boolean(selKey && selKey !== prevSel.current.comp && !open.comp);
+    const openNets = Boolean(selectedNet && selectedNet !== prevSel.current.net && !open.nets);
+    prevSel.current = { comp: selKey, net: selectedNet };
+    if (openComp || openNets) {
       setOpen(prev => ({ ...prev, ...(openComp ? { comp: true } : {}), ...(openNets ? { nets: true } : {}) }));
     }
-  }
+  }, [selKey, selectedNet, open.comp, open.nets]);
 
   const preview = React.useMemo(() => {
     if (!open.bottom) return null;

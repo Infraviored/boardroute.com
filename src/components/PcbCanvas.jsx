@@ -247,8 +247,8 @@ export function PcbCanvas({
             for (const p of w.path) {
                 minCol = Math.min(minCol, p.col);
                 minRow = Math.min(minRow, p.row);
-                maxCol = Math.max(maxCol, p.col);
-                maxRow = Math.max(maxRow, p.row);
+                maxCol = Math.max(maxCol, p.col + 1);
+                maxRow = Math.max(maxRow, p.row + 1);
             }
         }
         if (boardFrame) {

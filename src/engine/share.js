@@ -116,7 +116,7 @@ export function unpackBoard(data) {
   if (!data.c.length || data.c.length > MAX_PARTS) throw new ShareError('bad part count');
   const netName = (i) => {
     if (!isInt(i, 0, nets.length)) throw new ShareError('bad net index');
-    return i === 0 ? '' : nets[i - 1];
+    return i === 0 ? null : nets[i - 1];
   };
 
   const ids = new Set();

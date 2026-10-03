@@ -509,13 +509,23 @@ function App() {
   // Single-key shortcuts: W wire, C compact, R rotate the selected part, F fit the board into
   // view, B flip to the solder side. Ignored while typing and with modifier keys.
   const [viewSide, setViewSide] = useState('top');
-  const toggleSide = useCallback(() => { setViewSide(s => (s === 'top' ? 'bottom' : 'top')); setSnapCounter(c => c + 1); }, []);
+  const toggleSide = useCallback(() => {
+    setViewSide(s => {
+      const next = s === 'top' ? 'bottom' : 'top';
+      if (next === 'bottom') {
+        setActivePin(null);
+        setPreviewPath(null);
+      }
+      return next;
+    });
+    setSnapCounter(c => c + 1);
+  }, []);
   useEffect(() => {
     const onKey = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const tag = document.activeElement?.tagName;
       if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
-      if (document.querySelector('.overlay-bg')) return; // a dialog is open
+      if (document.querySelector('.overlay-bg, .json-drawer')) return; // a dialog is open
       const k = e.key.toLowerCase();
       if (k === 'b') toggleSide();
       else if (k === 'f') setSnapCounter(c => c + 1);
@@ -561,6 +571,7 @@ function App() {
   const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
     engine.setState({ components, wires });
     setNotice(null);
+    setExampleTitle(null);
     setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
     setShareState('done');
     window.goatcounter?.count?.({ path: 'share-open', title: `${components.length} parts`, event: true });

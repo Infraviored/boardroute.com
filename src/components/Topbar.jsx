@@ -33,13 +33,16 @@ export function Topbar({
   isProcessing
 }) {
   const [shareState, setShareState] = React.useState(null); // null | 'copied' | 'failed'
+  const shareTimer = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(shareTimer.current), []);
   const share = async () => {
     try {
       const url = await onShareLink();
       await navigator.clipboard.writeText(url);
       setShareState('copied');
     } catch { setShareState('failed'); }
-    setTimeout(() => setShareState(null), 2000);
+    clearTimeout(shareTimer.current);
+    shareTimer.current = setTimeout(() => setShareState(null), 2000);
   };
   const wireRef = React.useRef(null);
   const compactRef = React.useRef(null);

@@ -5,11 +5,57 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/boardroute-icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>boardroute.com</title>
+  <title>boardroute – free perfboard autorouter in your browser</title>
+  <meta name="description" content="Describe your circuit and boardroute places the parts, routes every wire without crossings and shrinks the perfboard layout. Adds jumper wires only when a circuit can't be built on one layer. Free, runs in your browser, nothing is uploaded." />
+  <link rel="canonical" href="https://boardroute.com/" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="boardroute" />
+  <meta property="og:title" content="boardroute – free perfboard autorouter in your browser" />
+  <meta property="og:description" content="Place parts, route every wire without crossings, shrink the board. Free, in your browser." />
+  <meta property="og:url" content="https://boardroute.com/" />
+  <meta property="og:image" content="https://boardroute.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "boardroute",
+      "url": "https://boardroute.com/",
+      "description": "Perfboard autorouter: automatic part placement, single-layer routing without crossings, board shrinking and automatic jumper wires.",
+      "applicationCategory": "DesignApplication",
+      "operatingSystem": "Any (web browser)",
+      "browserRequirements": "Requires JavaScript",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "image": "https://boardroute.com/og-image.png"
+    }
+  </script>
+  <!-- cookie-free visitor statistics (self-hosted GoatCounter, see ../goatcounter on the server) -->
+  <script data-goatcounter="https://boardroute.com/stats/count" async src="/stats/count.js"></script>
+  <style>
+    /* Shown until the app mounts (and to crawlers / without JavaScript). React replaces #root's content. */
+    .boot { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: #05070a; color: #8b949e; font: 16px/1.6 Inter, system-ui, sans-serif; }
+    .boot h1 { margin: 0; color: #f0f6fc; font: 800 clamp(1.6rem, 4vw, 2.4rem)/1.15 Outfit, system-ui, sans-serif; letter-spacing: -0.02em; }
+    .boot p { margin: 0; max-width: 560px; }
+    .boot a { color: #58a6ff; text-decoration: none; }
+    .boot .brand { color: #f0f6fc; font: 800 1.4rem Outfit, system-ui, sans-serif; letter-spacing: -0.03em; }
+    .boot .brand em { font-style: normal; font-weight: 600; color: #58a6ff; }
+  </style>
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <main class="boot">
+      <div class="brand">board<em>route.com</em></div>
+      <h1>Free perfboard autorouter in your browser</h1>
+      <p>Describe your circuit: parts, pins and nets. boardroute places the parts, routes every wire without crossings, and keeps shrinking the board. When a circuit can't be built on one layer, it proves it and adds as few jumper wires as possible.</p>
+      <p><a href="/how-it-works/">How it works</a> · <a href="/how-it-works/can-it-be-routed/">Can your circuit be built on one layer?</a> · <a href="/how-it-works/faq/">FAQ</a></p>
+      <noscript><p>The autorouter needs JavaScript. The explanations above work without it.</p></noscript>
+    </main>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

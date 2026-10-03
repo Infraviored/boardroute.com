@@ -69,6 +69,8 @@ The router treats a jumper as one more way to get from a hole to another hole in
 
 For the ten-capacitor K5 and the nine-capacitor utilities puzzle, boardroute finds layouts with a single jumper. One is also the mathematical minimum, because both patterns can be drawn with exactly one crossing.
 
+<!-- board: caps-k5-jumper | Ten capacitors between five nets (K5) on 5 × 6 holes. The arc is the single jumper wire: one net bridges over the wiring of another. -->
+
 In the app, jumpers are drawn as arcs over the wiring, and the notice tells you how many were added. In the solder-side view they show as dashed lines between their two legs.
 
 ## Avoiding jumpers

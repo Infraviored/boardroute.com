@@ -1,0 +1,139 @@
+/* Explainer pages (/how-it-works/). Same palette as the app (src/index.css). */
+:root {
+  --bg0: #05070a;
+  --bg2: #0d1117;
+  --bg3: #161b22;
+  --bg4: #21262d;
+  --border: rgba(255, 255, 255, 0.08);
+  --border2: rgba(255, 255, 255, 0.15);
+  --txt0: #f0f6fc;
+  --txt1: #b1bac4;
+  --txt2: #8b949e;
+  --grn: #238636;
+  --grn-bright: #3fb950;
+  --blu-bright: #58a6ff;
+  --pur: #a371f7;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 76px; }
+body {
+  margin: 0;
+  background: var(--bg0);
+  color: var(--txt1);
+  font: 17px/1.7 'Inter', system-ui, -apple-system, sans-serif;
+}
+a { color: var(--blu-bright); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Header */
+.site-head {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 24px;
+  padding: 12px max(16px, calc((100vw - 1180px) / 2));
+  background: rgba(13, 17, 23, 0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.35rem;
+  letter-spacing: -0.03em; color: var(--txt0); white-space: nowrap;
+}
+.logo em { font-style: normal; font-weight: 600; color: var(--blu-bright); }
+.logo:hover { text-decoration: none; }
+.site-head nav { display: flex; gap: 20px; flex: 1; font-size: 0.95rem; }
+.site-head nav a { color: var(--txt1); }
+.site-head nav a:hover { color: var(--txt0); text-decoration: none; }
+.cta {
+  display: inline-block; white-space: nowrap;
+  background: var(--grn); color: #fff; font-weight: 600; font-size: 0.95rem;
+  padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.cta:hover { background: var(--grn-bright); color: #000; text-decoration: none; }
+
+@media (max-width: 640px) {
+  .site-head { gap: 12px; flex-wrap: wrap; }
+  .site-head nav { order: 3; flex-basis: 100%; gap: 16px; }
+  .site-head .cta { margin-left: auto; padding: 6px 12px; font-size: 0.85rem; }
+}
+
+/* Article layout */
+.article-layout {
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 56px;
+  max-width: 1180px; margin: 0 auto; padding: 40px 16px 80px;
+}
+.toc { position: sticky; top: 84px; align-self: start; font-size: 0.9rem; line-height: 1.5; }
+.toc-title { color: var(--txt2); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; font-weight: 600; margin: 0 0 10px; }
+.toc ol, .toc ul { list-style: none; margin: 0 0 28px; padding: 0; }
+.toc li { margin: 0; }
+.toc a { display: block; padding: 5px 10px; border-left: 2px solid var(--border); color: var(--txt1); }
+.toc a:hover { color: var(--txt0); border-left-color: var(--border2); text-decoration: none; }
+.toc li.here a { color: var(--txt0); border-left-color: var(--grn-bright); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .article-layout { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 24px; }
+  .toc { display: none; }
+}
+
+/* Prose */
+.prose { max-width: 740px; min-width: 0; }
+.prose h1, .prose h2, .prose h3 { color: var(--txt0); font-family: 'Outfit', sans-serif; line-height: 1.2; letter-spacing: -0.01em; }
+.prose h1 { font-size: clamp(2rem, 5vw, 2.7rem); font-weight: 800; margin: 0.2em 0 0.6em; letter-spacing: -0.02em; }
+.prose h2 { font-size: 1.65rem; font-weight: 600; margin: 2.2em 0 0.6em; padding-top: 0.6em; border-top: 1px solid var(--border); }
+.prose h3 { font-size: 1.2rem; font-weight: 600; margin: 1.8em 0 0.5em; }
+.prose .hash { color: var(--txt2); margin-left: -0.9em; width: 0.9em; display: inline-block; opacity: 0; font-weight: 400; }
+.prose h2:hover .hash, .prose h3:hover .hash { opacity: 1; text-decoration: none; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1.1em; }
+.prose li { margin: 0.3em 0; }
+.prose strong { color: var(--txt0); }
+.prose hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }
+.prose code { font: 0.88em/1.5 ui-monospace, 'SFMono-Regular', Consolas, monospace; background: var(--bg4); padding: 0.15em 0.4em; border-radius: 5px; color: var(--txt0); }
+.prose pre { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; overflow-x: auto; line-height: 1.35; }
+.prose pre code { background: none; padding: 0; letter-spacing: 0.15em; }
+.crumbs { font-size: 0.85rem; color: var(--txt2); margin: 0; }
+.crumbs a { color: var(--txt2); }
+
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--border); border-radius: 10px; }
+.prose table { border-collapse: collapse; width: 100%; font-size: 0.92rem; line-height: 1.45; }
+.prose th, .prose td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.prose th { color: var(--txt0); background: var(--bg3); font-weight: 600; }
+.prose tr:last-child td { border-bottom: 0; }
+
+/* Board figures (SVG from the app's renderer) */
+figure.board { margin: 1.6em 0 1.8em; text-align: center; }
+figure.board svg { width: min(100%, 440px); height: auto; max-height: 460px; filter: drop-shadow(0 8px 28px rgba(0, 0, 0, 0.55)); }
+figure.board figcaption { font-size: 0.88rem; color: var(--txt2); margin-top: 10px; line-height: 1.5; }
+
+/* Prev / next and call to action */
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 3em 0 2em; }
+.pager a { display: block; padding: 14px 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); color: var(--txt0); font-weight: 600; line-height: 1.4; }
+.pager a:hover { border-color: var(--blu-bright); text-decoration: none; }
+.pager span { display: block; font-size: 0.78rem; font-weight: 500; color: var(--txt2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+.pager .next { text-align: right; grid-column: 2; }
+.try { display: flex; align-items: center; gap: 20px; padding: 20px 24px; border-radius: 12px; background: linear-gradient(135deg, rgba(35, 134, 54, 0.16), rgba(88, 166, 255, 0.08)); border: 1px solid rgba(63, 185, 80, 0.3); }
+.try p { margin: 0; flex: 1; }
+@media (max-width: 640px) { .try { flex-direction: column; align-items: flex-start; } }
+
+/* Hub */
+.hub { max-width: 1180px; margin: 0 auto; padding: 48px 16px 80px; }
+.hero { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+.hero h1 { font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--txt0); font-size: clamp(2.1rem, 6vw, 3.2rem); line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 18px; }
+.lead { font-size: 1.15rem; color: var(--txt1); margin: 0 0 8px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+.cards a { display: block; height: 100%; padding: 22px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg2); color: var(--txt1); transition: border-color 0.15s, transform 0.15s; }
+.cards a:hover { border-color: var(--grn-bright); transform: translateY(-2px); text-decoration: none; }
+.cards .num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--bg4); color: var(--grn-bright); font-weight: 700; font-size: 0.85rem; }
+.cards h2 { font-family: 'Outfit', sans-serif; color: var(--txt0); font-size: 1.25rem; font-weight: 600; margin: 12px 0 6px; line-height: 1.25; }
+.cards p { margin: 0; font-size: 0.95rem; line-height: 1.55; }
+@media (max-width: 400px) { .cards { grid-template-columns: minmax(0, 1fr); } }
+
+/* Footer */
+.site-foot { border-top: 1px solid var(--border); background: var(--bg2); padding: 40px max(16px, calc((100vw - 1180px) / 2)); font-size: 0.9rem; }
+.foot-cols { display: flex; flex-wrap: wrap; gap: 48px; justify-content: space-between; }
+.foot-cols p { max-width: 320px; color: var(--txt2); }
+.site-foot h4 { color: var(--txt0); margin: 0 0 10px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.site-foot ul { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; }
+.site-foot li { margin: 0 0 6px; }
+.site-foot li a { color: var(--txt1); }
+@media (max-width: 640px) { .site-foot ul { columns: 1; } }

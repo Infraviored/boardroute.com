@@ -10,7 +10,8 @@ boardroute.com — a browser-only perfboard/stripboard autorouter: React 19 + Vi
 
 ```bash
 npm run dev       # Vite dev server
-npm run build     # production build into dist/ (goes through the server's buildlock shim automatically)
+npm run build     # vite build + scripts/build-site.js into dist/ (goes through the server's buildlock shim automatically)
+npm run build:site  # only regenerate the static explainer pages (needs an existing dist/)
 npm run lint      # eslint .
 npm run preview   # serve dist/
 ```
@@ -42,6 +43,10 @@ node tools/analyze_layout.js <layout.json>     # bounding box + which components
 ```
 
 `problems/*/` holds saved real-world layouts (often an `-ai` vs `-human` pair) used as optimization benchmarks.
+
+**Website around the app:** `/` is the app (`index.html` carries the SEO meta, JSON-LD and a static intro inside `#root` that React replaces on mount). `scripts/build-site.js` turns `docs/how-it-works/0*.md` into static, crawlable pages at `/how-it-works/<slug>/` (slug = file name without the number), plus `/how-it-works/` (hub), `sitemap.xml` and `robots.txt`; styles in `scripts/site.css`. Article titles/summaries come from the table in `docs/how-it-works/README.md`. A Markdown comment `<!-- board: <name> | <caption> -->` becomes an SVG of `docs/how-it-works/figures/<name>.json` drawn with the app's `generateBoardSVG` (a code block right after it is the text fallback and gets replaced). These pages don't exist under `npm run dev`; check them with `npm run build && npm run preview`. `public/og-image.png` is the social preview image.
+
+**Analytics:** self-hosted, cookie-free GoatCounter (container `goatcounter`, compose in `../goatcounter/`, SQLite in `../goatcounter/data/`), proxied by the host nginx at `https://boardroute.com/stats/` (dashboard, own login) — the count script is included in `index.html` and every generated page. It ignores localhost. The app also sends events (`goatcounter.count({ event: true })`) for Layout/Refine runs.
 
 **Deploy:** served as static files by the host nginx. `dist/` is registered in `../nginx/webroot-domains.conf`; build + publish with
 `cd ../nginx && ./nginx.sh deploy boardroute.com` (copies to `nginx/webroot/boardroute`).

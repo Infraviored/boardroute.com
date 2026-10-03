@@ -1,6 +1,6 @@
 # How boardroute works
 
-User-facing explanations of the layout engine, written as source material for the website's explainer pages. Plain Markdown, no site-specific markup.
+User-facing explanations of the layout engine. `npm run build` publishes them as static pages at https://boardroute.com/how-it-works/<slug>/ (slug = file name without the number; see `scripts/build-site.js`). Plain Markdown; the only site-specific markup is `<!-- board: <figure> | <caption> -->`, which becomes a rendered board from `figures/`. The table below drives the page titles and descriptions.
 
 | # | Article | One-line summary |
 |---|---|---|

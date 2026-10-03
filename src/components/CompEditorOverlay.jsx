@@ -13,7 +13,7 @@ import {
     Link2Off,
     Edit3
 } from 'lucide-react';
-import { SP, netColor, boostColor, compColor } from '../engine/render-utils.js';
+import { SP, netColor, boostColor } from '../engine/render-utils.js';
 
 export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
     const [data, setData] = useState(() => {
@@ -114,7 +114,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
     };
 
     const addPin = () => {
-        const next = { ...data };
+        const next = { ...data, pins: [...data.pins] };
         
         // Find first vacant spot
         let dCol = 0, dRow = 0, found = false;
@@ -137,7 +137,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
     };
 
     const removePin = (idx) => {
-        const next = { ...data };
+        const next = { ...data, pins: [...data.pins] };
         next.pins.splice(idx, 1);
         setData(next);
         if (selectedPinIdx === idx) setSelectedPinIdx(null);
@@ -145,24 +145,15 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
     };
 
     const updatePin = (idx, field, val) => {
-        const next = { ...data };
+        const next = { ...data, pins: [...data.pins] };
         next.pins[idx] = { ...next.pins[idx], [field]: val };
         setData(next);
     };
 
     const unbindPin = (idx) => {
-        const next = { ...data };
+        const next = { ...data, pins: [...data.pins] };
         next.pins[idx] = { ...next.pins[idx], net: '' };
         setData(next);
-    };
-
-    const getMousePos = (e) => {
-        if (!svgRef.current) return { x: 0, y: 0 };
-        const rect = svgRef.current.getBoundingClientRect();
-        return { 
-            x: (e.clientX - rect.left), 
-            y: (e.clientY - rect.top) 
-        };
     };
 
     const handlePointerDown = (e, idx) => {
@@ -174,19 +165,11 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
 
     const handlePointerMove = (e) => {
         if (!isDragging || selectedPinIdx === null) return;
-        const pos = getMousePos(e);
-        
-        // Calculate grid coords in the coordinate system of the viewBox
-        // Since the SVG is responsive, we need to map client coordinates to viewBox coordinates
-        const rect = svgRef.current.getBoundingClientRect();
-        const viewBoxW = data.w * SP;
-        const viewBoxH = data.h * SP;
-        
-        const scaleX = viewBoxW / rect.width;
-        const scaleY = viewBoxH / rect.height;
-        
-        const viewBoxX = (e.clientX - rect.left) * scaleX;
-        const viewBoxY = (e.clientY - rect.top) * scaleY;
+        // Map the pointer into viewBox (user) coordinates. The viewBox has a 1.5-hole margin and
+        // preserveAspectRatio="meet" letterboxes it, so a plain rect-ratio scale is wrong.
+        const ctm = svgRef.current?.getScreenCTM();
+        if (!ctm) return;
+        const { x: viewBoxX, y: viewBoxY } = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
 
         const col = Math.floor(viewBoxX / SP);
         const row = Math.floor(viewBoxY / SP);
@@ -198,7 +181,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
         const targetPinIdx = data.pins.findIndex((p, i) => i !== selectedPinIdx && p.dCol === clampedCol && p.dRow === clampedRow);
 
         if (data.pins[selectedPinIdx].dCol !== clampedCol || data.pins[selectedPinIdx].dRow !== clampedRow) {
-            const next = { ...data };
+            const next = { ...data, pins: [...data.pins] };
             if (targetPinIdx !== -1) {
                 // FLIP: Swap coordinates
                 const oldCol = next.pins[selectedPinIdx].dCol;
@@ -212,7 +195,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
         }
     };
 
-    const handlePointerUp = (e) => {
+    const handlePointerUp = () => {
         setIsDragging(false);
     };
 
@@ -549,6 +532,27 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                 }
                 .footer-actions { display: flex; gap: 12px; }
                 .footer-actions .btn { font-size: var(--fs-md); padding: 12px 24px; min-width: 140px; }
+
+                @media (max-width: 1100px) {
+                    .editor-layout { grid-template-columns: 260px 1fr 340px; }
+                }
+                /* Phone: stack identity, canvas and pin mapping in one scrolling column. */
+                @media (max-width: 760px) {
+                    .component-editor-modal { width: 100vw; height: 100dvh; border-radius: 0; border: none; }
+                    .editor-layout { display: flex; flex-direction: column; overflow-y: auto; }
+                    .editor-side-panel { padding: 0 16px 16px 16px; flex: none; overflow: visible; }
+                    .editor-side-panel.left, .editor-side-panel.right { border: none; border-bottom: 1px solid var(--border); }
+                    .settings-section { padding: 16px 0; gap: 12px; }
+                    .editor-canvas-area { flex: none; height: 240px; }
+                    .canvas-viewport { padding: 16px; }
+                    .pin-table { flex: none; }
+                    .pin-row { padding: 8px 10px; gap: 8px; }
+                    .pin-label-input { width: 56px !important; }
+                    .pin-net-input { min-width: 0; }
+                    .modal-header, .modal-footer { padding: 12px 16px; }
+                    .footer-actions { width: 100%; }
+                    .footer-actions .btn { flex: 1; min-width: 0; padding: 12px; }
+                }
 
                 @keyframes selection-pulse { from { opacity: 0.4; } to { opacity: 1; } }
                 .selection-bracket { animation: selection-pulse 0.8s infinite alternate; }

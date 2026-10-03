@@ -432,6 +432,7 @@ export class AutorouterEngine {
                 oldComp.id = def.id; // Apply rename if occurred
                 oldComp.name = def.name;
                 oldComp.value = def.value;
+                oldComp.color = def.color;
                 oldComp.routeUnder = def.routeUnder;
 
                 const incomingPins = def.offsets.map((off, idx) => ({

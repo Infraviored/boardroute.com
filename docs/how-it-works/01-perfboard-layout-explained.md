@@ -63,6 +63,7 @@ The search runs in a background thread in your browser. Nothing is uploaded, and
 
 Here is a classic 555 LED blinker: the timer chip, three resistors, three capacitors, an LED and a power header. Nine parts, seven nets. boardroute's best layout uses 8 × 7 = 56 holes:
 
+<!-- board: blinker555 | The 555 blinker on 8 × 7 = 56 holes. Each colour is one net; pins are circles, wires run between them on the solder side. -->
 ```
 B b b b B f f F
 g g g G B F A f
@@ -73,7 +74,7 @@ G C D D · e E g
 g g g g g g g g
 ```
 
-Each letter is a net (G = VCC, C = GND, F = threshold, B = discharge, and so on). Capital letters are pins, small letters are wire, `·` is a part body without a pin. Notice how many pins sit directly next to a pin of the same net. Those connections need no wire at all, and the search actively looks for them.
+In the text version each letter is a net (G = VCC, C = GND, F = threshold, B = discharge, and so on): capital letters are pins, small letters are wire, `·` is a part body without a pin. Notice how many pins sit directly next to a pin of the same net. Those connections need no wire at all, and the search actively looks for them.
 
 The previous version of the engine never managed to wire this circuit completely.
 

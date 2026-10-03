@@ -27,8 +27,8 @@ export default defineConfig([
     },
   },
   {
-    // Benchmark scripts run under Node
-    files: ['bench/**/*.js'],
+    // Benchmark and build scripts run under Node
+    files: ['bench/**/*.js', 'scripts/**/*.js'],
     languageOptions: { globals: globals.node },
   },
 ])

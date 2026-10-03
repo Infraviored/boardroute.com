@@ -9,7 +9,8 @@ import {
   RotateCcw,
   ExternalLink,
   Eraser,
-  FileJson
+  FileJson,
+  BookOpen
 } from 'lucide-react';
 
 export function Topbar({
@@ -102,6 +103,11 @@ export function Topbar({
         <div className="sep"></div>
 
         <div className="spc" style={{ flex: 1 }}></div>
+
+        <a className="tbtn docs-link" href="/how-it-works/" title="How the autorouter works">
+          <BookOpen size={16} />
+          <span className="docs-link-label">How it works</span>
+        </a>
 
         <button className="tbtn svg-export-btn" onClick={onExportSVG} title="Download SVG" aria-label="Export SVG">
           <ExternalLink size={16} />
@@ -270,6 +276,18 @@ export function Topbar({
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           z-index: 10;
+        }
+
+        .docs-link { text-decoration: none; }
+        @media (max-width: 1500px) and (min-width: 951px) { .docs-link-label { display: none; } }
+
+        /* Phones: logo on its own line, the three workflow steps share the full width below */
+        @media (max-width: 520px) {
+          .topbar-row-1 { height: auto; flex-wrap: wrap; padding: 0 12px 8px; }
+          .logo { flex-basis: 100%; padding: 10px 4px 8px; }
+          #topbar .workflow-track { margin: 0; width: 100%; }
+          .flow-btn { flex: 1; justify-content: center; padding-left: 20px; padding-right: 8px; }
+          .logo-sep { display: none; }
         }
 
         .workflow-track {

@@ -63,15 +63,17 @@ function App() {
     return localStorage.getItem('pcb_json_input') || '';
   });
 
-  // Sync board to engine on first load
+  // Sync the restored board to the engine on first load. Only the initial board is wanted here;
+  // later changes originate in the engine itself and flow back through onStateChange.
+  const [initialBoard] = useState(board);
   useEffect(() => {
     engine.setState({
-      components: board.components,
-      wires: board.wires,
-      cols: board.cols,
-      rows: board.rows
+      components: initialBoard.components,
+      wires: initialBoard.wires,
+      cols: initialBoard.cols,
+      rows: initialBoard.rows
     });
-  }, []);
+  }, [engine, initialBoard]);
 
   // Persist to localStorage
   useEffect(() => {
@@ -105,6 +107,7 @@ function App() {
         id: c.id,
         name: c.name,
         value: c.value,
+        ...(c.color ? { color: c.color } : {}),
         ...(c.routeUnder === false ? { routeUnder: false } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
@@ -117,8 +120,8 @@ function App() {
         count: n.pins.length
       }))
     };
-    const newJson = JSON.stringify(doc, null, 2);
-    if (newJson !== jsonInput) setJsonInput(newJson);
+    // Setting an identical string is a no-op for React, so no comparison with jsonInput is needed.
+    setJsonInput(JSON.stringify(doc, null, 2));
   }, [board.components, board.tick]);
 
   const [status, setStatus] = useState({ title: '', progress: 0, best: null, isProcessing: false, isInitial: false });
@@ -230,6 +233,8 @@ function App() {
     if (!defs) return;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
+    // usage statistics: how many layouts people actually run (GoatCounter event, no personal data)
+    window.goatcounter?.count?.({ path: refine ? 'refine' : 'layout', title: `${defs.length} parts`, event: true });
     setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
     let res = null;
     try {
@@ -352,7 +357,10 @@ function App() {
 
   const handleSaveEdit = useCallback(async (updated) => { 
     if (!editingComp) return;
-    const newComps = board.components.map(c => c.id === editingComp.id ? updated : c);
+    const isExisting = board.components.some(c => c.id === editingComp.id);
+    const newComps = isExisting
+      ? board.components.map(c => c.id === editingComp.id ? updated : c)
+      : [...board.components, updated]; // new part from the "New" button; mergeBoard places it
     
     // 1. Two-way sequence: Update text
     const newJson = generateJSONFromState(newComps);
@@ -474,7 +482,14 @@ function App() {
           components={board.components} selectedId={selectedId}
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
           onOpenLibrary={() => setIsLibraryOpen(true)}
-          onAddNewComponent={() => { setEditingComp(null); setIsEditorOpen(true); }}
+          onAddNewComponent={() => {
+            // The editor needs a component to edit; start from a blank 2-pin part with a free id.
+            const ids = new Set(board.components.map(c => c.id));
+            let n = board.components.length + 1; while (ids.has(`C${n}`)) n++;
+            setEditingComp({ id: `C${n}`, name: 'New part', value: '', w: 2, h: 1, routeUnder: true,
+              pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
+            setIsEditorOpen(true);
+          }}
           onEditComponent={(id) => { setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
@@ -563,6 +578,15 @@ function App() {
         .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); }
         .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
         .notice-close:hover { opacity: 1; }
+        /* Phone: the fixed-width sidebars would squeeze the canvas to zero width. Stack the
+           canvas on top and let both sidebars follow at full width in one scrolling column. */
+        @media (max-width: 700px) {
+          .app-main { height: 100dvh; }
+          #layout { flex-direction: column; overflow-y: auto; }
+          #ca-col { order: -1; flex: none; height: 60dvh; min-height: 300px; }
+          #lsb, #rsb { width: auto; flex: none; border-left: none; border-right: none; border-top: 1px solid var(--border); }
+          .resizer { display: none; }
+        }
       `}} />
     </div>
   );

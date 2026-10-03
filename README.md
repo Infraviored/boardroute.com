@@ -53,7 +53,7 @@ boardroute.com solves the complex problem of arranging electronic components and
 
 ## 🧠 How the layout engine works
 
-Explained for users (source material for the website): [docs/how-it-works/](docs/how-it-works/README.md)
+Explained for users, published at [boardroute.com/how-it-works](https://boardroute.com/how-it-works/) (generated from [docs/how-it-works/](docs/how-it-works/README.md) by `scripts/build-site.js` on every build):
 
 1. [From circuit to perfboard](docs/how-it-works/01-perfboard-layout-explained.md): the rules and the three ideas behind the engine
 2. [Can your circuit be built on one layer?](docs/how-it-works/02-can-it-be-routed.md): planarity, walls of pins, jumper wires

@@ -11,6 +11,8 @@ import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
+import { ResultCard } from './components/ResultCard.jsx';
+import { decodeShare, shareFromHash, shareUrl } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
@@ -135,6 +137,9 @@ function App() {
   const [bestSnapshot, setBestSnapshot] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  // Summary card after a finished Wire/Compact run; shown only while the board is unchanged
+  // since (its tick matches the board's), so any edit, undo or new run hides it.
+  const [resultCard, setResultCard] = useState(null);
   const [boardView, setBoardView] = useBoardView();
 
   // Modal states
@@ -266,6 +271,8 @@ function App() {
     if (!defs) return;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
+    setResultCard(null);
+    const start = refine && engine.wires.length ? scoreState(engine.components, engine.wires) : null;
     // usage statistics: how many layouts people actually run (GoatCounter event, no personal data)
     window.goatcounter?.count?.({ path: refine ? 'compact' : 'wire', title: `${defs.length} parts`, event: true });
     setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
@@ -297,8 +304,22 @@ function App() {
           : `No layout without crossings turned up, most likely because some wires don't fit between closely spaced pins. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`,
       });
     }
+    if (res?.found) {
+      const s = scoreState(engine.components, engine.wires);
+      setResultCard({
+        mode: refine ? 'compact' : 'wire', tick: engine.tick,
+        width: s.width, height: s.height, area: s.area, wl: s.wl,
+        jumpers: engine.wires.filter(w => w.jumper && !w.failed).length,
+        start: start && { width: start.width, height: start.height, area: start.area },
+      });
+    }
     setSnapCounter(c => c + 1); saveHistory();
   }, [engine, parseCircuit, saveHistory]);
+
+  const handleShareLink = useCallback(() => {
+    window.goatcounter?.count?.({ path: 'share-create', event: true });
+    return shareUrl(engine.components, engine.wires);
+  }, [engine]);
 
   const handleStepClick = useCallback(async (step) => {
     if (step === 0) { engine.setState({ components: [], wires: [] }); setWorkflowStep(0); }
@@ -529,10 +550,41 @@ function App() {
     fetch('/examples.json').then(r => r.json()).then(setExamples)
       .catch(err => { console.error('examples.json', err); setExamplesError(true); });
   }, []);
+  // Share link (#b=..., see engine/share.js): takes precedence over the saved board, ?example=
+  // and the first-visit picker. Loaded like an example, so Undo returns to the previous board.
+  const [shareValue] = useState(() => shareFromHash(window.location.hash));
+  const [shareState, setShareState] = useState(shareValue ? 'pending' : 'none'); // none | pending | done | failed
+  const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
+    engine.setState({ components, wires });
+    setNotice(null);
+    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
+    setShareState('done');
+    window.goatcounter?.count?.({ path: 'share-open', title: `${components.length} parts`, event: true });
+  }).catch(err => {
+    console.error('share link', err);
+    setNotice({ kind: 'error', title: 'This share link could not be opened', text: `${err.message ? err.message[0].toUpperCase() + err.message.slice(1) : 'Unknown error'}. Ask for the link again, and make sure it was copied completely.` });
+    setShareState('failed');
+  }).finally(() => {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }), [engine, saveHistory]);
+  const shareStarted = useRef(false);
+  useEffect(() => {
+    if (!shareValue || shareStarted.current) return;
+    shareStarted.current = true;
+    loadShare(shareValue);
+  }, [shareValue, loadShare]);
+  // A link pasted into a tab that already shows boardroute only changes the fragment (no reload).
+  useEffect(() => {
+    const onHash = () => { const v = shareFromHash(window.location.hash); if (v) loadShare(v); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [loadShare]);
+
   const examplesStarted = useRef(false);
   useEffect(() => {
-    if (examplesStarted.current || (!examples.length && !examplesError)) return;
+    if (shareState === 'pending' || examplesStarted.current || (!examples.length && !examplesError)) return;
     examplesStarted.current = true;
+    if (shareState === 'done') return;
     const wanted = new URLSearchParams(window.location.search).get('example');
     const ex = wanted && examples.find(e => e.id === wanted);
     if (ex) {
@@ -541,7 +593,7 @@ function App() {
     } else if (firstVisit) {
       if (examples.length) setExamplesOpen('first'); else handleLoadTemplate();
     }
-  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate]);
+  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate, shareState]);
 
   const stats = useMemo(() => {
     const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
@@ -612,6 +664,16 @@ function App() {
               conflicts={status.isProcessing ? board.conflicts : null}
             />
           </main>
+          {resultCard && resultCard.tick === board.tick && !status.isProcessing && (
+            <ResultCard
+              key={resultCard.tick}
+              result={resultCard}
+              onClose={() => setResultCard(null)}
+              onCompact={() => runLayout(true)}
+              onExport={() => setIsExportOpen(true)}
+              onShare={handleShareLink}
+            />
+          )}
           <ProcessingBar
             status={status}
             bestSnapshot={bestSnapshot}

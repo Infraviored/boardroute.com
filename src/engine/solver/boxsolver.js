@@ -31,11 +31,15 @@ function footprint(model, s, W) {
     return { minX, minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-function remapRoute(model, route, oldW, newW, dx, dy) {
+function remapRoute(model, route, oldW, newW, newH, dx, dy) {
     const map = (k) => ((((k / oldW) | 0) + dy) * newW + (k % oldW) + dx);
     const conns = route.conns.map(cs => cs && cs.map(c => c.map(map)));
     const cells = route.cells.map(cs => cs && cs.map(map));
-    return { ...route, conns, cells };
+    const occ = new Int16Array(newW * newH);
+    for (const cs of cells) {
+        if (cs) for (const k of cs) if (k >= 0 && k < occ.length) occ[k]++;
+    }
+    return { ...route, conns, cells, occ };
 }
 
 // Engine components -> placement (null if a part is missing or its footprint changed).
@@ -399,7 +403,7 @@ export async function solveBox(defs, opts = {}) {
         if (f.w === W && f.h === H && f.minX === 0 && f.minY === 0) return s;
         const pl = clonePl(s.pl);
         for (let i = 0; i < nC; i++) { pl.ox[i] -= f.minX; pl.oy[i] -= f.minY; }
-        const route = remapRoute(model, s.route, W, f.w, -f.minX, -f.minY);
+        const route = remapRoute(model, s.route, W, f.w, f.h, -f.minX, -f.minY);
         setBox(f.w, f.h);
         const overlap = router.setPlacement(pl);
         return { pl, route, overlap, cost: costOf(route, overlap, V.jumperWeight) };

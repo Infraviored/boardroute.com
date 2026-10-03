@@ -259,6 +259,6 @@ export function analyzeTopology(defs) {
     }
     const branch = k.branch.map(v => g.owner[v].net ? `net ${g.owner[v].net}` : `${g.labels[v]}`);
     result.certificate = { type: k.type, branch, parts: [...parts], nets: [...nets] };
-    result.explanation = `Nicht einlagig routbar: ${k.type}-Struktur aus Bauteilen ${[...parts].join(', ')} und Netzen ${[...nets].join(', ')}.`;
+    result.explanation = `Not routable on a single layer: ${k.type} structure of components ${[...parts].join(', ')} and nets ${[...nets].join(', ')}.`;
     return result;
 }

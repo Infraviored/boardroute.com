@@ -6,6 +6,9 @@ import {
     generateRatsnestSVG,
     renderCompSVG,
     generateBoundingBoxSVG,
+    computeBoardFrame,
+    generateCoordinatesSVG,
+    coordGutters,
     hitComp,
     hitPin,
     hitWire,
@@ -42,6 +45,7 @@ export function PcbCanvas({
     previewPath,
     onSelectNet,
     activePin,
+    boardView = null, // physical board outline + hole coordinates (see useBoardView)
     customComponentsSvg // Optional prop if we want to override
 }) {
     const svgRef = useRef(null);
@@ -208,6 +212,14 @@ export function PcbCanvas({
         return () => resizeObs.disconnect();
     }, []);
 
+    // Physical board frame (outline + hole coordinates). Only computed when the user opted in,
+    // so the default canvas is unchanged.
+    const showBoardLayer = !!(boardView && (boardView.showCoords || boardView.boardCols || boardView.boardRows));
+    const boardFrame = useMemo(() => {
+        void tick;
+        return showBoardLayer ? computeBoardFrame(components, wires, boardView) : null;
+    }, [showBoardLayer, components, wires, boardView, tick]);
+
     const bounds = useMemo(() => {
         if (components.length === 0 && wires.length === 0) {
             return { minCol: 0, minRow: 0, maxCol: cols, maxRow: rows };
@@ -228,10 +240,19 @@ export function PcbCanvas({
                 maxRow = Math.max(maxRow, p.row);
             }
         }
+        if (boardFrame) {
+            // Frame the whole physical board plus its label strips, not just the layout.
+            const g = coordGutters(boardFrame, boardView);
+            const ext = (px) => Math.ceil(px / SP);
+            minCol = Math.min(minCol, boardFrame.c0 - ext(g.left));
+            minRow = Math.min(minRow, boardFrame.r0 - ext(g.top));
+            maxCol = Math.max(maxCol, boardFrame.c0 + boardFrame.cols - 1 + ext(g.right));
+            maxRow = Math.max(maxRow, boardFrame.r0 + boardFrame.rows - 1 + ext(g.bottom));
+        }
         if (minCol === maxCol) maxCol += 1;
         if (minRow === maxRow) maxRow += 1;
         return { minCol, minRow, maxCol, maxRow };
-    }, [components, wires, cols, rows]);
+    }, [components, wires, cols, rows, boardFrame, boardView]);
 
     const snapLockRef = useRef(null);
     const lastSnapStep = useRef(0);
@@ -463,6 +484,22 @@ export function PcbCanvas({
     const ratsnestSvg = useMemo(() => { void tick; return generateRatsnestSVG(components, wires); }, [components, wires, tick]);
     const renderedComponentsSvg = useMemo(() => { void tick; return customComponentsSvg || components.map(c => renderCompSVG(c, c.id === selectedId, activePin)).join(''); }, [components, selectedId, activePin, tick, customComponentsSvg]);
     const boundingBoxSvg = useMemo(() => { void tick; return generateBoundingBoxSVG(components, wires); }, [components, wires, tick]);
+    // Coordinate text grows when zoomed out so it stays readable; quantised so zooming doesn't
+    // regenerate the layer on every frame.
+    const coordScale = Math.min(3, Math.max(1, Math.round(4 / (camera.z || 1)) / 4));
+    const coordsSvg = useMemo(() => {
+        void tick;
+        return generateCoordinatesSVG({ frame: boardFrame, view: boardView, components, scale: coordScale, dimOutside: true });
+    }, [boardFrame, boardView, components, coordScale, tick]);
+
+    // Re-frame the camera when the board settings change the visible extent.
+    const boardKey = boardFrame ? `${boardView.boardCols}x${boardView.boardRows}+${boardView.margin}:${boardView.showCoords}` : '';
+    const lastBoardKey = useRef(boardKey);
+    useEffect(() => {
+        if (boardKey === lastBoardKey.current || viewportSize.width === 0) return;
+        lastBoardKey.current = boardKey;
+        startSnap();
+    }, [boardKey, startSnap, viewportSize.width]);
 
     // Wheel zoom. Registered natively with { passive: false }: React attaches onWheel as a
     // passive listener, so preventDefault() there only logs an error and the page (or the
@@ -499,10 +536,12 @@ export function PcbCanvas({
                 <g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.z})`}>
                     <g id="main-content">
                         <g dangerouslySetInnerHTML={{ __html: background }} />
+                        {coordsSvg.board && <g dangerouslySetInnerHTML={{ __html: coordsSvg.board }} />}
                         <g dangerouslySetInnerHTML={{ __html: wiresSvg }} />
                         <g dangerouslySetInnerHTML={{ __html: ratsnestSvg }} />
                         <g dangerouslySetInnerHTML={{ __html: renderedComponentsSvg }} />
                         <g dangerouslySetInnerHTML={{ __html: boundingBoxSvg }} />
+                        {coordsSvg.labels && <g dangerouslySetInnerHTML={{ __html: coordsSvg.labels }} />}
 
                         {activePin && (
                             <g className="routing-preview-layer">

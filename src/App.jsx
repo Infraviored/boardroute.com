@@ -276,7 +276,7 @@ function App() {
     const start = refine && engine.wires.length ? scoreState(engine.components, engine.wires) : null;
     // usage statistics: how many layouts people actually run (GoatCounter event, no personal data)
     window.goatcounter?.count?.({ path: refine ? 'compact' : 'wire', title: `${defs.length} parts`, event: true });
-    setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null }));
+    setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null, mode: refine ? 'compact' : 'wire' }));
     let res = null;
     try {
       res = await engine.layout(defs, refine ? { refine: true } : { firstOnly: true });
@@ -312,6 +312,7 @@ function App() {
         width: s.width, height: s.height, area: s.area, wl: s.wl,
         jumpers: engine.wires.filter(w => w.jumper && !w.failed).length,
         start: start && { width: start.width, height: start.height, area: start.area },
+        optimal: res.optimal, bound: res.bound,
       });
     }
     setSnapCounter(c => c + 1); saveHistory();

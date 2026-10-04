@@ -42,7 +42,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
   const improved = results?.improved;
 
   return (
-    <div id="proc-bar" className={`${results ? "results" : ""} ${isShown ? "shown" : ""}`}>
+    <div id="proc-bar" className={`${results ? "results" : ""} ${isShown ? "shown" : ""} ${status.mode === 'compact' ? "mode-compact" : ""} ${status.best?.optimal ? "perfect" : ""}`}>
       <div className="pb-content-wrap">
         <div className="pb-left">
           {results ? (
@@ -288,6 +288,13 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         .pb-preview-wrap.success {
           filter: drop-shadow(0 0 20px rgba(35, 134, 54, 0.4));
         }
+        /* Compact: the purple of its step in the top bar; gold once the board is provably perfect */
+        #proc-bar.mode-compact { border-top-color: #a371f7; box-shadow: 0 -10px 40px rgba(0,0,0,0.4), 0 -4px 32px rgba(137, 87, 229, 0.18); }
+        #proc-bar.mode-compact .pb-fill { background: linear-gradient(90deg, #8957e5, #a371f7); box-shadow: 0 0 15px #8957e5; }
+        #proc-bar.mode-compact .pb-title { color: #d2a8ff; }
+        #proc-bar.mode-compact .pb-btn-glass { border-color: #a371f7; color: #d2a8ff; background: rgba(137, 87, 229, 0.15); }
+        #proc-bar.perfect { border-top-color: #e3b341; }
+        #proc-bar.perfect .pb-title { color: #e3b341; }
         #proc-bar.results { border-top-color: var(--grn-bright); background: linear-gradient(180deg, #101413 0%, #050706 100%); }
       `}} />
     </div>

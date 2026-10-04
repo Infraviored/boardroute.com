@@ -3,6 +3,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { processTemplate } from '../src/engine/templates.js';
 import { analyzeTopology } from '../src/engine/topology.js';
+import { areaLowerBound } from '../src/engine/lower-bound.js';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -58,6 +59,12 @@ export function scoreRuns(results) {
 
 // Topological status per circuit: 'X' = proven unroutable, 'R' = a routed layout is known,
 // '?' = planar but nobody has routed it yet.
+// Provable minimum area (src/engine/lower-bound.js) per circuit.
+function lowerBound(circuit) {
+    const f = join(DIR, 'circuits', `${circuit}.json`);
+    return existsSync(f) ? areaLowerBound(processTemplate(JSON.parse(readFileSync(f, 'utf-8')))).area : null;
+}
+
 function topoStatus(circuit, bestKnown) {
     const f = join(DIR, 'circuits', `${circuit}.json`);
     if (!existsSync(f)) return ' ';
@@ -70,14 +77,15 @@ export function printTable(series, bestKnown) {
     const circuits = [...new Set(series.flatMap(s => [...s.rows.keys()]))].sort();
     const pad = (x, w) => String(x ?? '-').padStart(w);
     const W = 45;
-    let head = 'circuit'.padEnd(20) + 'topo' + pad('known', 6);
+    let head = 'circuit'.padEnd(20) + 'topo' + pad('known', 6) + pad('min', 5);
     for (const s of series) head += ' │ ' + s.name.slice(0, W).padEnd(W);
     console.log(head);
-    let sub = ''.padEnd(30);
+    let sub = ''.padEnd(35);
     for (const _ of series) sub += ' │ ' + 'ok  best   med  med@¼  medWL  t(best)  ev/s'.padEnd(W);
     console.log(sub);
     for (const c of circuits) {
-        let line = c.slice(0, 20).padEnd(20) + `  ${topoStatus(c, bestKnown)} ` + pad(bestKnown[c]?.area, 6);
+        const lb = lowerBound(c);
+        let line = c.slice(0, 20).padEnd(20) + `  ${topoStatus(c, bestKnown)} ` + pad(bestKnown[c]?.area, 6) + pad(lb, 5);
         for (const s of series) {
             const r = s.rows.get(c);
             if (!r) { line += ' │ ' + ''.padEnd(W); continue; }
@@ -86,10 +94,10 @@ export function printTable(series, bestKnown) {
         }
         console.log(line);
     }
-    let foot = 'score (gmean area/ref)'.padEnd(30);
+    let foot = 'score (gmean area/ref)'.padEnd(35);
     for (const s of series) { const sc = scoreRuns(s.results); foot += ' │ ' + (sc ? sc.toFixed(3) : '-').padEnd(W); }
     console.log(foot);
-    console.log('topo: X = proven unroutable (non-planar), R = routable (layout known), ? = open.  ! = a run ended on an invalid layout.  Jn = median jumper wires');
+    console.log('topo: X = proven unroutable (non-planar), R = routable (layout known), ? = open.  min = provable minimum area (known = min: perfect).  ! = a run ended on an invalid layout.  Jn = median jumper wires');
 }
 
 if (process.argv[1] && basename(process.argv[1]) === 'report.js') {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Link2, Check, Download, Minimize2, CircleCheck } from 'lucide-react';
+import { X, Link2, Check, Download, Minimize2, CircleCheck, Trophy } from 'lucide-react';
 
 // Floating summary after a Wire/Compact run: footprint, wire length, jumpers, change vs. the
 // start, and the natural next steps. Sits over the bottom of the canvas without blocking it.
@@ -9,7 +9,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   if (!result) return null;
-  const { mode, width, height, wl, jumpers, start } = result;
+  const { mode, width, height, wl, jumpers, start, optimal, bound } = result;
   const isCompact = mode === 'compact';
 
   let delta = null;
@@ -17,7 +17,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
     const pct = Math.round((start.area - result.area) / start.area * 100);
     delta = pct > 0
       ? { good: true, text: `−${pct} % area`, sub: `${start.width} × ${start.height} → ${width} × ${height}` }
-      : { good: false, text: 'Already as small as it gets', sub: 'No smaller layout turned up this run' };
+      : { good: false, text: optimal ? 'Already perfect' : 'No smaller layout this run', sub: optimal ? 'Nothing left to shrink' : `${start.width} × ${start.height} stays` };
   }
 
   const handleShare = async () => {
@@ -39,11 +39,13 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
   const shareLabel = share.state === 'copied' ? 'Copied' : share.state === 'busy' ? 'Creating…' : 'Share link';
 
   return (
-    <div className="result-card" role="status" aria-live="polite">
+    <div className={`result-card ${optimal ? 'perfect' : ''} ${isCompact ? 'is-compact' : ''}`} role="status" aria-live="polite">
       <div className="rc-head">
-        <CircleCheck size={16} className="rc-ok" aria-hidden="true" />
-        <span className="rc-title">{isCompact ? 'Compacted' : 'Wired'}</span>
-        <span className="rc-hint">{isCompact ? 'Smallest layout found' : 'Every net is connected'}</span>
+        {optimal ? <Trophy size={16} className="rc-ok" aria-hidden="true" /> : <CircleCheck size={16} className="rc-ok" aria-hidden="true" />}
+        <span className="rc-title">{optimal ? 'Perfect' : isCompact ? 'Compacted' : 'Wired'}</span>
+        <span className="rc-hint">{optimal
+          ? 'Provably the smallest possible board'
+          : isCompact ? `Smallest layout found · no board can be smaller than ${bound} holes` : 'Every net is connected'}</span>
         <button className="rc-close" onClick={onClose} aria-label="Close result"><X size={15} /></button>
       </div>
 
@@ -75,10 +77,12 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
       )}
 
       <div className="rc-actions">
-        <button className={`rc-btn ${isCompact ? '' : 'primary'}`} onClick={onCompact}>
-          <Minimize2 size={14} /> {isCompact ? 'Compact again' : 'Compact'}
-        </button>
-        <button className={`rc-btn ${isCompact ? 'primary' : ''} ${share.state === 'copied' ? 'copied' : ''}`} onClick={handleShare} disabled={share.state === 'busy'}>
+        {!optimal && (
+          <button className={`rc-btn compact ${isCompact ? '' : 'primary'}`} onClick={onCompact}>
+            <Minimize2 size={14} /> {isCompact ? 'Compact again' : 'Compact'}
+          </button>
+        )}
+        <button className={`rc-btn ${isCompact || optimal ? 'primary' : ''} ${share.state === 'copied' ? 'copied' : ''}`} onClick={handleShare} disabled={share.state === 'busy'}>
           {share.state === 'copied' ? <Check size={14} /> : <Link2 size={14} />} {shareLabel}
         </button>
         <button className="rc-btn" onClick={onExport}>
@@ -127,6 +131,14 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .rc-btn:disabled { opacity: 0.6; cursor: default; }
         .rc-btn.primary { background: var(--grn); border-color: var(--grn-bright); color: #fff; box-shadow: 0 4px 14px rgba(35, 134, 54, 0.3); }
         .rc-btn.primary:hover:not(:disabled) { background: #2a9a40; }
+        /* Compact keeps the purple of its step in the top bar */
+        .rc-btn.compact { color: #d2a8ff; border-color: rgba(163, 113, 247, 0.55); }
+        .rc-btn.compact:hover:not(:disabled) { background: rgba(163, 113, 247, 0.14); border-color: #a371f7; }
+        .rc-btn.compact.primary { background: #8957e5; border-color: #a371f7; color: #fff; box-shadow: 0 4px 14px rgba(137, 87, 229, 0.35); }
+        .rc-btn.compact.primary:hover:not(:disabled) { background: #9a6cf0; }
+        .result-card.is-compact { border-top-color: #a371f7; }
+        .result-card.perfect { border-top-color: #e3b341; }
+        .result-card.perfect .rc-ok, .result-card.perfect .rc-title { color: #e3b341; }
         .rc-btn.copied { border-color: var(--grn-bright); color: var(--grn-bright); }
         .rc-btn.primary.copied { color: #fff; }
         /* Phone: one row of numbers, the delta's "from -> to" line goes into its tooltip. */

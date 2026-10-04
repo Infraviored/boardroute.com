@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import {
     SP,
-    generateBackgroundSVG,
     generateWiresSVG,
     generateRatsnestSVG,
     renderCompSVG,
@@ -75,6 +74,38 @@ export function PcbCanvas({
 
     const hasInitializedFit = useRef(!!localStorage.getItem('pcb_camera_state'));
 
+    // Pan/zoom never re-render React: applyCamera writes the transform, the hole-grid background
+    // and the vignette straight to the DOM, and commits the camera to React state only once the
+    // view has been still for a moment (for zoom-dependent label sizes and persistence).
+    const camRef = useRef(camera);
+    const gRef = useRef(null);
+    const holesRef = useRef(null);
+    const vignetteRef = useRef(null);
+    const boundsRef = useRef(null);
+    const commitTimer = useRef(null);
+    const paintCamera = useCallback(() => {
+        const cam = camRef.current;
+        gRef.current?.setAttribute('transform', `translate(${cam.x}, ${cam.y}) scale(${cam.z})`);
+        const holes = holesRef.current;
+        if (holes) {
+            holes.style.backgroundSize = `${SP * cam.z}px ${SP * cam.z}px`;
+            holes.style.backgroundPosition = `${cam.x}px ${cam.y}px`;
+        }
+        const v = vignetteRef.current, b = boundsRef.current;
+        if (v && b) {
+            const cx = ((b.minCol + b.maxCol + 1) / 2) * SP, cy = ((b.minRow + b.maxRow + 1) / 2) * SP;
+            const r = Math.max((b.maxCol - b.minCol + 10) * SP / 2, (b.maxRow - b.minRow + 10) * SP / 2, 300) * 3 * cam.z;
+            v.style.background = `radial-gradient(circle ${r}px at ${cam.x + cx * cam.z}px ${cam.y + cy * cam.z}px, rgba(5,7,6,0) 40%, rgba(5,7,6,.2) 60%, rgba(5,7,6,.7) 80%, #050706 100%)`;
+        }
+    }, []);
+    const applyCamera = useCallback((cam) => {
+        camRef.current = cam;
+        paintCamera();
+        clearTimeout(commitTimer.current);
+        commitTimer.current = setTimeout(() => setCamera(camRef.current), 150);
+    }, [paintCamera]);
+    useEffect(() => () => clearTimeout(commitTimer.current), []);
+
     // Persist camera
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -98,8 +129,9 @@ export function PcbCanvas({
             e.currentTarget.setPointerCapture(e.pointerId);
             return;
         }
-        const worldY = (pos.y - camera.y) / camera.z;
-        const worldX = (pos.x - camera.x) / camera.z;
+        const cam = camRef.current;
+        const worldY = (pos.y - cam.y) / cam.z;
+        const worldX = (pos.x - cam.x) / cam.z;
         const col = Math.floor(worldX / SP);
         const row = Math.floor(worldY / SP);
 
@@ -150,8 +182,9 @@ export function PcbCanvas({
 
     const handlePointerMove = (e) => {
         const pos = getMousePos(e);
-        const worldY = (pos.y - camera.y) / camera.z;
-        const worldX = (pos.x - camera.x) / camera.z;
+        const cam = camRef.current;
+        const worldY = (pos.y - cam.y) / cam.z;
+        const worldX = (pos.x - cam.x) / cam.z;
         const col = Math.floor(worldX / SP);
         const row = Math.floor(worldY / SP);
 
@@ -164,13 +197,16 @@ export function PcbCanvas({
         } else if (draggingId) {
             const nx = Math.round((worldX - dragOffset.x) / SP);
             const ny = Math.round((worldY - dragOffset.y) / SP);
-            onMove?.(draggingId, nx, ny);
+            // only when the part actually lands on another hole: every move re-routes and re-renders the app
+            const dc = components.find(c => c.id === draggingId);
+            if (!dc || dc.ox !== nx || dc.oy !== ny) onMove?.(draggingId, nx, ny);
         } else if (isPanning) {
+            const cam = camRef.current;
             const newP = {
-                x: camera.x + (pos.x - lastPos.current.x),
-                y: camera.y + (pos.y - lastPos.current.y)
+                x: cam.x + (pos.x - lastPos.current.x),
+                y: cam.y + (pos.y - lastPos.current.y)
             };
-            setCamera(prev => ({ ...prev, x: newP.x, y: newP.y }));
+            applyCamera({ ...cam, x: newP.x, y: newP.y });
             lastPos.current = pos;
             simPan.current = { ...newP };
         }
@@ -451,14 +487,14 @@ export function PcbCanvas({
 
             // 3. COMMIT ATOMIC STATE
             simZoom.current = nextZ;
-            setCamera({ x: simPan.current.x, y: simPan.current.y, z: simZoom.current });
+            applyCamera({ x: simPan.current.x, y: simPan.current.y, z: simZoom.current });
 
             if (isSnap && Math.abs(fitZoom - simZoom.current) < 0.001) {
                 setTrackingMode(TRACKING_MODES.NONE);
                 snapLockRef.current = null;
             }
         }
-    }, [trackingMode, isAutoTracking, isPanning, draggingId, viewportSize, isProcessing]);
+    }, [trackingMode, isAutoTracking, isPanning, draggingId, viewportSize, isProcessing, applyCamera]);
 
 
     useEffect(() => {
@@ -484,7 +520,8 @@ export function PcbCanvas({
     }, [isAutoTracking, trackingMode, updatePhysics]);
 
 
-    const background = useMemo(() => generateBackgroundSVG(cols, rows, bounds), [cols, rows, bounds]);
+    // Keep the vignette centred on the board; repaint whenever React renders (data changed).
+    useLayoutEffect(() => { boundsRef.current = bounds; paintCamera(); });
     // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
     // bumps tick, so the array references alone don't change when the board does.
     // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
@@ -558,21 +595,22 @@ export function PcbCanvas({
                 x: pos.x - (pos.x - curP.x) * (newZ / curZ),
                 y: pos.y - (pos.y - curP.y) * (newZ / curZ)
             };
-            setCamera({ x: newP.x, y: newP.y, z: newZ });
+            applyCamera({ x: newP.x, y: newP.y, z: newZ });
             simPan.current = { ...newP };
             simZoom.current = newZ;
         };
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => el.removeEventListener('wheel', onWheel);
-    }, []);
+    }, [applyCamera]);
 
 
     return (
         <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
-            <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block' }}>
-                <g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.z})`}>
+            <div ref={holesRef} className="holes-layer" />
+            <div ref={vignetteRef} className="vignette-layer" />
+            <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block', position: 'relative', textRendering: 'geometricPrecision' }}>
+                <g ref={gRef}>
                     <g id="main-content">
-                        <g dangerouslySetInnerHTML={{ __html: background }} />
                         {coordsSvg.board && <g dangerouslySetInnerHTML={{ __html: coordsSvg.board }} />}
                         {solder ? <>
                             <g dangerouslySetInnerHTML={{ __html: compsSplit.base }} />
@@ -657,7 +695,7 @@ export function PcbCanvas({
                         y: cy - (cy - curP.y) * (nextZ / curZ)
                     };
                     simZoom.current = nextZ;
-                    setCamera({ ...simPan.current, z: nextZ });
+                    applyCamera({ ...simPan.current, z: nextZ });
                 }} title="Zoom In">
                     <Plus size={18} />
                 </button>
@@ -674,7 +712,7 @@ export function PcbCanvas({
                         y: cy - (cy - curP.y) * (nextZ / curZ)
                     };
                     simZoom.current = nextZ;
-                    setCamera({ ...simPan.current, z: nextZ });
+                    applyCamera({ ...simPan.current, z: nextZ });
                 }} title="Zoom Out">
                     <Minus size={18} />
                 </button>
@@ -693,6 +731,8 @@ export function PcbCanvas({
             <style dangerouslySetInnerHTML={{
                 __html: `
                 .canvas-container { user-select: none; -webkit-user-select: none; }
+                .holes-layer { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Crect width='28' height='28' fill='%231a1208'/%3E%3Ccircle cx='14' cy='14' r='6.16' fill='%23b87333'/%3E%3Ccircle cx='14' cy='14' r='2.52' fill='%230d0a06'/%3E%3C/svg%3E"); background-repeat: repeat; pointer-events: none; }
+                .vignette-layer { position: absolute; inset: 0; pointer-events: none; }
                 .canvas-controls { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 .canvas-container.pb-active .canvas-controls { bottom: calc(20px + var(--pb-height)); }
                 .cbtn.side-btn.on { color: var(--org); border-color: rgba(210,153,34,.6); }

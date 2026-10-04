@@ -2,6 +2,7 @@ import { route, incrementalReroute } from './router.js';
 import { Grid, BLOCKED_WIRE } from './grid.js';
 import { scoreState, recenterComponents } from './metrics.js';
 import { netCompletion } from './net-completion.js';
+import { areaLowerBound, isPerfect } from './lower-bound.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
 import { placeInitial } from './initial-placement.js';
@@ -145,7 +146,11 @@ export class AutorouterEngine {
         };
         // a jumper counts as 4 holes, like in the solver
         const keyOf = (m) => m.area + 4 * (m.jumpers || 0);
-        const onBest = (components, wires, metrics) => {
+        // Provable minimum: a layout that reaches it is perfect and ends the run.
+        const bound = areaLowerBound(compDefs);
+        const judge = (m) => ({ ...m, bound: bound.area, optimal: isPerfect(m.area, m.jumpers, bound, topo.planar) });
+        const onBest = (components, wires, rawMetrics) => {
+            const metrics = judge(rawMetrics);
             if (best && (keyOf(metrics) > best.key || (keyOf(metrics) === best.key && metrics.wl >= best.metrics.wl))) return;
             place(components, wires);
             best = { components, wires, metrics, key: keyOf(metrics) };
@@ -167,7 +172,7 @@ export class AutorouterEngine {
         // stallMs, or for half the time it took to find the last one. Never before the first.
         const stalled = () => {
             if (!best) return false;
-            if (firstOnly) return true;
+            if (firstOnly || best.metrics.optimal) return true;
             return performance.now() - lastImprove > Math.max(stallMs, (lastImprove - t0) * 0.5);
         };
         const nWorkers = typeof Worker === 'undefined' ? 0 : this.workerCount();
@@ -184,8 +189,9 @@ export class AutorouterEngine {
             const since = (now - lastImprove) / 1000;
             const m = best.metrics;
             this.onProgress?.(Math.min(100, ((now - lastImprove) / window) * 100),
-                `${label}… best ${m.width}×${m.height} = ${m.area} holes`,
-                `last improvement ${since.toFixed(0)} s ago · stops after ${(window / 1000).toFixed(0)} s without one${cores}`);
+                m.optimal ? `Perfect: ${m.width}×${m.height} = ${m.area} holes` : `${label}… best ${m.width}×${m.height} = ${m.area} holes`,
+                m.optimal ? 'provably the smallest board, no need to search further'
+                    : `no board can be smaller than ${m.bound} holes · last improvement ${since.toFixed(0)} s ago · stops after ${(window / 1000).toFixed(0)} s without one${cores}`);
         };
         const initial = refine && this.components.length ? this.components : null;
         // Compact must never hand back a worse board than it started from: a fully wired
@@ -194,7 +200,7 @@ export class AutorouterEngine {
             const nc = netCompletion(before.components, before.wires);
             if (nc.total > 0 && nc.done === nc.total) {
                 const sc = scoreState(before.components, before.wires);
-                const metrics = { area: sc.area, width: sc.width, height: sc.height, wl: sc.wl, jumpers: before.wires.filter(w => w.jumper && !w.failed).length };
+                const metrics = judge({ area: sc.area, width: sc.width, height: sc.height, wl: sc.wl, jumpers: before.wires.filter(w => w.jumper && !w.failed).length });
                 best = { components: before.components, wires: before.wires, metrics, key: keyOf(metrics) };
                 lastImprove = t0;
                 this.onBestSnapshot?.({ components: before.components, wires: before.wires });
@@ -265,7 +271,7 @@ export class AutorouterEngine {
         }
         if (best) show(best.components, best.wires);
         else show(before.components, before.wires);
-        return { found: !!best, jumpers: best?.metrics.jumpers || 0, topology: topo, score: best ? scoreState(this.components, this.wires) : null };
+        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null };
     }
 
     // Planarity check (+ certificate) in a worker so a slow certificate can't freeze the UI.

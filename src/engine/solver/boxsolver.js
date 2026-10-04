@@ -5,6 +5,7 @@
 // Once found, crop to the real footprint, delete one row or column, repair, repeat.
 // The best legal layout seen is the answer.
 import { buildModel, toEngine } from './model.js';
+import { areaLowerBound } from '../lower-bound.js';
 import { BoxRouter } from './boxrouter.js';
 
 const now = () => globalThis.performance?.now?.() ?? Date.now();
@@ -100,13 +101,16 @@ export async function solveBox(defs, opts = {}) {
     };
     const t0 = now();
     const timeLeft = () => budgetMs - (now() - t0);
-    const stop = () => timeLeft() <= 0 || (shouldStop && shouldStop());
+    const stop = () => optimal || timeLeft() <= 0 || (shouldStop && shouldStop());
     let lastYield = now();
     const maybeYield = async () => {
         if (now() - lastYield > 40) { lastYield = now(); await new Promise(r => setTimeout(r, 0)); }
     };
 
     const model = buildModel(defs);
+    // A jumper-free layout on the provable minimum area can't be beaten: stop there.
+    const bound = areaLowerBound(model.comps.map(c => c.rots[0]));
+    let optimal = false;
     const nC = model.comps.length;
     const rnd = Math.random;
     const ri = (n) => Math.floor(rnd() * n);
@@ -389,9 +393,10 @@ export async function solveBox(defs, opts = {}) {
             const route = { ...s.route, conns, wl: conns.reduce((t, cs) => t + (cs ? cs.reduce((u, c) => u + c.length - 1, 0) : 0), 0) };
             s = { ...s, route };
             best = { area, key, jumpers, wl: route.wl, pl: clonePl(s.pl), route, W, H, f };
+            optimal = area <= bound.area && jumpers === 0;
             if (onBest) {
                 const out = toEngine(model, s.pl, s.route, W);
-                onBest(out.components, out.wires, { area, width: f.w, height: f.h, wl: s.route.wl, jumpers });
+                onBest(out.components, out.wires, { area, width: f.w, height: f.h, wl: s.route.wl, jumpers, bound: bound.area, optimal });
             }
         }
         return f;

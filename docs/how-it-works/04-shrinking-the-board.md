@@ -71,6 +71,10 @@ The full search goes like this:
 
 The app's **Wire** step stops at the first layout where every net is connected. **Compact** keeps going: every time a smaller layout is found, the app shows it. The search stops on its own when it hasn't improved for a while. How long it waits grows with the circuit: about 1.2 seconds per part, at least 3 and at most 15 seconds, and never less than half the time it took to find the last improvement. Large boards keep improving for longer, so they get more patience. We tuned these numbers by replaying the benchmark runs: the search now stops after about 19 seconds on average, small circuits after a few seconds, and the boards are nearly as small as after a full minute.
 
+## Knowing when to stop
+
+Before searching, boardroute computes the smallest area any layout could possibly have: the parts may not overlap, so the board needs at least their combined area, and it has to be wide and tall enough for every part in one of its two orientations. Wires are ignored, because they can run under parts. If the search reaches this bound (with no jumper wires, or exactly one for a circuit that needs a crossing), the layout is provably perfect and the search stops at once. The app marks it as **Perfect**.
+
 ## Starting from your layout
 
 **Compact** (the app's third step) runs this search starting from the current board instead of a rough placement: the parts keep their positions and rotations, the box is set to fit them with one hole to spare, and shrinking continues from there. If you moved a part by hand, the engine first repairs whatever your move broke, then tries to shrink around it. If your arrangement can't be repaired, it falls back to a fresh start.

@@ -40,6 +40,10 @@ Sometimes provably, often not. boardroute knows a hard lower bound: the parts ca
 
 Yes. Drag a part, rotate it, and then press **Compact**. The search starts from your arrangement, repairs any wires your change broke, and tries to shrink around it.
 
+### Where do the parts in the Library come from?
+
+A short curated list (ESP32 boards, common chips, relays, terminals) sits on top. Below it are about 1,100 through-hole footprints generated from the official [KiCad footprint libraries](https://gitlab.com/kicad/libraries/kicad-footprints): DIP and SIP chips, TO-220 and TO-92 packages, resistors, capacitors, headers, sockets, relays, terminal blocks, buttons, DC/DC modules and dev boards like the Arduino Nano or Raspberry Pi Pico. Only footprints whose pins all land on the 2.54 mm perfboard grid are included, so a part with 3.5 mm or 2.0 mm pin spacing is missing on purpose. Where the KiCad drawing shows a body larger than the pins (a relay housing, a capacitor can, a standing TO-220), the part blocks those holes too. The KiCad libraries are licensed under CC-BY-SA 4.0 with an exception that leaves your own designs unaffected; thanks to the KiCad library team for them.
+
 ### Does my circuit leave my computer?
 
 No. boardroute runs entirely in your browser. The layout search runs in a background thread on your own machine, and nothing is uploaded.

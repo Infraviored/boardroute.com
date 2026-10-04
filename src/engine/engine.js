@@ -146,8 +146,9 @@ export class AutorouterEngine {
         };
         // a jumper counts as 4 holes, like in the solver
         const keyOf = (m) => m.area + 4 * (m.jumpers || 0);
-        // Provable minimum: a layout that reaches it is perfect and ends the run.
-        const bound = areaLowerBound(compDefs);
+        // Provable minimum: a layout that reaches it is perfect and ends the run. A non-planar
+        // circuit needs a jumper, which needs 3 holes free of parts.
+        const bound = areaLowerBound(compDefs, { jumpers: topo.planar ? 0 : 1 });
         const judge = (m) => ({ ...m, bound: bound.area, optimal: isPerfect(m.area, m.jumpers, bound, topo.planar) });
         const onBest = (components, wires, rawMetrics) => {
             const metrics = judge(rawMetrics);

@@ -62,7 +62,9 @@ export function scoreRuns(results) {
 // Provable minimum area (src/engine/lower-bound.js) per circuit.
 function lowerBound(circuit) {
     const f = join(DIR, 'circuits', `${circuit}.json`);
-    return existsSync(f) ? areaLowerBound(processTemplate(JSON.parse(readFileSync(f, 'utf-8')))).area : null;
+    if (!existsSync(f)) return null;
+    const defs = processTemplate(JSON.parse(readFileSync(f, 'utf-8')));
+    return areaLowerBound(defs, { jumpers: analyzeTopology(defs).planar ? 0 : 1 }).area;
 }
 
 function topoStatus(circuit, bestKnown) {

@@ -148,7 +148,11 @@ function App() {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [examples, setExamples] = useState([]);
   const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
-  const [exampleTitle, setExampleTitle] = useState(null); // shown in the Circuit card while an example is loaded
+  // Shown in the Circuit card while an example is loaded; kept across reloads.
+  const [exampleTitle, setExampleTitle] = useState(() => { try { return localStorage.getItem('pcb_example_title'); } catch { return null; } });
+  useEffect(() => {
+    try { if (exampleTitle) localStorage.setItem('pcb_example_title', exampleTitle); else localStorage.removeItem('pcb_example_title'); } catch { /* storage unavailable */ }
+  }, [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -400,20 +404,24 @@ function App() {
 
   const handleReset = useCallback(() => setConfirmData({ isOpen: true, type: 'reset', targetId: 'board' }), []);
   const handleAddFromLibrary = useCallback((compDef) => {
-    const newId = `C${board.components.length + 1}`;
+    // a free id: name initial + number (R3, C2, U1, ...)
+    const prefix = (compDef.name || 'P').replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase() || 'P';
+    const ids = new Set(board.components.map(c => c.id));
+    let n = 1; while (ids.has(`${prefix}${n}`)) n++;
+    const newId = `${prefix}${n}`;
     // footprint = pins + optional body, pin offsets relative to its origin
     const def = processTemplate({ components: [{ ...compDef, id: newId }] })?.[0];
     if (!def) return;
+    // next to the existing parts (one hole gap), never on top of them; wiring stays as it is
     let cx = 5, cy = 5;
     if (board.components.length > 0) {
-      let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
-      board.components.forEach(c => { minC = Math.min(minC, c.ox); maxC = Math.max(maxC, c.ox + c.w); minR = Math.min(minR, c.oy); maxR = Math.max(maxR, c.oy + c.h); });
-      cx = Math.floor((minC + maxC) / 2) + Math.floor(Math.random() * 5); cy = Math.floor((minR + maxR) / 2) + Math.floor(Math.random() * 5);
+      cx = Math.max(...board.components.map(c => c.ox + c.w)) + 1;
+      cy = Math.min(...board.components.map(c => c.oy));
     }
     const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
-    engine.setState({ components: [...board.components, newComp], wires: [] });
+    engine.setState({ components: [...board.components, newComp], wires: board.wires });
     setIsLibraryOpen(false); setSelectedId(newId); saveHistory();
-  }, [board.components, engine, saveHistory]);
+  }, [board.components, board.wires, engine, saveHistory]);
 
   const handleSaveEdit = useCallback(async (updated) => { 
     if (!editingComp) return;

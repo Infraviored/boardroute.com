@@ -725,7 +725,6 @@ export function generateBoardSVG(components, wires = [], options = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&amp;display=swap');
         text { font-family: 'Outfit', sans-serif; }
       </style>
     </defs>
@@ -754,7 +753,6 @@ export function generateCombinedSVG(components, wires = [], options = {}) {
   const commonStyles = `
     <defs>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&amp;display=swap');
         text { font-family: 'Outfit', sans-serif; paint-order: stroke; stroke: #000; stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; }
       </style>
     </defs>
@@ -797,4 +795,37 @@ export function hitPin(col, row, components) {
 
 export function hitWire(col, row, wires) {
   return wires.find(w => !w.failed && w.path && w.path.some(pt => pt.col === col && pt.row === row)) || null;
+}
+
+/**
+ * Light theme for paper: turns an exported board SVG (generateBoardSVG / generateCombinedSVG)
+ * into dark ink on white. Copper pads stay as faint shapes, wires keep their net colours but
+ * darker, text loses its halo. Works on the finished string so the screen renderer stays as is.
+ */
+export function printThemeSVG(svg) {
+  if (!svg) return svg;
+  const swaps = [
+    ['#1a1208', '#ffffff'],          // board
+    ['#b87333', '#f1e4d6'],          // copper pad ring: faint
+    ['#0d0a06', '#ffffff'],          // drill hole
+    ['#080808', '#ffffff'],          // part body
+    ['#0d1117', '#f6f8fa'],          // coordinate gutters
+    ['#050706', '#ffffff'],
+    ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.35)'],
+    ['rgba(255,255,255,0.08)', 'rgba(0,0,0,0.12)'],
+    ['rgba(240,246,252,0.55)', 'rgba(0,0,0,0.55)'],
+  ];
+  let out = svg;
+  for (const [a, b] of swaps) out = out.split(a).join(b);
+  const css = `<style>
+    text { fill: #111 !important; stroke: none !important; }
+    polyline, line, path { filter: brightness(0.72) saturate(1.5); }
+  </style>`;
+  return out.replace(/(<svg[^>]*>)/, `$1${css}`);
+}
+
+/** Give an exported SVG its real size: one hole = 2.54 mm (for printing 1:1). */
+export function realSizeSVG(svg) {
+  return svg.replace(/<svg([^>]*?)width="([\d.]+)"([^>]*?)height="([\d.]+)"/, (m, a, w, b, h) =>
+    `<svg${a}width="${(w / SP * 2.54).toFixed(2)}mm"${b}height="${(h / SP * 2.54).toFixed(2)}mm"`);
 }

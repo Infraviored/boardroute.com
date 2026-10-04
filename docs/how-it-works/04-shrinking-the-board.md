@@ -73,7 +73,11 @@ The app's **Wire** step stops at the first layout where every net is connected. 
 
 ## Knowing when to stop
 
-Before searching, boardroute computes the smallest area any layout could possibly have: the parts may not overlap, so the board needs at least their combined area, and it has to be wide and tall enough for every part in one of its two orientations. Wires are ignored, because they can run under parts. If the search reaches this bound (with no jumper wires, or exactly one for a circuit that needs a crossing), the layout is provably perfect and the search stops at once. The app marks it as **Perfect**.
+Before searching, boardroute computes the smallest area any layout could possibly have. Wires are left out of this calculation, because they can run under parts; what remains is a packing puzzle: the part bodies may not overlap, so every board must have room for all of them side by side, each part turned one way or the other. boardroute tries boxes in order of size. Most fail a quick test (too little area, or some part doesn't fit); the rest go to an exact search that tries every way of packing the parts into that box, with shortcuts that discard a partial packing as soon as more holes would have to stay empty than the box can spare. The first box that has a packing gives the bound. For a circuit that needs a crossing, one jumper wire is packed too, since it needs a straight run of three holes with no part on them.
+
+The packing is what makes this stronger than adding up the part areas. In the L293D motor driver, the part bodies cover 202 holes and a 12×17 box (204 holes) would hold that much area on paper, but the search shows that no box below 216 holes has room for all of them: the 9×14 module leaves strips too narrow for the rest. The search has a fixed effort budget (well under a tenth of a second); if it runs out before deciding a box, the bound stays at that box, which is still safe because every smaller box has been ruled out.
+
+If the search reaches this bound (with no jumper wires, or exactly one for a circuit that needs a crossing), the layout is provably perfect and the search stops at once. The app marks it as **Perfect**. Because the wires are ignored, the bound is only reachable by boards where the parts pack tightly and the wiring fits underneath them; for wire-heavy circuits the real minimum is often well above it, and boardroute can't prove where.
 
 ## Starting from your layout
 

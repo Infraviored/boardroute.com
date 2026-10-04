@@ -34,11 +34,15 @@ Usually a few seconds for small circuits and up to a minute for large ones. The 
 
 ### Is the result optimal?
 
-Sometimes provably, often not. boardroute knows a hard lower bound: the parts can't overlap, so the board holds at least their combined area, and every part has to fit in one of its two orientations. When a layout reaches that bound, the result card says **Perfect** and the search stops, because nothing smaller exists. That happens with boards dominated by big parts, like a relay driver. Otherwise the card shows the bound next to the result. Finding the provably smallest layout in general is far too expensive for circuits of real size; in our benchmark a typical run ends within a few percent of the best layout ever found for that circuit. → [How we measure progress](05-measuring-progress.md)
+Sometimes provably, often not. boardroute knows a hard lower bound: the part bodies can't overlap, so the board must have room to pack all of them, each turned one way or the other. An exact packing search finds the smallest box where that is possible (a circuit that needs a crossing also gets room for one jumper wire). When a layout reaches that bound, the result card says **Perfect** and the search stops, because nothing smaller exists. That happens with boards dominated by big parts, like a relay driver. Otherwise the card shows the bound next to the result. The bound ignores the wires, so for wire-heavy circuits the true minimum can be well above it: for the 555 blinker the bound is 40 holes, the best layout we know uses 56, and nobody knows the real minimum. Finding the provably smallest layout in general is far too expensive for circuits of real size; in our benchmark a typical run ends within a few percent of the best layout ever found for that circuit. → [How we measure progress](05-measuring-progress.md)
 
 ### Can I move parts by hand?
 
 Yes. Drag a part, rotate it, and then press **Compact**. The search starts from your arrangement, repairs any wires your change broke, and tries to shrink around it.
+
+### Where do the parts in the Library come from?
+
+A short curated list (ESP32 boards, common chips, relays, terminals) sits on top. Below it are about 1,100 through-hole footprints generated from the official [KiCad footprint libraries](https://gitlab.com/kicad/libraries/kicad-footprints): DIP and SIP chips, TO-220 and TO-92 packages, resistors, capacitors, headers, sockets, relays, terminal blocks, buttons, DC/DC modules and dev boards like the Arduino Nano or Raspberry Pi Pico. Only footprints whose pins all land on the 2.54 mm perfboard grid are included, so a part with 3.5 mm or 2.0 mm pin spacing is missing on purpose. Where the KiCad drawing shows a body larger than the pins (a relay housing, a capacitor can, a standing TO-220), the part blocks those holes too. The KiCad libraries are licensed under CC-BY-SA 4.0 with an exception that leaves your own designs unaffected; thanks to the KiCad library team for them.
 
 ### Does my circuit leave my computer?
 

@@ -102,9 +102,7 @@ function page({ title, description, path, body, jsonld, type = 'article' }) {
 <meta property="og:image" content="${SITE}/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0d1117">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap">
+<link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="${BASE}site.css">
 ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, "\\u003c")}</script>`).join("\n")}
 ${ANALYTICS}
@@ -118,7 +116,7 @@ ${ANALYTICS}
 ${body}
 <footer class="site-foot">
   <div class="foot-cols">
-    <div><a class="logo" href="/">board<em>route.com</em></a><p>Free perfboard autorouter that runs in your browser. Nothing is uploaded.</p></div>
+    <div><a class="logo" href="/">board<em>route.com</em></a><p>Free perfboard autorouter that runs in your browser. Nothing is uploaded.</p><p class="legal"><a href="/imprint/">Imprint</a> · <a href="/privacy/">Privacy</a></p></div>
     <div><h4>How it works</h4><ul>${files.map(f => `<li><a href="${urlOf(f)}">${esc(summaries.get(f)?.nav || slugOf(f))}</a></li>`).join('')}</ul></div>
   </div>
 </footer>
@@ -193,6 +191,20 @@ writeFileSync(join(OUT, 'how-it-works', 'index.html'), page({
     jsonld: [breadcrumb([['boardroute', '/'], ['How it works', BASE]]),
         { '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: articles.map((a, i) => ({ '@type': 'ListItem', position: i + 1, url: SITE + a.path, name: a.nav })) }],
 }));
+
+// Legal pages (docs/legal/*.md): /imprint/ and /privacy/, noindex (they're not landing pages).
+// The contact e-mail comes from the environment so it isn't scraped from the repository.
+for (const [file, slug, title] of [['imprint.md', 'imprint', 'Imprint'], ['privacy.md', 'privacy', 'Privacy']]) {
+    let md = readFileSync(join(ROOT, 'docs', 'legal', file), 'utf-8');
+    md = md.replace('CONTACT_EMAIL', process.env.BOARDROUTE_CONTACT || 'see GitHub: https://github.com/Infraviored/boardroute.com/issues');
+    const { html } = render(md);
+    const dir = join(OUT, slug);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'index.html'), page({
+        title: `${title} · boardroute`, description: `${title} of boardroute.com`, path: `/${slug}/`, type: 'website', jsonld: [],
+        body: `<main class="article-layout legal-page"><article class="prose">${html}</article></main>`,
+    }).replace('<meta name="viewport"', '<meta name="robots" content="noindex">\n<meta name="viewport"'));
+}
 
 // Sitemap + robots
 const urls = ['/', BASE, ...articles.map(a => a.path)];

@@ -1,4 +1,3 @@
-/* global process, Buffer */
 // Round trip of the share-link codec (src/engine/share.js) over every example circuit's preview
 // layout: encode -> decode must give back identical parts (positions, footprint, pins) and wires.
 //   node tools/share-roundtrip.js

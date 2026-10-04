@@ -193,10 +193,8 @@ writeFileSync(join(OUT, 'how-it-works', 'index.html'), page({
 }));
 
 // Legal pages (docs/legal/*.md): /imprint/ and /privacy/, noindex (they're not landing pages).
-// The contact e-mail comes from the environment so it isn't scraped from the repository.
 for (const [file, slug, title] of [['imprint.md', 'imprint', 'Imprint'], ['privacy.md', 'privacy', 'Privacy']]) {
-    let md = readFileSync(join(ROOT, 'docs', 'legal', file), 'utf-8');
-    md = md.replace('CONTACT_EMAIL', process.env.BOARDROUTE_CONTACT || 'see GitHub: https://github.com/Infraviored/boardroute.com/issues');
+    const md = readFileSync(join(ROOT, 'docs', 'legal', file), 'utf-8');
     const { html } = render(md);
     const dir = join(OUT, slug);
     mkdirSync(dir, { recursive: true });

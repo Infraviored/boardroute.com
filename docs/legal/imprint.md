@@ -8,7 +8,7 @@ Europaring 90
 53757 Sankt Augustin
 Germany
 
-**Contact:** CONTACT_EMAIL
+**E-mail:** [support@boardroute.com](mailto:support@boardroute.com)
 
 Responsible for the content according to § 18 (2) MStV: Florian Schneider, address as above.
 

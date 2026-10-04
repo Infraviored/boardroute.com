@@ -733,7 +733,7 @@ function App() {
         message={confirmData.type === 'pin' ? `Are you sure you want to disconnect ${confirmData.targetId}?` : confirmData.type === 'comp' ? `Are you sure you want to delete ${confirmData.targetId}?` : confirmData.type === 'net' ? `Are you sure you want to clear wires for net ${confirmData.targetId}?` : confirmData.type === 'reset' ? 'Clear all components and wires?' : 'Proceed?'}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmData({ isOpen: false, type: null, targetId: null })}
       />
-      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} />
+      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} setBoardView={setBoardView} />
       <style dangerouslySetInnerHTML={{
         __html: `
         .app-main { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg0); }

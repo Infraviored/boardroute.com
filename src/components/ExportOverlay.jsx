@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Download, Printer } from 'lucide-react';
+import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
 import { generateBoardSVG, generateCombinedSVG } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
 // Export with a live preview: the picture on the left is the exact SVG that gets downloaded or
 // printed, so every option (side, board size, hole coordinates) is visible before exporting.
-export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null }) {
+export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink }) {
+    const [copied, setCopied] = useState(false);
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
     const [side, setSide] = useState('top');     // 'top' | 'bottom' | 'both'
 
@@ -87,6 +88,16 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                         </div>
                     </div>
 
+                    <div className="ex-group">
+                        <div className="ex-label">Keep or share it</div>
+                        <div className="ex-more">
+                            <button className="ex-btn" onClick={onSaveProject} title="Circuit and layout as a file you can open again later (Circuit → Open project file)"><FileJson size={15} /> Project file</button>
+                            <button className="ex-btn" onClick={async () => { try { await navigator.clipboard.writeText(await onShareLink()); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ } }}>
+                                {copied ? <Check size={15} /> : <Link2 size={15} />} {copied ? 'Link copied' : 'Share link'}
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="ex-actions">
                         <button className="ex-btn primary" onClick={download} disabled={!svg}><Download size={16} /> Download</button>
                         <button className="ex-btn" onClick={print} disabled={!svg}><Printer size={16} /> Print</button>
@@ -109,6 +120,8 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-seg button.active { background: var(--blu); color: #fff; }
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
+        .ex-more { display: flex; gap: 8px; }
+        .ex-more .ex-btn { font-size: var(--fs-sm); padding: 8px; }
         .ex-actions { display: flex; gap: 8px; margin-top: auto; padding: 12px 0 0; position: sticky; bottom: -20px; background: var(--bg2); padding-bottom: 4px; }
         .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; }
         .ex-btn.primary { background: var(--blu); border-color: var(--blu-bright); }

@@ -1,6 +1,5 @@
 import React from 'react';
-import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
-import { netColor, generatePrunedSVG } from '../engine/render-utils.js';
+import { netColor } from '../engine/render-utils.js';
 import {
   Settings2,
   Tag,
@@ -25,14 +24,9 @@ export function SidebarRight({
   selectedNet,
   setSelectedNet,
   activeNets = [],
-  components = [],
-  wires = [],
-  bestSnapshot = null,
-  boardView = null,
-  setBoardView = null
 }) {
   // Which accordion sections are open. Component and Network also open on their own when
-  // something gets selected; Board and Bottom side start collapsed.
+  // something gets selected.
   const [open, setOpen] = React.useState(() => {
     const defaults = { comp: true, nets: true, board: false, bottom: false };
     try {
@@ -60,20 +54,6 @@ export function SidebarRight({
       setOpen(prev => ({ ...prev, ...(openComp ? { comp: true } : {}), ...(openNets ? { nets: true } : {}) }));
     }
   }, [selKey, selectedNet, open.comp, open.nets]);
-
-  const preview = React.useMemo(() => {
-    if (!open.bottom) return null;
-    const comps = bestSnapshot?.components || components;
-    const wrs = bestSnapshot?.wires || wires;
-    return generatePrunedSVG({
-      components: comps,
-      wires: wrs,
-      side: 'bottom',
-      padding: 5,
-      // Axis labels + board outline only: per-pin labels are unreadable at preview size.
-      view: boardView ? { ...boardView, pinCoords: false } : null
-    });
-  }, [open.bottom, components, wires, bestSnapshot, boardView]);
 
   const netCount = Object.keys(nets).length;
   const done = stats.completion >= 100;
@@ -179,45 +159,6 @@ export function SidebarRight({
                 </div>
               );
             })}
-          </div>
-        )}
-      </section>
-
-      {/* Physical board + hole coordinates */}
-      {boardView && setBoardView && (
-        <section className={`rs-sec ${open.board ? 'open' : ''}`}>
-          <button type="button" className="rs-head" onClick={() => toggle('board')} aria-expanded={!!open.board}>
-            <Ruler size={15} />
-            <span className="rs-title">Board &amp; coordinates</span>
-            <ChevronDown size={14} className="rs-chev" />
-          </button>
-          {open.board && (
-            <><BoardCard view={boardView} setView={setBoardView} components={components} wires={wires} /><BoardSettingsStyles /></>
-          )}
-        </section>
-      )}
-
-      {/* Bottom side preview */}
-      <section className={`rs-sec ${open.bottom ? 'open' : ''}`}>
-        <button type="button" className="rs-head" onClick={() => toggle('bottom')} aria-expanded={!!open.bottom}>
-          <FlipHorizontal size={15} />
-          <span className="rs-title">Bottom side preview</span>
-          <ChevronDown size={14} className="rs-chev" />
-        </button>
-
-        {open.bottom && (
-          <div className="lbody">
-            {preview ? (
-              <div className="bottom-preview-container">
-                <div className="bottom-preview-svg">
-                  <svg viewBox={`0 0 ${preview.W} ${preview.H}`} style={{ width: '100%', height: 'auto', maxHeight: '220px', display: 'block', borderRadius: '8px' }}>
-                    <g dangerouslySetInnerHTML={{ __html: preview.inner }} />
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="empty-state">No preview available</div>
-            )}
           </div>
         )}
       </section>

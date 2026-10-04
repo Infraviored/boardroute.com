@@ -19,7 +19,8 @@ import {
     Minus,
     Maximize,
     Crosshair,
-    FlipHorizontal2
+    FlipHorizontal2,
+    Hash
 } from 'lucide-react';
 const TRACKING_MODES = { NONE: 'none', SNAP: 'snap', LIVE: 'live' };
 const { SNAP } = TRACKING_MODES;
@@ -47,7 +48,8 @@ export function PcbCanvas({
     activePin,
     boardView = null, // physical board outline + hole coordinates (see useBoardView)
     side = 'top',
-    onToggleSide,     // 'bottom': solder side, mirrored left/right like the board turned over (view only)
+    onToggleSide,
+    onToggleCoords,     // 'bottom': solder side, mirrored left/right like the board turned over (view only)
     conflicts = null, // live search state: { cells: [{col,row}], parts: [id] } to draw in red
     customComponentsSvg // Optional prop if we want to override
 }) {
@@ -679,6 +681,9 @@ export function PcbCanvas({
 
             {solder && <div className="side-badge">Solder side · mirrored like the board turned over · view only</div>}
             <div className="canvas-controls">
+                <button className={`cbtn coords-btn ${boardView?.showCoords ? 'on' : ''}`} onClick={onToggleCoords} title={boardView?.showCoords ? 'Hide hole coordinates (H)' : 'Show hole coordinates (H); board size and numbering: Export'}>
+                    <Hash size={18} />
+                </button>
                 <button className={`cbtn side-btn ${solder ? 'on' : ''}`} onClick={onToggleSide} title={solder ? 'Show the component side (B)' : 'Show the solder side, mirrored (B)'}>
                     <FlipHorizontal2 size={18} />
                 </button>
@@ -735,6 +740,7 @@ export function PcbCanvas({
                 .vignette-layer { position: absolute; inset: 0; pointer-events: none; }
                 .canvas-controls { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 .canvas-container.pb-active .canvas-controls { bottom: calc(20px + var(--pb-height)); }
+                .cbtn.coords-btn.on { color: var(--blu-bright); border-color: rgba(88,166,255,.6); }
                 .cbtn.side-btn.on { color: var(--org); border-color: rgba(210,153,34,.6); }
                 .side-badge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 6px 14px; border-radius: 999px; background: rgba(13,17,23,.85); border: 1px solid rgba(210,153,34,.5); color: var(--org); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
                 .conflict-cell { animation: conflict-pulse 0.9s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }

@@ -86,7 +86,7 @@ Key invariants:
 
 ### UI (`src/`)
 
-- Keyboard: W wire, C compact, R rotate selected, F fit view, B solder side (mirrored, view only); handled in `App.jsx` (ignored in inputs and while a dialog is open).
+- Keyboard: W wire, C compact, R rotate selected, F fit view, B solder side (mirrored, view only), H hole coordinates; handled in `App.jsx` (ignored in inputs and while a dialog is open).
 - `App.jsx` owns all app state (board, workflow step, selection, active pin for manual routing, undo history, overlays) and a single `AutorouterEngine` instance; components are presentational and call back into `App`.
 - `components/PcbCanvas.jsx` — zoom/pan canvas rendering the SVGs from `render-utils.js`. Pan/zoom never re-render React: `applyCamera` writes the `<g>` transform, the hole grid (a CSS background tile on `.holes-layer`) and the vignette straight to the DOM and commits camera state only after 150 ms of stillness; handlers read `camRef`, not the `camera` state. Keep it that way (re-rendering per pointer move made panning drop to ~20 fps); camera auto-framing physics tuned in `engine/config.js` (`CAMERA_CONFIG`).
 - Overlays: `CompEditorOverlay` (component footprint editor), `LibraryOverlay` (loads `public/component_database.json`), `ExportOverlay` (pruned board export via `generatePrunedSVG`), `PromptOverlay`, `ConfirmOverlay`.

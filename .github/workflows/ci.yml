@@ -27,5 +27,7 @@ jobs:
         run: npm run build
       - name: Share links round-trip
         run: node tools/share-roundtrip.js
+      - name: Lower bound soundness
+        run: node tools/lower-bound-check.js
       - name: Solver smoke test (every layout checked by bench/validate.js)
         run: node tools/ci-solver-check.js

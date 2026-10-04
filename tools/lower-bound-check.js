@@ -1,4 +1,3 @@
-/* global process */
 // Checks the provable minimum area (src/engine/lower-bound.js).
 //   node tools/lower-bound-check.js
 //

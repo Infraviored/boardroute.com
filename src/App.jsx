@@ -508,6 +508,7 @@ function App() {
   // Single-key shortcuts: W wire, C compact, R rotate the selected part, F fit the board into
   // view, B flip to the solder side. Ignored while typing and with modifier keys.
   const [viewSide, setViewSide] = useState('top');
+  const toggleCoords = useCallback(() => setBoardView(v => ({ ...v, showCoords: !v.showCoords })), [setBoardView]);
   const toggleSide = useCallback(() => {
     setViewSide(s => {
       const next = s === 'top' ? 'bottom' : 'top';
@@ -527,6 +528,7 @@ function App() {
       if (document.querySelector('.overlay-bg, .json-drawer')) return; // a dialog is open
       const k = e.key.toLowerCase();
       if (k === 'b') toggleSide();
+      else if (k === 'h') toggleCoords();
       else if (k === 'f') setSnapCounter(c => c + 1);
       else if (status.isProcessing) return;
       else if (k === 'w' && workflowStep >= 1) runLayout(false);
@@ -537,7 +539,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleSide, status.isProcessing, workflowStep, runLayout, selectedId, viewSide, handleRotateComp]);
+  }, [toggleSide, toggleCoords, status.isProcessing, workflowStep, runLayout, selectedId, viewSide, handleRotateComp]);
 
   // Example circuits load bare (no wires): placed on the board, all three steps still to do.
   const loadExample = useCallback((ex) => {
@@ -632,7 +634,7 @@ function App() {
     <div className="app-main" style={{ '--lsb-width': `${lsbWidth}px`, '--rsb-width': `${rsbWidth}px` }}>
       <Topbar
         workflowStep={workflowStep} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
-        onImportState={handleImportState} onExportState={handleExportState} onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
+        onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
         onShareLink={handleShareLink} hasLayout={board.components.length > 0}
         hasWires={board.wires.length > 0} isProcessing={status.isProcessing}
       />
@@ -640,6 +642,7 @@ function App() {
         <SidebarLeft
           onOpenPrompt={() => setIsPromptOpen(true)}
           onOpenExamples={() => setExamplesOpen('browse')}
+          onOpenFile={handleImportState}
           jsonInput={jsonInput} setJsonInput={setJsonInput}
           exampleTitle={exampleTitle}
           onLoadCircuit={(edited) => { const ok = handleLoadCircuit(); if (ok && edited) setExampleTitle(null); return ok; }}
@@ -677,7 +680,7 @@ function App() {
               tick={board.tick} isProcessing={status.isProcessing || !!status.results} isInitialProcessing={status.isInitial}
               workflowStep={workflowStep} snapCounter={snapCounter}
               boardView={boardView}
-              side={viewSide} onToggleSide={toggleSide}
+              side={viewSide} onToggleSide={toggleSide} onToggleCoords={toggleCoords}
               conflicts={status.isProcessing ? board.conflicts : null}
             />
           </main>
@@ -717,10 +720,6 @@ function App() {
           hoveredNet={hoveredNet} setHoveredNet={setHoveredNet}
           selectedNet={selectedNet} setSelectedNet={setSelectedNet}
           activeNets={activeNets}
-          components={board.components}
-          wires={board.wires}
-          bestSnapshot={bestSnapshot}
-          boardView={boardView} setBoardView={setBoardView}
         />
       </div>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
@@ -733,7 +732,8 @@ function App() {
         message={confirmData.type === 'pin' ? `Are you sure you want to disconnect ${confirmData.targetId}?` : confirmData.type === 'comp' ? `Are you sure you want to delete ${confirmData.targetId}?` : confirmData.type === 'net' ? `Are you sure you want to clear wires for net ${confirmData.targetId}?` : confirmData.type === 'reset' ? 'Clear all components and wires?' : 'Proceed?'}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmData({ isOpen: false, type: null, targetId: null })}
       />
-      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} setBoardView={setBoardView} />
+      <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} setBoardView={setBoardView}
+        onSaveProject={handleExportState} onShareLink={handleShareLink} />
       <style dangerouslySetInnerHTML={{
         __html: `
         .app-main { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg0); }

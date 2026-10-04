@@ -8,9 +8,7 @@ import {
   Undo2,
   Redo2,
   Download,
-  Upload,
   RotateCcw,
-  ExternalLink,
   Eraser,
   FileJson,
   BookOpen,
@@ -22,8 +20,6 @@ export function Topbar({
   onStepClick,
   onUndo,
   onRedo,
-  onImportState,
-  onExportState,
   onClearWires,
   onReset,
   onExportSVG,
@@ -125,17 +121,6 @@ export function Topbar({
 
         <div className="sep"></div>
 
-        <div className="btn-group">
-          <button className="tbtn" onClick={onImportState} title="Import (JSON)">
-            <Download size={16} />
-          </button>
-          <button className="tbtn" onClick={onExportState} title="Export (JSON)">
-            <Upload size={16} />
-          </button>
-        </div>
-
-        <div className="sep"></div>
-
         <div className="spc" style={{ flex: 1 }}></div>
 
         <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout, nothing is uploaded)">
@@ -143,14 +128,15 @@ export function Topbar({
           <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
         </button>
 
+        <button className="tbtn export-btn" onClick={onExportSVG} disabled={!hasLayout} title="Export: image (SVG/PNG), print, project file">
+          <Download size={16} />
+          <span>Export</span>
+        </button>
+
         <a className="tbtn docs-link" href="/how-it-works/" title="How the autorouter works">
           <BookOpen size={16} />
           <span className="docs-link-label">How it works</span>
         </a>
-
-        <button className="tbtn svg-export-btn" onClick={onExportSVG} title="Download SVG" aria-label="Export SVG">
-          <ExternalLink size={16} />
-        </button>
 
         <button className="tbtn reset-btn" onClick={onReset} title="Reset Project" aria-label="Reset Project">
           <RotateCcw size={16} />
@@ -318,6 +304,7 @@ export function Topbar({
         }
 
         .docs-link { text-decoration: none; }
+        .export-btn { color: var(--txt0); }
         .share-btn.copied { color: var(--grn-bright); border-color: rgba(63,185,80,.5); }
         .share-btn.failed { color: var(--red); }
         @media (max-width: 1500px) and (min-width: 951px) { .docs-link-label { display: none; } }

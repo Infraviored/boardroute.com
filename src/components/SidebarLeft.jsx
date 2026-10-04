@@ -7,6 +7,7 @@ import {
   Pencil,
   Sparkles,
   CircuitBoard,
+  FolderOpen,
   Shapes,
   ClipboardPaste,
   X,
@@ -41,6 +42,7 @@ export function SidebarLeft({
   onEditComponent,
   onOpenPrompt,
   onOpenExamples,
+  onOpenFile,
   onLoadCircuit,
   exampleTitle = null
 }) {
@@ -114,6 +116,9 @@ export function SidebarLeft({
               >
                 {hasCircuit ? <Pencil size={13} /> : <ClipboardPaste size={14} />}
                 {editorOpen ? 'Close JSON editor' : hasCircuit ? 'Edit JSON' : 'Paste JSON'}
+              </button>
+              <button className="cc-btn wide" onClick={onOpenFile} title="Open a project file saved with Export → Project file">
+                <FolderOpen size={14} /> Open project file
               </button>
             </div>
           </div>

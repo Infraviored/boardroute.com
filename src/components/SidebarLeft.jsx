@@ -595,7 +595,11 @@ export function SidebarLeft({
           color: #fff;
           border-color: var(--blu);
         }
+        .lsb-legal { margin-top: auto; padding: 10px 16px 12px; font-size: var(--fs-xs); color: var(--txt2); display: flex; gap: 10px; flex-shrink: 0; }
+        .lsb-legal a { color: var(--txt2); text-decoration: none; }
+        .lsb-legal a:hover { color: var(--txt1); }
       `}} />
+      <footer className="lsb-legal"><a href="/imprint/">Imprint</a><a href="/privacy/">Privacy</a><a href="https://github.com/Infraviored/boardroute.com" target="_blank" rel="noopener">GitHub</a></footer>
     </aside>
   );
 }

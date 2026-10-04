@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 const path = process.argv[2];

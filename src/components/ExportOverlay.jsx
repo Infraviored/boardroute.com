@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
-import { generateBoardSVG, generateCombinedSVG } from '../engine/render-utils.js';
+import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
@@ -10,14 +10,17 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     const [copied, setCopied] = useState(false);
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
     const [side, setSide] = useState('top');     // 'top' | 'bottom' | 'both'
+    const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing)
+    const [actualSize, setActualSize] = useState(true);
 
     const source = bestSnapshot || { components, wires };
     const svg = useMemo(() => {
         if (!isOpen || !source.components?.length) return '';
-        return side === 'both'
+        const raw = side === 'both'
             ? generateCombinedSVG(source.components, source.wires, { padding: 3, view: boardView })
             : generateBoardSVG(source.components, source.wires, { padding: 3, view: boardView, side });
-    }, [isOpen, source.components, source.wires, side, boardView]);
+        return look === 'paper' ? printThemeSVG(raw) : raw;
+    }, [isOpen, source.components, source.wires, side, boardView, look]);
 
     const previewUrl = useMemo(() => (svg ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) : ''), [svg]);
     useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -42,11 +45,30 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         if (png) saveFile(png, `${baseName}.png`);
     };
 
+    // Print from a hidden iframe on this page: cancelling the dialog leaves you right here.
     const print = () => {
-        const w = window.open('', '_blank');
-        if (!w) return;
-        w.document.write(`<!doctype html><title>boardroute ${side}</title><style>@page{margin:10mm}body{margin:0;display:flex;justify-content:center}img{max-width:100%;max-height:100vh}</style><img src="${previewUrl}" onload="setTimeout(()=>{print()},100)">`);
-        w.document.close();
+        if (!svg) return;
+        // paper always gets the light colours, whatever the preview shows
+        const light = look === 'paper' ? svg : printThemeSVG(svg);
+        const out = actualSize ? realSizeSVG(light) : light;
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+        document.body.appendChild(frame);
+        const doc = frame.contentDocument;
+        const title = `boardroute · ${side === 'bottom' ? 'solder side (mirrored)' : side === 'both' ? 'component and solder side' : 'component side'} · ${fp ? `${fp.width} × ${fp.height} holes` : ''}`;
+        doc.open();
+        doc.write(`<!doctype html><html><head><title>boardroute</title><style>
+            @page { margin: 12mm; }
+            body { margin: 0; font: 11px system-ui, sans-serif; color: #333; }
+            header { display: flex; justify-content: space-between; margin-bottom: 6mm; }
+            .sheet { ${actualSize ? '' : 'width: 100%;'} }
+            .sheet svg { ${actualSize ? '' : 'width: 100%; height: auto;'} display: block; }
+        </style></head><body><header><span>${title}</span><span>boardroute.com · ${new Date().toLocaleDateString()}${actualSize ? ' · 1:1, 2.54 mm pitch' : ''}</span></header><div class="sheet">${out}</div></body></html>`);
+        doc.close();
+        const cleanup = () => setTimeout(() => frame.remove(), 500);
+        frame.contentWindow.addEventListener('afterprint', cleanup);
+        setTimeout(() => { frame.contentWindow.focus(); frame.contentWindow.print(); }, 150);
+        setTimeout(() => { if (frame.isConnected) frame.remove(); }, 60000);
     };
 
     return (
@@ -79,6 +101,16 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                             <BoardCard view={boardView} setView={setBoardView} components={source.components} wires={source.wires} />
                         </div>
                     )}
+
+                    <div className="ex-group">
+                        <div className="ex-label">Colours</div>
+                        <div className="ex-seg">
+                            <button className={look === 'screen' ? 'active' : ''} onClick={() => setLook('screen')}>Dark (screen)</button>
+                            <button className={look === 'paper' ? 'active' : ''} onClick={() => setLook('paper')}>Light (paper)</button>
+                        </div>
+                        <label className="ex-check"><input type="checkbox" checked={actualSize} onChange={e => setActualSize(e.target.checked)} /> Print at actual size (1 hole = 2.54 mm)</label>
+                        <div className="ex-hint">Print always uses the light colours.</div>
+                    </div>
 
                     <div className="ex-group">
                         <div className="ex-label">Format</div>
@@ -120,6 +152,8 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-seg button.active { background: var(--blu); color: #fff; }
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
+        .ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
+        .ex-hint { font-size: var(--fs-xs); color: var(--txt2); }
         .ex-more { display: flex; gap: 8px; }
         .ex-more .ex-btn { font-size: var(--fs-sm); padding: 8px; }
         .ex-actions { display: flex; gap: 8px; margin-top: auto; padding: 12px 0 0; position: sticky; bottom: -20px; background: var(--bg2); padding-bottom: 4px; }

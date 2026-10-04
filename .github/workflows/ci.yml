@@ -1,0 +1,31 @@
+# Lint, build and engine checks on every push and pull request (GitHub-hosted runners: free for
+# this public repository, and no fork code ever runs on our own server).
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build (app + explainer pages)
+        run: npm run build
+      - name: Share links round-trip
+        run: node tools/share-roundtrip.js
+      - name: Solver smoke test (every layout checked by bench/validate.js)
+        run: node tools/ci-solver-check.js

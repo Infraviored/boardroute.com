@@ -148,7 +148,11 @@ function App() {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [examples, setExamples] = useState([]);
   const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
-  const [exampleTitle, setExampleTitle] = useState(null); // shown in the Circuit card while an example is loaded
+  // Shown in the Circuit card while an example is loaded; kept across reloads.
+  const [exampleTitle, setExampleTitle] = useState(() => { try { return localStorage.getItem('pcb_example_title'); } catch { return null; } });
+  useEffect(() => {
+    try { if (exampleTitle) localStorage.setItem('pcb_example_title', exampleTitle); else localStorage.removeItem('pcb_example_title'); } catch { /* storage unavailable */ }
+  }, [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);

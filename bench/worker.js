@@ -59,7 +59,7 @@ function report(components, wires) {
     }
 }
 
-const result = await strategy(defs, { budgetMs, report, variant });
+const result = await strategy(defs, { budgetMs, report, variant, seed });
 const elapsed = Math.round(performance.now() - t0);
 let final = null;
 if (result) {

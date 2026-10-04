@@ -435,7 +435,14 @@ export async function solveBox(defs, opts = {}) {
     const baseEvals = Math.max(300, V.effort * nC);
 
     // Warm start from an existing layout (engine components), e.g. after manual edits.
-    const warm = opts.initial ? placementFromEngine(model, opts.initial) : null;
+    let warm = opts.initial ? placementFromEngine(model, opts.initial) : null;
+    // opts.takeover(reason): polled before every restart ('restart') and shrink step ('tick');
+    // may return a layout (engine components) to continue from instead -- e.g. the best
+    // layout another solver of a portfolio has found.
+    const takeover = (reason) => {
+        const t = opts.takeover?.(reason);
+        return t ? placementFromEngine(model, t) : null;
+    };
 
     // ---- outer loop: restarts ----
     let restart = 0;
@@ -445,7 +452,8 @@ export async function solveBox(defs, opts = {}) {
         let side = Math.max(minDimB, Math.ceil(Math.sqrt(model.area * 3)) + 2);
         if (best) side = Math.max(minDimB, Math.ceil(Math.sqrt(best.area * 1.6)));
         let s = null;
-        if (warm && restart === 1) {
+        if (!warm && restart > 1) warm = takeover('restart');
+        if (warm) {
             // one hole of slack around the parts so the router can get around the edge
             const pl = clonePl(warm.pl);
             for (let i = 0; i < nC; i++) { pl.ox[i]++; pl.oy[i]++; }
@@ -453,6 +461,7 @@ export async function solveBox(defs, opts = {}) {
             s = evaluate(pl, null, 8);
             if (!isLegal(s)) s = await anneal(s, baseEvals * 2, 1, 0.05);
             if (!isLegal(s)) s = null;
+            warm = null;
         }
         for (let tries = 0; tries < 8 && !stop() && !(s && isLegal(s)); tries++) {
             if (!best && !jumpersOn && V.jumperAfterMs > 0 && now() - t0 > V.jumperAfterMs) enableJumpers();
@@ -470,6 +479,7 @@ export async function solveBox(defs, opts = {}) {
         // 2. shrink loop
         let fails = 0;
         while (!stop()) {
+            if ((warm = takeover('tick'))) break;
             onProgress?.(`box ${W}x${H} (best ${best.f.w}x${best.f.h}=${best.area})`);
             const options = [];
             if (W - 1 >= minDimA && (W - 1) * H > 0) options.push({ axis: 0, w: W - 1, h: H });

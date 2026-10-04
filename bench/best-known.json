@@ -84,17 +84,17 @@
     "seed": 1
   },
   "07_esp_io_panel": {
-    "area": 143,
-    "width": 11,
-    "height": 13,
-    "strategy": "app",
-    "seed": 1
+    "area": 140,
+    "width": 10,
+    "height": 14,
+    "strategy": "portfolio",
+    "seed": 2
   },
   "09_mosfet_bank4": {
-    "area": 252,
-    "width": 18,
-    "height": 14,
-    "strategy": "app",
-    "seed": 2
+    "area": 228,
+    "width": 12,
+    "height": 19,
+    "strategy": "portfolio",
+    "seed": 8
   }
 }

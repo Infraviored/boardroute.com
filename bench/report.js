@@ -102,10 +102,96 @@ export function printTable(series, bestKnown) {
     console.log('topo: X = proven unroutable (non-planar), R = routable (layout known), ? = open.  min = provable minimum area (known = min: perfect).  ! = a run ended on an invalid layout.  Jn = median jumper wires');
 }
 
+// "Best of k seeds": what a k-worker portfolio of independent runs (one core each) would hold
+// at time t, computed from the per-seed traces without new runs. For every circuit all
+// k-subsets of the seeds are evaluated; the table shows the median over subsets.
+const subsets = (n, k) => {
+    const out = [];
+    const rec = (start, acc) => {
+        if (acc.length === k) { out.push(acc.slice()); return; }
+        for (let i = start; i < n; i++) { acc.push(i); rec(i + 1, acc); acc.pop(); }
+    };
+    rec(0, []);
+    return out;
+};
+const areaAt = (r, t) => {
+    if (!r.routed || r.finalValid === false) return Infinity;
+    let a = Infinity;
+    for (const [tt, area] of r.trace || []) if (tt <= t) a = area;
+    return a;
+};
+// The app's stop rule (engine.layout) applied after the fact to the merged trace of a set of
+// runs: stop once there was no improvement for max(stallMs, half the time of the last one).
+// Returns [area at stop or Infinity, stop time].
+const nParts = new Map();
+function stallMsOf(circuit) {
+    if (!nParts.has(circuit)) {
+        const f = join(DIR, 'circuits', `${circuit}.json`);
+        nParts.set(circuit, existsSync(f) ? processTemplate(JSON.parse(readFileSync(f, 'utf-8'))).length : 10);
+    }
+    return Math.max(3000, Math.min(15000, 1200 * nParts.get(circuit)));
+}
+function stallStop(runs, stallMs, budget) {
+    const ev = [];
+    runs.forEach((r, i) => { if (r.routed && r.finalValid !== false) for (const [t, a] of r.trace || []) ev.push([t, a, i]); });
+    ev.sort((a, b) => a[0] - b[0]);
+    let area = Infinity, by = -1, last = null;
+    for (const [t, a, i] of ev) {
+        if (last !== null && t - last > Math.max(stallMs, last * 0.5)) break;
+        if (a < area || (a === area && i === by)) { area = a; by = i; last = t; }
+    }
+    return [area, last === null ? budget : Math.min(budget, last + Math.max(stallMs, last * 0.5))];
+}
+
+export function printPortfolio(name, results, kMax, times = [5000, 15000, 30000, 60000]) {
+    const ks = [...new Set([1, 2, 4, kMax].filter(k => k <= kMax))].sort((a, b) => a - b);
+    const by = new Map();
+    for (const r of results) { if (!by.has(r.circuit)) by.set(r.circuit, []); by.get(r.circuit).push(r); }
+    const tl = [...times.map(t => `@${t / 1000}s`), 'stop', 't'];
+    const colW = (times.length + 2) * 6;
+    console.log(`\n${name}: median area of the best of k seeds (all k-subsets; '-' = unrouted)`);
+    console.log('circuit'.padEnd(22) + ks.map(k => ` │ ${`k=${k}`.padEnd(colW)}`).join(''));
+    console.log(''.padEnd(22) + ks.map(() => ' │ ' + tl.map(s => s.padStart(6)).join('')).join(''));
+    const logs = ks.map(() => [...times, 'stop'].map(() => ({ s: 0, n: 0 })));
+    const budget = Math.max(...results.map(r => r.budgetMs || 0));
+    for (const c of [...by.keys()].sort()) {
+        const rs = by.get(c);
+        let line = c.slice(0, 22).padEnd(22);
+        ks.forEach((k, ki) => {
+            const subs = k <= rs.length ? subsets(rs.length, k) : [];
+            const stops = subs.map(sub => stallStop(sub.map(i => rs[i]), stallMsOf(c), budget));
+            const cell = (vals, ti) => {
+                const ref = REFERENCE[c];
+                if (ref) for (const v of vals) { logs[ki][ti].s += Math.log(Number.isFinite(v) ? v / ref : 2); logs[ki][ti].n++; }
+                const m = median(vals);
+                return String(m == null || !Number.isFinite(m) ? '-' : m).padStart(6);
+            };
+            line += ' │ ' + times.map((t, ti) => cell(subs.map(sub => Math.min(...sub.map(i => areaAt(rs[i], t)))), ti)).join('')
+                + cell(stops.map(x => x[0]), times.length)
+                + (stops.length ? (median(stops.map(x => x[1])) / 1000).toFixed(0) + 's' : '-').padStart(6);
+        });
+        console.log(line);
+    }
+    console.log('score (gmean area/ref)'.padEnd(22) + logs.map(row => ' │ ' + row.map(({ s, n }) => (n ? Math.exp(s / n).toFixed(3) : '-').padStart(6)).join('') + ''.padStart(6)).join(''));
+    console.log("stop/t: the app's stall rule applied to the merged trace (area when it would have stopped, median stop time)");
+}
+
 if (process.argv[1] && basename(process.argv[1]) === 'report.js') {
     const bestPath = join(DIR, 'best-known.json');
     const bestKnown = existsSync(bestPath) ? JSON.parse(readFileSync(bestPath, 'utf-8')) : {};
-    const series = process.argv.slice(2).map(f => {
+    const argv = process.argv.slice(2);
+    const pi = argv.indexOf('--portfolio');
+    if (pi >= 0) {
+        const k = Number(argv[pi + 1]) || 4;
+        argv.splice(pi, 2);
+        for (const f of argv) {
+            const d = JSON.parse(readFileSync(f, 'utf-8'));
+            const times = [5000, 15000, 30000, 60000].filter(t => t <= d.budget);
+            printPortfolio((d.tag ? `${d.strategy}-${d.tag}` : d.strategy) + ` ${d.budget / 1000}s`, d.results, k, times);
+        }
+        process.exit(0);
+    }
+    const series = argv.map(f => {
         const d = JSON.parse(readFileSync(f, 'utf-8'));
         return { name: (d.tag ? `${d.strategy}-${d.tag}` : d.strategy) + ` ${d.budget / 1000}s`, rows: summarize(d.results), results: d.results };
     });

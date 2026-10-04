@@ -25,6 +25,8 @@ node bench/run.js box                         # full set, 5 seeds x 60 s (~6 min
 node bench/run.js app                         # exactly what the UI runs (topology check + jumper policy)
 node bench/run.js legacy                      # the old UI pipeline (placeAndRoute -> optimize -> plateau)
 node bench/report.js bench/results/a.json bench/results/b.json   # side-by-side table
+node bench/report.js --portfolio 4 <results.json>  # best-of-k-seeds curves (k=1,2,4) from per-seed traces + the app's stall stop
+node bench/run.js portfolio --jobs 3          # the app's 4 parallel solvers (worker_threads); --opt pf=<preset>,share=restart|<ms>
 node bench/topology.js [--blocking]           # which circuits are provably unroutable on one layer
 node bench/show.js 04_blinker555              # ASCII view of the best known layout (bench/best/)
 node bench/make-circuits.js                   # regenerate bench/circuits/04_* .. x*_
@@ -33,6 +35,7 @@ node bench/make-circuits.js                   # regenerate bench/circuits/04_* .
 - Score = geometric mean of area / `bench/reference.json` over all runs (unrouted = 2). The reference is frozen on purpose so scores stay comparable across experiments; don't update it casually. (It was rebased once, 2026-10-03, for circuits 01/02/03/06/07/09 when part bodies were added: a model change, not a solver change. Baseline after that: `bench/baselines/app-bodies-60s.json`, score 1.023.) Quick-set differences below ~0.05 are noise (time budgets cut runs at different points).
 - Every result is checked by `bench/validate.js`, which deliberately shares no code with the engine. A solver that "wins" with an invalid layout shows `!` in the table.
 - Runs use a seeded `Math.random` (bench/worker.js); runs are parallel processes, so don't run two benchmarks at once (time budgets would compete for CPU), and don't edit solver sources while one runs (each worker imports them fresh).
+- Multi-core: the app runs 4 solvers (engine.layout). A single `app` run is not what users get: best-of-4 seeds after 15 s is about one solver after 30-60 s (`--portfolio 4` on `bench/baselines/app-bodies-60s.json`: 1.032 @15 s, 0.998 @60 s vs 1.093 / 1.023 for one). The real `portfolio` strategy matches that estimate: `bench/baselines/portfolio4-same-60s.json`, score 1.001 (with `--jobs 3`, 12 threads on 6 cores, so the early curve is a bit slower). Tried and not adopted (all within noise): per-worker tunables (`pf=smart|soft|effort|mix|restarts|init`), sharing the global best on restart, and every 3 s (`share=3000`, the best candidate: 0.992 full set, `bench/baselines/portfolio4-share3000-60s.json`).
 - `bench/circuits/` uses `routeUnder: true` everywhere: on perfboard the wiring is on the solder side, so only pins block. `x*_` are constructed (un)routability cases.
 
 The old engine can also be exercised with the repro script (imports `src/engine/optimizer.js` directly under Node):

@@ -1,0 +1,4519 @@
+{
+ "strategy": "portfolio",
+ "tag": "full-share=3000",
+ "seeds": 5,
+ "budget": 60000,
+ "date": "2026-10-04T21:56:23.189Z",
+ "results": [
+  {
+   "strategy": "portfolio",
+   "circuit": "01_default",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 1889,
+   "routed": true,
+   "area": 72,
+   "width": 8,
+   "height": 9,
+   "wl": 35,
+   "jumpers": 0,
+   "tBest": 1557,
+   "trace": [
+    [
+     118,
+     140
+    ],
+    [
+     123,
+     126
+    ],
+    [
+     126,
+     112
+    ],
+    [
+     136,
+     98
+    ],
+    [
+     139,
+     84
+    ],
+    [
+     173,
+     78
+    ],
+    [
+     683,
+     77
+    ],
+    [
+     1155,
+     77
+    ],
+    [
+     1557,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "01_default",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 1073,
+   "routed": true,
+   "area": 72,
+   "width": 8,
+   "height": 9,
+   "wl": 27,
+   "jumpers": 0,
+   "tBest": 922,
+   "trace": [
+    [
+     108,
+     126
+    ],
+    [
+     110,
+     112
+    ],
+    [
+     120,
+     98
+    ],
+    [
+     140,
+     98
+    ],
+    [
+     151,
+     91
+    ],
+    [
+     151,
+     78
+    ],
+    [
+     836,
+     77
+    ],
+    [
+     922,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "01_default",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 928,
+   "routed": true,
+   "area": 72,
+   "width": 8,
+   "height": 9,
+   "wl": 30,
+   "jumpers": 0,
+   "tBest": 790,
+   "trace": [
+    [
+     106,
+     128
+    ],
+    [
+     107,
+     112
+    ],
+    [
+     108,
+     96
+    ],
+    [
+     111,
+     90
+    ],
+    [
+     119,
+     84
+    ],
+    [
+     124,
+     78
+    ],
+    [
+     743,
+     72
+    ],
+    [
+     790,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "01_default",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 884,
+   "routed": true,
+   "area": 72,
+   "width": 8,
+   "height": 9,
+   "wl": 28,
+   "jumpers": 0,
+   "tBest": 801,
+   "trace": [
+    [
+     95,
+     126
+    ],
+    [
+     98,
+     117
+    ],
+    [
+     99,
+     112
+    ],
+    [
+     102,
+     104
+    ],
+    [
+     121,
+     91
+    ],
+    [
+     126,
+     90
+    ],
+    [
+     134,
+     84
+    ],
+    [
+     142,
+     78
+    ],
+    [
+     142,
+     78
+    ],
+    [
+     801,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "01_default",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 759,
+   "routed": true,
+   "area": 72,
+   "width": 8,
+   "height": 9,
+   "wl": 35,
+   "jumpers": 0,
+   "tBest": 596,
+   "trace": [
+    [
+     197,
+     130
+    ],
+    [
+     207,
+     117
+    ],
+    [
+     221,
+     91
+    ],
+    [
+     229,
+     78
+    ],
+    [
+     565,
+     77
+    ],
+    [
+     596,
+     72
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "02_simple_esp",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 794,
+   "routed": true,
+   "area": 77,
+   "width": 7,
+   "height": 11,
+   "wl": 27,
+   "jumpers": 0,
+   "tBest": 661,
+   "trace": [
+    [
+     82,
+     130
+    ],
+    [
+     93,
+     117
+    ],
+    [
+     95,
+     110
+    ],
+    [
+     95,
+     104
+    ],
+    [
+     160,
+     91
+    ],
+    [
+     165,
+     88
+    ],
+    [
+     199,
+     84
+    ],
+    [
+     276,
+     84
+    ],
+    [
+     461,
+     84
+    ],
+    [
+     502,
+     80
+    ],
+    [
+     644,
+     80
+    ],
+    [
+     661,
+     77
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "02_simple_esp",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 620,
+   "routed": true,
+   "area": 77,
+   "width": 11,
+   "height": 7,
+   "wl": 29,
+   "jumpers": 0,
+   "tBest": 377,
+   "trace": [
+    [
+     102,
+     120
+    ],
+    [
+     107,
+     110
+    ],
+    [
+     120,
+     96
+    ],
+    [
+     230,
+     80
+    ],
+    [
+     377,
+     77
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "02_simple_esp",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 553,
+   "routed": true,
+   "area": 77,
+   "width": 7,
+   "height": 11,
+   "wl": 27,
+   "jumpers": 0,
+   "tBest": 317,
+   "trace": [
+    [
+     114,
+     120
+    ],
+    [
+     114,
+     120
+    ],
+    [
+     115,
+     108
+    ],
+    [
+     130,
+     96
+    ],
+    [
+     172,
+     91
+    ],
+    [
+     208,
+     84
+    ],
+    [
+     316,
+     80
+    ],
+    [
+     317,
+     77
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "02_simple_esp",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 705,
+   "routed": true,
+   "area": 77,
+   "width": 11,
+   "height": 7,
+   "wl": 27,
+   "jumpers": 0,
+   "tBest": 565,
+   "trace": [
+    [
+     96,
+     120
+    ],
+    [
+     102,
+     120
+    ],
+    [
+     116,
+     110
+    ],
+    [
+     137,
+     108
+    ],
+    [
+     148,
+     96
+    ],
+    [
+     222,
+     88
+    ],
+    [
+     249,
+     84
+    ],
+    [
+     314,
+     80
+    ],
+    [
+     565,
+     77
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "02_simple_esp",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 700,
+   "routed": true,
+   "area": 77,
+   "width": 7,
+   "height": 11,
+   "wl": 29,
+   "jumpers": 0,
+   "tBest": 493,
+   "trace": [
+    [
+     119,
+     110
+    ],
+    [
+     151,
+     104
+    ],
+    [
+     174,
+     99
+    ],
+    [
+     179,
+     91
+    ],
+    [
+     184,
+     84
+    ],
+    [
+     493,
+     77
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "03_door_striker",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 29736,
+   "routed": true,
+   "area": 91,
+   "width": 7,
+   "height": 13,
+   "wl": 35,
+   "jumpers": 0,
+   "tBest": 29519,
+   "trace": [
+    [
+     274,
+     210
+    ],
+    [
+     293,
+     195
+    ],
+    [
+     297,
+     168
+    ],
+    [
+     311,
+     154
+    ],
+    [
+     386,
+     150
+    ],
+    [
+     403,
+     140
+    ],
+    [
+     467,
+     126
+    ],
+    [
+     585,
+     117
+    ],
+    [
+     711,
+     108
+    ],
+    [
+     889,
+     104
+    ],
+    [
+     1439,
+     96
+    ],
+    [
+     24140,
+     96
+    ],
+    [
+     29455,
+     91
+    ],
+    [
+     29519,
+     91
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "03_door_striker",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 5058,
+   "routed": true,
+   "area": 91,
+   "width": 7,
+   "height": 13,
+   "wl": 35,
+   "jumpers": 0,
+   "tBest": 4363,
+   "trace": [
+    [
+     149,
+     156
+    ],
+    [
+     157,
+     143
+    ],
+    [
+     163,
+     130
+    ],
+    [
+     295,
+     128
+    ],
+    [
+     356,
+     126
+    ],
+    [
+     393,
+     120
+    ],
+    [
+     429,
+     112
+    ],
+    [
+     546,
+     105
+    ],
+    [
+     891,
+     98
+    ],
+    [
+     945,
+     98
+    ],
+    [
+     2546,
+     96
+    ],
+    [
+     4363,
+     91
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "03_door_striker",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 23622,
+   "routed": true,
+   "area": 91,
+   "width": 7,
+   "height": 13,
+   "wl": 37,
+   "jumpers": 0,
+   "tBest": 23504,
+   "trace": [
+    [
+     171,
+     176
+    ],
+    [
+     175,
+     160
+    ],
+    [
+     179,
+     144
+    ],
+    [
+     215,
+     128
+    ],
+    [
+     404,
+     120
+    ],
+    [
+     497,
+     105
+    ],
+    [
+     892,
+     98
+    ],
+    [
+     1728,
+     96
+    ],
+    [
+     23437,
+     91
+    ],
+    [
+     23504,
+     91
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "03_door_striker",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 15149,
+   "routed": true,
+   "area": 91,
+   "width": 13,
+   "height": 7,
+   "wl": 37,
+   "jumpers": 0,
+   "tBest": 14930,
+   "trace": [
+    [
+     123,
+     168
+    ],
+    [
+     127,
+     154
+    ],
+    [
+     136,
+     140
+    ],
+    [
+     369,
+     136
+    ],
+    [
+     469,
+     126
+    ],
+    [
+     494,
+     119
+    ],
+    [
+     498,
+     112
+    ],
+    [
+     512,
+     105
+    ],
+    [
+     774,
+     104
+    ],
+    [
+     2139,
+     100
+    ],
+    [
+     2508,
+     100
+    ],
+    [
+     6675,
+     96
+    ],
+    [
+     14930,
+     91
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "03_door_striker",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 4467,
+   "routed": true,
+   "area": 91,
+   "width": 7,
+   "height": 13,
+   "wl": 35,
+   "jumpers": 0,
+   "tBest": 4159,
+   "trace": [
+    [
+     152,
+     180
+    ],
+    [
+     158,
+     180
+    ],
+    [
+     160,
+     165
+    ],
+    [
+     168,
+     150
+    ],
+    [
+     288,
+     135
+    ],
+    [
+     404,
+     112
+    ],
+    [
+     431,
+     105
+    ],
+    [
+     1507,
+     105
+    ],
+    [
+     1767,
+     104
+    ],
+    [
+     1806,
+     96
+    ],
+    [
+     4159,
+     91
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "04_blinker555",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60133,
+   "routed": true,
+   "area": 63,
+   "width": 7,
+   "height": 9,
+   "wl": 47,
+   "jumpers": 0,
+   "tBest": 58463,
+   "trace": [
+    [
+     600,
+     144
+    ],
+    [
+     613,
+     132
+    ],
+    [
+     856,
+     110
+    ],
+    [
+     1039,
+     100
+    ],
+    [
+     1052,
+     99
+    ],
+    [
+     1154,
+     90
+    ],
+    [
+     1168,
+     80
+    ],
+    [
+     3115,
+     72
+    ],
+    [
+     3266,
+     72
+    ],
+    [
+     7967,
+     70
+    ],
+    [
+     8645,
+     63
+    ],
+    [
+     27536,
+     63
+    ],
+    [
+     47107,
+     63
+    ],
+    [
+     58463,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "04_blinker555",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60088,
+   "routed": true,
+   "area": 60,
+   "width": 10,
+   "height": 6,
+   "wl": 49,
+   "jumpers": 0,
+   "tBest": 2315,
+   "trace": [
+    [
+     662,
+     110
+    ],
+    [
+     664,
+     99
+    ],
+    [
+     675,
+     88
+    ],
+    [
+     707,
+     77
+    ],
+    [
+     1921,
+     70
+    ],
+    [
+     2315,
+     60
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "04_blinker555",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60074,
+   "routed": true,
+   "area": 60,
+   "width": 10,
+   "height": 6,
+   "wl": 50,
+   "jumpers": 0,
+   "tBest": 59662,
+   "trace": [
+    [
+     359,
+     117
+    ],
+    [
+     697,
+     108
+    ],
+    [
+     783,
+     88
+    ],
+    [
+     982,
+     80
+    ],
+    [
+     3111,
+     80
+    ],
+    [
+     3471,
+     72
+    ],
+    [
+     5216,
+     72
+    ],
+    [
+     5545,
+     70
+    ],
+    [
+     5726,
+     64
+    ],
+    [
+     5825,
+     63
+    ],
+    [
+     59662,
+     60
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "04_blinker555",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60109,
+   "routed": true,
+   "area": 63,
+   "width": 9,
+   "height": 7,
+   "wl": 47,
+   "jumpers": 0,
+   "tBest": 18940,
+   "trace": [
+    [
+     249,
+     144
+    ],
+    [
+     254,
+     132
+    ],
+    [
+     265,
+     120
+    ],
+    [
+     280,
+     108
+    ],
+    [
+     1007,
+     99
+    ],
+    [
+     1254,
+     88
+    ],
+    [
+     1841,
+     72
+    ],
+    [
+     3335,
+     72
+    ],
+    [
+     6936,
+     70
+    ],
+    [
+     14075,
+     70
+    ],
+    [
+     15278,
+     63
+    ],
+    [
+     18940,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "04_blinker555",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60097,
+   "routed": true,
+   "area": 63,
+   "width": 9,
+   "height": 7,
+   "wl": 48,
+   "jumpers": 0,
+   "tBest": 3963,
+   "trace": [
+    [
+     174,
+     121
+    ],
+    [
+     259,
+     110
+    ],
+    [
+     268,
+     99
+    ],
+    [
+     573,
+     90
+    ],
+    [
+     2140,
+     84
+    ],
+    [
+     2913,
+     81
+    ],
+    [
+     3217,
+     77
+    ],
+    [
+     3584,
+     70
+    ],
+    [
+     3688,
+     70
+    ],
+    [
+     3963,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "05_opamp_dual",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60095,
+   "routed": true,
+   "area": 64,
+   "width": 8,
+   "height": 8,
+   "wl": 46,
+   "jumpers": 0,
+   "tBest": 50645,
+   "trace": [
+    [
+     148,
+     169
+    ],
+    [
+     186,
+     156
+    ],
+    [
+     220,
+     143
+    ],
+    [
+     260,
+     130
+    ],
+    [
+     305,
+     117
+    ],
+    [
+     527,
+     104
+    ],
+    [
+     560,
+     91
+    ],
+    [
+     688,
+     84
+    ],
+    [
+     2557,
+     77
+    ],
+    [
+     2654,
+     70
+    ],
+    [
+     41949,
+     66
+    ],
+    [
+     50645,
+     64
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "05_opamp_dual",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60070,
+   "routed": true,
+   "area": 63,
+   "width": 7,
+   "height": 9,
+   "wl": 43,
+   "jumpers": 0,
+   "tBest": 3111,
+   "trace": [
+    [
+     152,
+     150
+    ],
+    [
+     171,
+     120
+    ],
+    [
+     183,
+     105
+    ],
+    [
+     476,
+     98
+    ],
+    [
+     684,
+     91
+    ],
+    [
+     767,
+     84
+    ],
+    [
+     892,
+     77
+    ],
+    [
+     1220,
+     70
+    ],
+    [
+     2828,
+     63
+    ],
+    [
+     3111,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "05_opamp_dual",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60074,
+   "routed": true,
+   "area": 64,
+   "width": 8,
+   "height": 8,
+   "wl": 43,
+   "jumpers": 0,
+   "tBest": 30289,
+   "trace": [
+    [
+     282,
+     180
+    ],
+    [
+     300,
+     165
+    ],
+    [
+     310,
+     165
+    ],
+    [
+     318,
+     150
+    ],
+    [
+     403,
+     135
+    ],
+    [
+     500,
+     135
+    ],
+    [
+     611,
+     104
+    ],
+    [
+     835,
+     96
+    ],
+    [
+     936,
+     84
+    ],
+    [
+     1870,
+     80
+    ],
+    [
+     2501,
+     80
+    ],
+    [
+     4915,
+     72
+    ],
+    [
+     5554,
+     72
+    ],
+    [
+     5642,
+     70
+    ],
+    [
+     5922,
+     70
+    ],
+    [
+     15378,
+     70
+    ],
+    [
+     22725,
+     66
+    ],
+    [
+     30244,
+     64
+    ],
+    [
+     30289,
+     64
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "05_opamp_dual",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60074,
+   "routed": true,
+   "area": 60,
+   "width": 10,
+   "height": 6,
+   "wl": 45,
+   "jumpers": 0,
+   "tBest": 23547,
+   "trace": [
+    [
+     237,
+     210
+    ],
+    [
+     260,
+     195
+    ],
+    [
+     279,
+     180
+    ],
+    [
+     285,
+     165
+    ],
+    [
+     294,
+     150
+    ],
+    [
+     437,
+     126
+    ],
+    [
+     443,
+     104
+    ],
+    [
+     589,
+     96
+    ],
+    [
+     602,
+     84
+    ],
+    [
+     867,
+     77
+    ],
+    [
+     1130,
+     70
+    ],
+    [
+     17520,
+     70
+    ],
+    [
+     23547,
+     60
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "05_opamp_dual",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60099,
+   "routed": true,
+   "area": 63,
+   "width": 7,
+   "height": 9,
+   "wl": 50,
+   "jumpers": 0,
+   "tBest": 16908,
+   "trace": [
+    [
+     188,
+     182
+    ],
+    [
+     201,
+     132
+    ],
+    [
+     232,
+     120
+    ],
+    [
+     426,
+     117
+    ],
+    [
+     432,
+     104
+    ],
+    [
+     777,
+     96
+    ],
+    [
+     1043,
+     88
+    ],
+    [
+     1287,
+     80
+    ],
+    [
+     2775,
+     72
+    ],
+    [
+     10057,
+     72
+    ],
+    [
+     12362,
+     70
+    ],
+    [
+     16908,
+     63
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "06_motor_l293d",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60112,
+   "routed": true,
+   "area": 252,
+   "width": 18,
+   "height": 14,
+   "wl": 171,
+   "jumpers": 2,
+   "tBest": 53161,
+   "trace": [
+    [
+     10940,
+     374
+    ],
+    [
+     10995,
+     352
+    ],
+    [
+     11035,
+     330
+    ],
+    [
+     11381,
+     315
+    ],
+    [
+     12726,
+     315
+    ],
+    [
+     12940,
+     294
+    ],
+    [
+     14289,
+     280
+    ],
+    [
+     15271,
+     280
+    ],
+    [
+     52715,
+     270
+    ],
+    [
+     53068,
+     252
+    ],
+    [
+     53161,
+     252
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "06_motor_l293d",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60088,
+   "routed": true,
+   "area": 252,
+   "width": 14,
+   "height": 18,
+   "wl": 171,
+   "jumpers": 2,
+   "tBest": 46863,
+   "trace": [
+    [
+     10491,
+     391
+    ],
+    [
+     10911,
+     374
+    ],
+    [
+     11091,
+     357
+    ],
+    [
+     11573,
+     300
+    ],
+    [
+     14603,
+     280
+    ],
+    [
+     14740,
+     280
+    ],
+    [
+     16922,
+     266
+    ],
+    [
+     39831,
+     252
+    ],
+    [
+     46584,
+     252
+    ],
+    [
+     46863,
+     252
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "06_motor_l293d",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60095,
+   "routed": true,
+   "area": 252,
+   "width": 18,
+   "height": 14,
+   "wl": 173,
+   "jumpers": 3,
+   "tBest": 12623,
+   "trace": [
+    [
+     10427,
+     378
+    ],
+    [
+     10688,
+     360
+    ],
+    [
+     10979,
+     336
+    ],
+    [
+     11003,
+     336
+    ],
+    [
+     11197,
+     320
+    ],
+    [
+     12042,
+     285
+    ],
+    [
+     12250,
+     270
+    ],
+    [
+     12623,
+     252
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "06_motor_l293d",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60104,
+   "routed": true,
+   "area": 272,
+   "width": 17,
+   "height": 16,
+   "wl": 169,
+   "jumpers": 3,
+   "tBest": 44219,
+   "trace": [
+    [
+     10313,
+     391
+    ],
+    [
+     10399,
+     368
+    ],
+    [
+     10400,
+     360
+    ],
+    [
+     14937,
+     360
+    ],
+    [
+     15288,
+     340
+    ],
+    [
+     15826,
+     320
+    ],
+    [
+     16843,
+     304
+    ],
+    [
+     26179,
+     308
+    ],
+    [
+     26328,
+     294
+    ],
+    [
+     27628,
+     280
+    ],
+    [
+     27847,
+     280
+    ],
+    [
+     44219,
+     272
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "06_motor_l293d",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60093,
+   "routed": true,
+   "area": 252,
+   "width": 18,
+   "height": 14,
+   "wl": 176,
+   "jumpers": 2,
+   "tBest": 14755,
+   "trace": [
+    [
+     10480,
+     408
+    ],
+    [
+     10564,
+     360
+    ],
+    [
+     10873,
+     345
+    ],
+    [
+     11043,
+     330
+    ],
+    [
+     11056,
+     308
+    ],
+    [
+     13417,
+     294
+    ],
+    [
+     13608,
+     280
+    ],
+    [
+     13763,
+     266
+    ],
+    [
+     13970,
+     252
+    ],
+    [
+     14755,
+     252
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "07_esp_io_panel",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60080,
+   "routed": true,
+   "area": 143,
+   "width": 13,
+   "height": 11,
+   "wl": 91,
+   "jumpers": 0,
+   "tBest": 27201,
+   "trace": [
+    [
+     582,
+     360
+    ],
+    [
+     604,
+     340
+    ],
+    [
+     623,
+     320
+    ],
+    [
+     643,
+     300
+    ],
+    [
+     841,
+     252
+    ],
+    [
+     1141,
+     234
+    ],
+    [
+     1692,
+     221
+    ],
+    [
+     3148,
+     208
+    ],
+    [
+     3470,
+     195
+    ],
+    [
+     4066,
+     182
+    ],
+    [
+     4739,
+     169
+    ],
+    [
+     4791,
+     168
+    ],
+    [
+     5209,
+     156
+    ],
+    [
+     6201,
+     156
+    ],
+    [
+     27201,
+     143
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "07_esp_io_panel",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60077,
+   "routed": true,
+   "area": 154,
+   "width": 11,
+   "height": 14,
+   "wl": 95,
+   "jumpers": 0,
+   "tBest": 36417,
+   "trace": [
+    [
+     890,
+     342
+    ],
+    [
+     1039,
+     340
+    ],
+    [
+     1054,
+     320
+    ],
+    [
+     1089,
+     306
+    ],
+    [
+     1105,
+     288
+    ],
+    [
+     1227,
+     270
+    ],
+    [
+     1266,
+     252
+    ],
+    [
+     1400,
+     252
+    ],
+    [
+     1739,
+     252
+    ],
+    [
+     1823,
+     234
+    ],
+    [
+     1997,
+     234
+    ],
+    [
+     2129,
+     221
+    ],
+    [
+     2138,
+     204
+    ],
+    [
+     2903,
+     187
+    ],
+    [
+     3089,
+     187
+    ],
+    [
+     3606,
+     176
+    ],
+    [
+     4510,
+     176
+    ],
+    [
+     5813,
+     165
+    ],
+    [
+     5844,
+     165
+    ],
+    [
+     7228,
+     165
+    ],
+    [
+     18398,
+     156
+    ],
+    [
+     33189,
+     156
+    ],
+    [
+     35569,
+     154
+    ],
+    [
+     36417,
+     154
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "07_esp_io_panel",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60062,
+   "routed": true,
+   "area": 143,
+   "width": 13,
+   "height": 11,
+   "wl": 98,
+   "jumpers": 0,
+   "tBest": 41789,
+   "trace": [
+    [
+     229,
+     288
+    ],
+    [
+     260,
+     270
+    ],
+    [
+     275,
+     252
+    ],
+    [
+     454,
+     234
+    ],
+    [
+     658,
+     204
+    ],
+    [
+     1069,
+     192
+    ],
+    [
+     1403,
+     180
+    ],
+    [
+     4823,
+     168
+    ],
+    [
+     5987,
+     156
+    ],
+    [
+     7161,
+     144
+    ],
+    [
+     8238,
+     144
+    ],
+    [
+     41244,
+     143
+    ],
+    [
+     41789,
+     143
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "07_esp_io_panel",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60103,
+   "routed": true,
+   "area": 143,
+   "width": 13,
+   "height": 11,
+   "wl": 99,
+   "jumpers": 0,
+   "tBest": 41055,
+   "trace": [
+    [
+     269,
+     306
+    ],
+    [
+     323,
+     288
+    ],
+    [
+     419,
+     270
+    ],
+    [
+     807,
+     252
+    ],
+    [
+     967,
+     234
+    ],
+    [
+     973,
+     216
+    ],
+    [
+     1139,
+     198
+    ],
+    [
+     1845,
+     187
+    ],
+    [
+     3178,
+     176
+    ],
+    [
+     4233,
+     176
+    ],
+    [
+     4614,
+     165
+    ],
+    [
+     4682,
+     165
+    ],
+    [
+     16507,
+     156
+    ],
+    [
+     17631,
+     156
+    ],
+    [
+     28101,
+     154
+    ],
+    [
+     28379,
+     154
+    ],
+    [
+     41055,
+     143
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "07_esp_io_panel",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60109,
+   "routed": true,
+   "area": 143,
+   "width": 13,
+   "height": 11,
+   "wl": 98,
+   "jumpers": 0,
+   "tBest": 51519,
+   "trace": [
+    [
+     547,
+     342
+    ],
+    [
+     562,
+     323
+    ],
+    [
+     876,
+     306
+    ],
+    [
+     890,
+     288
+    ],
+    [
+     901,
+     270
+    ],
+    [
+     1058,
+     238
+    ],
+    [
+     1216,
+     221
+    ],
+    [
+     1426,
+     204
+    ],
+    [
+     1700,
+     192
+    ],
+    [
+     3135,
+     180
+    ],
+    [
+     3607,
+     180
+    ],
+    [
+     4533,
+     168
+    ],
+    [
+     13082,
+     156
+    ],
+    [
+     13279,
+     156
+    ],
+    [
+     13292,
+     154
+    ],
+    [
+     32497,
+     144
+    ],
+    [
+     32630,
+     144
+    ],
+    [
+     34328,
+     144
+    ],
+    [
+     51519,
+     143
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "08_rc_ladder",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60077,
+   "routed": true,
+   "area": 35,
+   "width": 5,
+   "height": 7,
+   "wl": 22,
+   "jumpers": 0,
+   "tBest": 1830,
+   "trace": [
+    [
+     193,
+     108
+    ],
+    [
+     219,
+     99
+    ],
+    [
+     230,
+     96
+    ],
+    [
+     234,
+     84
+    ],
+    [
+     243,
+     72
+    ],
+    [
+     404,
+     66
+    ],
+    [
+     511,
+     50
+    ],
+    [
+     565,
+     45
+    ],
+    [
+     790,
+     45
+    ],
+    [
+     829,
+     40
+    ],
+    [
+     1507,
+     35
+    ],
+    [
+     1830,
+     35
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "08_rc_ladder",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60122,
+   "routed": true,
+   "area": 35,
+   "width": 5,
+   "height": 7,
+   "wl": 27,
+   "jumpers": 0,
+   "tBest": 6435,
+   "trace": [
+    [
+     185,
+     156
+    ],
+    [
+     211,
+     144
+    ],
+    [
+     214,
+     120
+    ],
+    [
+     223,
+     108
+    ],
+    [
+     234,
+     96
+    ],
+    [
+     236,
+     84
+    ],
+    [
+     279,
+     72
+    ],
+    [
+     351,
+     70
+    ],
+    [
+     510,
+     66
+    ],
+    [
+     556,
+     60
+    ],
+    [
+     621,
+     60
+    ],
+    [
+     677,
+     50
+    ],
+    [
+     895,
+     40
+    ],
+    [
+     2024,
+     36
+    ],
+    [
+     6435,
+     35
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "08_rc_ladder",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60078,
+   "routed": true,
+   "area": 35,
+   "width": 5,
+   "height": 7,
+   "wl": 22,
+   "jumpers": 0,
+   "tBest": 9700,
+   "trace": [
+    [
+     184,
+     110
+    ],
+    [
+     185,
+     100
+    ],
+    [
+     188,
+     99
+    ],
+    [
+     215,
+     88
+    ],
+    [
+     222,
+     77
+    ],
+    [
+     303,
+     70
+    ],
+    [
+     329,
+     66
+    ],
+    [
+     402,
+     60
+    ],
+    [
+     490,
+     50
+    ],
+    [
+     957,
+     48
+    ],
+    [
+     1086,
+     45
+    ],
+    [
+     1289,
+     40
+    ],
+    [
+     1455,
+     40
+    ],
+    [
+     2499,
+     40
+    ],
+    [
+     6082,
+     35
+    ],
+    [
+     9700,
+     35
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "08_rc_ladder",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60068,
+   "routed": true,
+   "area": 35,
+   "width": 5,
+   "height": 7,
+   "wl": 21,
+   "jumpers": 0,
+   "tBest": 40245,
+   "trace": [
+    [
+     177,
+     120
+    ],
+    [
+     178,
+     99
+    ],
+    [
+     193,
+     91
+    ],
+    [
+     204,
+     78
+    ],
+    [
+     218,
+     65
+    ],
+    [
+     327,
+     55
+    ],
+    [
+     508,
+     50
+    ],
+    [
+     525,
+     48
+    ],
+    [
+     893,
+     45
+    ],
+    [
+     900,
+     44
+    ],
+    [
+     929,
+     40
+    ],
+    [
+     934,
+     40
+    ],
+    [
+     1561,
+     40
+    ],
+    [
+     13122,
+     36
+    ],
+    [
+     26400,
+     35
+    ],
+    [
+     40245,
+     35
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "08_rc_ladder",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60117,
+   "routed": true,
+   "area": 35,
+   "width": 5,
+   "height": 7,
+   "wl": 23,
+   "jumpers": 0,
+   "tBest": 40181,
+   "trace": [
+    [
+     179,
+     110
+    ],
+    [
+     219,
+     108
+    ],
+    [
+     220,
+     88
+    ],
+    [
+     226,
+     84
+    ],
+    [
+     267,
+     77
+    ],
+    [
+     440,
+     72
+    ],
+    [
+     517,
+     66
+    ],
+    [
+     518,
+     60
+    ],
+    [
+     620,
+     48
+    ],
+    [
+     804,
+     48
+    ],
+    [
+     1085,
+     45
+    ],
+    [
+     1112,
+     44
+    ],
+    [
+     1129,
+     40
+    ],
+    [
+     6746,
+     40
+    ],
+    [
+     6818,
+     40
+    ],
+    [
+     27294,
+     36
+    ],
+    [
+     27309,
+     36
+    ],
+    [
+     40181,
+     35
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "09_mosfet_bank4",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60080,
+   "routed": true,
+   "area": 234,
+   "width": 13,
+   "height": 18,
+   "wl": 144,
+   "jumpers": 0,
+   "tBest": 49837,
+   "trace": [
+    [
+     474,
+     456
+    ],
+    [
+     493,
+     432
+    ],
+    [
+     1107,
+     391
+    ],
+    [
+     1708,
+     374
+    ],
+    [
+     2180,
+     357
+    ],
+    [
+     2575,
+     340
+    ],
+    [
+     4012,
+     320
+    ],
+    [
+     4868,
+     304
+    ],
+    [
+     4879,
+     285
+    ],
+    [
+     7072,
+     270
+    ],
+    [
+     7580,
+     270
+    ],
+    [
+     11463,
+     252
+    ],
+    [
+     17005,
+     252
+    ],
+    [
+     44772,
+     247
+    ],
+    [
+     48302,
+     234
+    ],
+    [
+     49837,
+     234
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "09_mosfet_bank4",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60072,
+   "routed": true,
+   "area": 238,
+   "width": 14,
+   "height": 17,
+   "wl": 159,
+   "jumpers": 0,
+   "tBest": 58864,
+   "trace": [
+    [
+     1308,
+     729
+    ],
+    [
+     1338,
+     702
+    ],
+    [
+     1376,
+     675
+    ],
+    [
+     1393,
+     648
+    ],
+    [
+     2286,
+     621
+    ],
+    [
+     2497,
+     594
+    ],
+    [
+     2511,
+     567
+    ],
+    [
+     2591,
+     494
+    ],
+    [
+     3746,
+     450
+    ],
+    [
+     3816,
+     425
+    ],
+    [
+     4305,
+     400
+    ],
+    [
+     4704,
+     392
+    ],
+    [
+     4820,
+     375
+    ],
+    [
+     4916,
+     351
+    ],
+    [
+     5622,
+     338
+    ],
+    [
+     6187,
+     336
+    ],
+    [
+     8332,
+     322
+    ],
+    [
+     8852,
+     308
+    ],
+    [
+     9299,
+     308
+    ],
+    [
+     9310,
+     294
+    ],
+    [
+     9727,
+     280
+    ],
+    [
+     11826,
+     266
+    ],
+    [
+     11907,
+     266
+    ],
+    [
+     43253,
+     255
+    ],
+    [
+     58301,
+     238
+    ],
+    [
+     58864,
+     238
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "09_mosfet_bank4",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60063,
+   "routed": true,
+   "area": 240,
+   "width": 15,
+   "height": 16,
+   "wl": 151,
+   "jumpers": 0,
+   "tBest": 58301,
+   "trace": [
+    [
+     479,
+     504
+    ],
+    [
+     803,
+     480
+    ],
+    [
+     812,
+     456
+    ],
+    [
+     2177,
+     437
+    ],
+    [
+     3244,
+     414
+    ],
+    [
+     3743,
+     396
+    ],
+    [
+     3931,
+     391
+    ],
+    [
+     4129,
+     374
+    ],
+    [
+     4635,
+     352
+    ],
+    [
+     4649,
+     330
+    ],
+    [
+     5516,
+     320
+    ],
+    [
+     7029,
+     304
+    ],
+    [
+     7336,
+     294
+    ],
+    [
+     7628,
+     280
+    ],
+    [
+     12084,
+     266
+    ],
+    [
+     13522,
+     252
+    ],
+    [
+     16302,
+     247
+    ],
+    [
+     56890,
+     240
+    ],
+    [
+     58301,
+     240
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "09_mosfet_bank4",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60281,
+   "routed": true,
+   "area": 238,
+   "width": 17,
+   "height": 14,
+   "wl": 133,
+   "jumpers": 0,
+   "tBest": 15073,
+   "trace": [
+    [
+     367,
+     483
+    ],
+    [
+     458,
+     460
+    ],
+    [
+     506,
+     437
+    ],
+    [
+     1173,
+     414
+    ],
+    [
+     2001,
+     391
+    ],
+    [
+     2011,
+     368
+    ],
+    [
+     3360,
+     352
+    ],
+    [
+     3521,
+     352
+    ],
+    [
+     3529,
+     330
+    ],
+    [
+     6255,
+     315
+    ],
+    [
+     7007,
+     300
+    ],
+    [
+     7255,
+     300
+    ],
+    [
+     7397,
+     280
+    ],
+    [
+     9074,
+     266
+    ],
+    [
+     10253,
+     252
+    ],
+    [
+     11183,
+     252
+    ],
+    [
+     12311,
+     238
+    ],
+    [
+     15073,
+     238
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "09_mosfet_bank4",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60069,
+   "routed": true,
+   "area": 238,
+   "width": 17,
+   "height": 14,
+   "wl": 143,
+   "jumpers": 0,
+   "tBest": 57337,
+   "trace": [
+    [
+     367,
+     550
+    ],
+    [
+     465,
+     525
+    ],
+    [
+     517,
+     500
+    ],
+    [
+     550,
+     475
+    ],
+    [
+     1214,
+     450
+    ],
+    [
+     1541,
+     425
+    ],
+    [
+     1645,
+     400
+    ],
+    [
+     1657,
+     375
+    ],
+    [
+     1790,
+     350
+    ],
+    [
+     2626,
+     336
+    ],
+    [
+     3391,
+     322
+    ],
+    [
+     3733,
+     308
+    ],
+    [
+     4296,
+     299
+    ],
+    [
+     4666,
+     276
+    ],
+    [
+     5206,
+     264
+    ],
+    [
+     6452,
+     264
+    ],
+    [
+     6754,
+     252
+    ],
+    [
+     8843,
+     240
+    ],
+    [
+     57337,
+     238
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x1_caps_k33",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60078,
+   "routed": true,
+   "area": 25,
+   "width": 5,
+   "height": 5,
+   "wl": 20,
+   "jumpers": 1,
+   "tBest": 1095,
+   "trace": [
+    [
+     145,
+     64
+    ],
+    [
+     154,
+     56
+    ],
+    [
+     155,
+     48
+    ],
+    [
+     169,
+     40
+    ],
+    [
+     370,
+     35
+    ],
+    [
+     477,
+     30
+    ],
+    [
+     1095,
+     25
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x1_caps_k33",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60079,
+   "routed": true,
+   "area": 25,
+   "width": 5,
+   "height": 5,
+   "wl": 20,
+   "jumpers": 1,
+   "tBest": 2156,
+   "trace": [
+    [
+     135,
+     63
+    ],
+    [
+     138,
+     56
+    ],
+    [
+     159,
+     54
+    ],
+    [
+     172,
+     54
+    ],
+    [
+     196,
+     42
+    ],
+    [
+     430,
+     36
+    ],
+    [
+     579,
+     35
+    ],
+    [
+     617,
+     35
+    ],
+    [
+     693,
+     32
+    ],
+    [
+     729,
+     30
+    ],
+    [
+     800,
+     28
+    ],
+    [
+     2156,
+     25
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x1_caps_k33",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60088,
+   "routed": true,
+   "area": 25,
+   "width": 5,
+   "height": 5,
+   "wl": 20,
+   "jumpers": 1,
+   "tBest": 771,
+   "trace": [
+    [
+     155,
+     56
+    ],
+    [
+     161,
+     56
+    ],
+    [
+     170,
+     48
+    ],
+    [
+     335,
+     40
+    ],
+    [
+     345,
+     40
+    ],
+    [
+     461,
+     35
+    ],
+    [
+     549,
+     30
+    ],
+    [
+     732,
+     28
+    ],
+    [
+     771,
+     25
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x1_caps_k33",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60092,
+   "routed": true,
+   "area": 25,
+   "width": 5,
+   "height": 5,
+   "wl": 20,
+   "jumpers": 1,
+   "tBest": 9567,
+   "trace": [
+    [
+     148,
+     56
+    ],
+    [
+     150,
+     48
+    ],
+    [
+     153,
+     48
+    ],
+    [
+     185,
+     40
+    ],
+    [
+     401,
+     35
+    ],
+    [
+     602,
+     32
+    ],
+    [
+     644,
+     28
+    ],
+    [
+     9567,
+     25
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x1_caps_k33",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60077,
+   "routed": true,
+   "area": 25,
+   "width": 5,
+   "height": 5,
+   "wl": 20,
+   "jumpers": 1,
+   "tBest": 586,
+   "trace": [
+    [
+     146,
+     56
+    ],
+    [
+     158,
+     48
+    ],
+    [
+     165,
+     40
+    ],
+    [
+     308,
+     35
+    ],
+    [
+     336,
+     35
+    ],
+    [
+     390,
+     30
+    ],
+    [
+     586,
+     25
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60079,
+   "routed": true,
+   "area": 20,
+   "width": 4,
+   "height": 5,
+   "wl": 13,
+   "jumpers": 0,
+   "tBest": 2417,
+   "trace": [
+    [
+     140,
+     63
+    ],
+    [
+     157,
+     54
+    ],
+    [
+     171,
+     45
+    ],
+    [
+     198,
+     40
+    ],
+    [
+     312,
+     35
+    ],
+    [
+     342,
+     28
+    ],
+    [
+     413,
+     28
+    ],
+    [
+     439,
+     24
+    ],
+    [
+     618,
+     20
+    ],
+    [
+     2417,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60096,
+   "routed": true,
+   "area": 20,
+   "width": 5,
+   "height": 4,
+   "wl": 13,
+   "jumpers": 0,
+   "tBest": 1212,
+   "trace": [
+    [
+     176,
+     49
+    ],
+    [
+     181,
+     42
+    ],
+    [
+     186,
+     35
+    ],
+    [
+     277,
+     28
+    ],
+    [
+     355,
+     24
+    ],
+    [
+     448,
+     24
+    ],
+    [
+     565,
+     20
+    ],
+    [
+     1212,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60080,
+   "routed": true,
+   "area": 20,
+   "width": 4,
+   "height": 5,
+   "wl": 13,
+   "jumpers": 0,
+   "tBest": 404,
+   "trace": [
+    [
+     125,
+     63
+    ],
+    [
+     144,
+     54
+    ],
+    [
+     190,
+     48
+    ],
+    [
+     290,
+     32
+    ],
+    [
+     371,
+     30
+    ],
+    [
+     379,
+     24
+    ],
+    [
+     404,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60073,
+   "routed": true,
+   "area": 20,
+   "width": 5,
+   "height": 4,
+   "wl": 13,
+   "jumpers": 0,
+   "tBest": 1354,
+   "trace": [
+    [
+     140,
+     64
+    ],
+    [
+     162,
+     49
+    ],
+    [
+     175,
+     42
+    ],
+    [
+     309,
+     36
+    ],
+    [
+     314,
+     35
+    ],
+    [
+     348,
+     32
+    ],
+    [
+     379,
+     30
+    ],
+    [
+     444,
+     28
+    ],
+    [
+     453,
+     24
+    ],
+    [
+     642,
+     24
+    ],
+    [
+     699,
+     20
+    ],
+    [
+     1354,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x2_caps_k33_minus1",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60080,
+   "routed": true,
+   "area": 20,
+   "width": 4,
+   "height": 5,
+   "wl": 13,
+   "jumpers": 0,
+   "tBest": 810,
+   "trace": [
+    [
+     247,
+     81
+    ],
+    [
+     255,
+     63
+    ],
+    [
+     255,
+     54
+    ],
+    [
+     256,
+     45
+    ],
+    [
+     356,
+     40
+    ],
+    [
+     412,
+     40
+    ],
+    [
+     416,
+     32
+    ],
+    [
+     484,
+     28
+    ],
+    [
+     560,
+     24
+    ],
+    [
+     810,
+     20
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x3_caps_k5",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 60100,
+   "routed": true,
+   "area": 30,
+   "width": 6,
+   "height": 5,
+   "wl": 24,
+   "jumpers": 1,
+   "tBest": 11466,
+   "trace": [
+    [
+     150,
+     72
+    ],
+    [
+     190,
+     63
+    ],
+    [
+     239,
+     54
+    ],
+    [
+     245,
+     45
+    ],
+    [
+     437,
+     40
+    ],
+    [
+     546,
+     35
+    ],
+    [
+     1138,
+     30
+    ],
+    [
+     11466,
+     30
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x3_caps_k5",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 60088,
+   "routed": true,
+   "area": 30,
+   "width": 5,
+   "height": 6,
+   "wl": 24,
+   "jumpers": 1,
+   "tBest": 8669,
+   "trace": [
+    [
+     165,
+     70
+    ],
+    [
+     235,
+     60
+    ],
+    [
+     367,
+     54
+    ],
+    [
+     489,
+     48
+    ],
+    [
+     653,
+     48
+    ],
+    [
+     697,
+     40
+    ],
+    [
+     749,
+     35
+    ],
+    [
+     811,
+     35
+    ],
+    [
+     1751,
+     30
+    ],
+    [
+     5429,
+     30
+    ],
+    [
+     8669,
+     30
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x3_caps_k5",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 60129,
+   "routed": true,
+   "area": 30,
+   "width": 6,
+   "height": 5,
+   "wl": 25,
+   "jumpers": 1,
+   "tBest": 9921,
+   "trace": [
+    [
+     144,
+     56
+    ],
+    [
+     181,
+     48
+    ],
+    [
+     273,
+     48
+    ],
+    [
+     470,
+     45
+    ],
+    [
+     743,
+     40
+    ],
+    [
+     836,
+     35
+    ],
+    [
+     1061,
+     30
+    ],
+    [
+     9921,
+     30
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x3_caps_k5",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 60070,
+   "routed": true,
+   "area": 30,
+   "width": 5,
+   "height": 6,
+   "wl": 24,
+   "jumpers": 1,
+   "tBest": 13398,
+   "trace": [
+    [
+     134,
+     72
+    ],
+    [
+     136,
+     72
+    ],
+    [
+     162,
+     63
+    ],
+    [
+     200,
+     54
+    ],
+    [
+     417,
+     45
+    ],
+    [
+     802,
+     42
+    ],
+    [
+     1269,
+     40
+    ],
+    [
+     1284,
+     32
+    ],
+    [
+     1484,
+     30
+    ],
+    [
+     1692,
+     30
+    ],
+    [
+     13398,
+     30
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x3_caps_k5",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 60107,
+   "routed": true,
+   "area": 30,
+   "width": 6,
+   "height": 5,
+   "wl": 24,
+   "jumpers": 1,
+   "tBest": 9848,
+   "trace": [
+    [
+     144,
+     81
+    ],
+    [
+     156,
+     72
+    ],
+    [
+     158,
+     56
+    ],
+    [
+     287,
+     48
+    ],
+    [
+     462,
+     40
+    ],
+    [
+     529,
+     35
+    ],
+    [
+     945,
+     30
+    ],
+    [
+     1747,
+     30
+    ],
+    [
+     9848,
+     30
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x4_resistors_k5",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 2543,
+   "routed": true,
+   "area": 40,
+   "width": 5,
+   "height": 8,
+   "wl": 29,
+   "jumpers": 0,
+   "tBest": 1771,
+   "trace": [
+    [
+     147,
+     100
+    ],
+    [
+     150,
+     90
+    ],
+    [
+     158,
+     80
+    ],
+    [
+     160,
+     70
+    ],
+    [
+     341,
+     60
+    ],
+    [
+     460,
+     54
+    ],
+    [
+     550,
+     48
+    ],
+    [
+     659,
+     45
+    ],
+    [
+     1060,
+     45
+    ],
+    [
+     1771,
+     40
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x4_resistors_k5",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 5459,
+   "routed": true,
+   "area": 40,
+   "width": 5,
+   "height": 8,
+   "wl": 30,
+   "jumpers": 0,
+   "tBest": 4386,
+   "trace": [
+    [
+     160,
+     130
+    ],
+    [
+     161,
+     100
+    ],
+    [
+     169,
+     90
+    ],
+    [
+     194,
+     80
+    ],
+    [
+     329,
+     70
+    ],
+    [
+     372,
+     66
+    ],
+    [
+     373,
+     60
+    ],
+    [
+     665,
+     54
+    ],
+    [
+     667,
+     45
+    ],
+    [
+     760,
+     45
+    ],
+    [
+     2149,
+     45
+    ],
+    [
+     3460,
+     42
+    ],
+    [
+     3472,
+     42
+    ],
+    [
+     4386,
+     40
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x4_resistors_k5",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 2782,
+   "routed": true,
+   "area": 40,
+   "width": 5,
+   "height": 8,
+   "wl": 29,
+   "jumpers": 0,
+   "tBest": 1704,
+   "trace": [
+    [
+     141,
+     132
+    ],
+    [
+     151,
+     120
+    ],
+    [
+     163,
+     108
+    ],
+    [
+     243,
+     99
+    ],
+    [
+     273,
+     88
+    ],
+    [
+     285,
+     70
+    ],
+    [
+     413,
+     63
+    ],
+    [
+     434,
+     54
+    ],
+    [
+     536,
+     48
+    ],
+    [
+     824,
+     45
+    ],
+    [
+     1339,
+     45
+    ],
+    [
+     1704,
+     40
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x4_resistors_k5",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 1463,
+   "routed": true,
+   "area": 40,
+   "width": 5,
+   "height": 8,
+   "wl": 29,
+   "jumpers": 0,
+   "tBest": 993,
+   "trace": [
+    [
+     145,
+     144
+    ],
+    [
+     149,
+     130
+    ],
+    [
+     158,
+     117
+    ],
+    [
+     166,
+     104
+    ],
+    [
+     316,
+     99
+    ],
+    [
+     362,
+     91
+    ],
+    [
+     399,
+     84
+    ],
+    [
+     426,
+     77
+    ],
+    [
+     510,
+     72
+    ],
+    [
+     635,
+     70
+    ],
+    [
+     635,
+     66
+    ],
+    [
+     681,
+     60
+    ],
+    [
+     722,
+     60
+    ],
+    [
+     734,
+     60
+    ],
+    [
+     743,
+     55
+    ],
+    [
+     762,
+     54
+    ],
+    [
+     787,
+     48
+    ],
+    [
+     871,
+     45
+    ],
+    [
+     993,
+     40
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x4_resistors_k5",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 3694,
+   "routed": true,
+   "area": 40,
+   "width": 5,
+   "height": 8,
+   "wl": 29,
+   "jumpers": 0,
+   "tBest": 3394,
+   "trace": [
+    [
+     150,
+     110
+    ],
+    [
+     161,
+     99
+    ],
+    [
+     163,
+     88
+    ],
+    [
+     173,
+     77
+    ],
+    [
+     212,
+     70
+    ],
+    [
+     281,
+     66
+    ],
+    [
+     376,
+     66
+    ],
+    [
+     429,
+     60
+    ],
+    [
+     454,
+     60
+    ],
+    [
+     558,
+     54
+    ],
+    [
+     566,
+     54
+    ],
+    [
+     608,
+     45
+    ],
+    [
+     1906,
+     42
+    ],
+    [
+     3394,
+     40
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 1,
+   "budgetMs": 60000,
+   "elapsed": 161,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "jumpers": 0,
+   "tBest": 107,
+   "trace": [
+    [
+     84,
+     15
+    ],
+    [
+     96,
+     12
+    ],
+    [
+     107,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 2,
+   "budgetMs": 60000,
+   "elapsed": 130,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "jumpers": 0,
+   "tBest": 109,
+   "trace": [
+    [
+     84,
+     15
+    ],
+    [
+     95,
+     12
+    ],
+    [
+     109,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 3,
+   "budgetMs": 60000,
+   "elapsed": 125,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "jumpers": 0,
+   "tBest": 105,
+   "trace": [
+    [
+     79,
+     15
+    ],
+    [
+     90,
+     12
+    ],
+    [
+     105,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 4,
+   "budgetMs": 60000,
+   "elapsed": 161,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "jumpers": 0,
+   "tBest": 119,
+   "trace": [
+    [
+     100,
+     15
+    ],
+    [
+     109,
+     12
+    ],
+    [
+     119,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  },
+  {
+   "strategy": "portfolio",
+   "circuit": "x5_parallel_mosfets3",
+   "seed": 5,
+   "budgetMs": 60000,
+   "elapsed": 170,
+   "routed": true,
+   "area": 9,
+   "width": 3,
+   "height": 3,
+   "wl": 6,
+   "jumpers": 0,
+   "tBest": 111,
+   "trace": [
+    [
+     86,
+     15
+    ],
+    [
+     98,
+     12
+    ],
+    [
+     111,
+     9
+    ]
+   ],
+   "finalValid": true,
+   "finalErrors": [],
+   "evalsPerSec": null
+  }
+ ]
+}

@@ -1,18 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-    Plus, 
-    Trash2, 
-    Move, 
-    Layout, 
-    Hash, 
-    Type, 
-    Palette, 
-    Maximize,
-    ChevronRight,
-    Search,
-    Link2Off,
-    Edit3
-} from 'lucide-react';
+import { Plus, Trash2, Edit3 } from 'lucide-react';
 import { SP, netColor, boostColor, compColor } from '../engine/render-utils.js';
 
 // Footprint editor.
@@ -43,7 +30,7 @@ const union = (a, b) => {
     return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
 };
 
-export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
+export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames = [], mode = 'edit' }) {
     const [data, setData] = useState(() => fromComponent(component));
     const [selectedPinIdx, setSelectedPinIdx] = useState(null);
     const [drag, setDrag] = useState(null); // { kind: 'pin', idx } | { kind: 'edge', edge: 'l'|'r'|'t'|'b' }
@@ -106,7 +93,6 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
     };
 
     const updatePin = (idx, field, val) => setData(prev => ({ ...prev, pins: prev.pins.map((p, i) => (i === idx ? { ...p, [field]: val } : p)) }));
-    const unbindPin = (idx) => updatePin(idx, 'net', '');
 
     const toGrid = (e) => {
         const ctm = svgRef.current?.getScreenCTM();
@@ -152,341 +138,165 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
     const mainColor = boostColor(compColor(data));
 
     return (
-        <div className="overlay-bg">
-            <div className="modal component-editor-modal">
-                <div className="modal-header">
-                    <div className="header-title">
-                        <Edit3 size={18} className="icon-accent" />
-                        <h3>Editing <strong>{data.id}</strong></h3>
+        <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+            <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`}>
+                <header className="ce-head">
+                    <Edit3 size={16} className="icon-accent" />
+                    <h3>{mode === 'add' ? 'Add part' : 'Edit part'}</h3>
+                    <span className="ce-id" style={{ borderColor: mainColor, color: mainColor }}>{data.id || '?'}</span>
+                    <span className="ce-size">{foot.w} × {foot.h} holes · {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
+                    <div className="ce-head-actions">
+                        <button className="ce-btn" onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</button>
+                        <button className="ce-btn primary" onClick={save}>{mode === 'add' ? 'Add to circuit' : 'Save'}</button>
                     </div>
-                    <button className="close-btn" onClick={onClose}>✕</button>
-                </div>                <div className="editor-layout">
-                    {/* Left Panel: Config Stack */}
-                    <div className="editor-side-panel left scroll-container">
-                        <section className="settings-section">
-                            <div className="section-header">
-                                <Hash size={16} />
-                                <h4>Identity</h4>
-                            </div>
-                            <div className="grid-2">
-                                <div className="field-group">
-                                    <label>ID</label>
-                                    <input type="text" value={data.id} onChange={e => handleUpdate('id', e.target.value)} />
-                                </div>
-                                <div className="field-group">
-                                    <label>Value</label>
-                                    <input type="text" value={data.value} onChange={e => handleUpdate('value', e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="field-group">
-                                <label>Model Name</label>
-                                <input type="text" value={data.name} onChange={e => handleUpdate('name', e.target.value)} />
-                            </div>
-                        </section>
+                </header>
 
-                        <section className="settings-section">
-                            <div className="section-header">
-                                <Maximize size={16} />
-                                <h4>Footprint</h4>
-                            </div>
-                            <div className="foot-size">{foot.w} × {foot.h} holes <span>({(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm)</span></div>
-                            <div className="body-mode">
-                                <button className={!data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: null }))}>Body = pins</button>
-                                <button className={data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger body</button>
-                            </div>
-                            <p className="dim-hint">{data.body
-                                ? 'Drag the edges of the dashed outline to match the housing (relay, electrolytic, dev board). No other part or jumper may sit inside it; wires on the solder side still pass under.'
-                                : 'The body spans exactly the pins: move a pin outward and the part grows with it (a resistor bent to 10 mm, a wider DIP).'}</p>
-                        </section>
-
-                        <section className="settings-section">
-                            <div className="section-header">
-                                <Palette size={16} />
-                                <h4>Aesthetics</h4>
-                            </div>
-                            <div className="field-group">
-                                <label>Body Color</label>
-                                <div className="color-picker-row">
-                                    <input type="color" value={data.color || '#333333'} onChange={e => handleUpdate('color', e.target.value)} />
-                                    <input type="text" value={data.color || ''} onChange={e => handleUpdate('color', e.target.value)} placeholder="#Hex" />
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    {/* Center: Canvas Area (Smart Zoom) */}
-                    <div className="editor-canvas-area" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
-                        <div className="canvas-viewport">
+                <div className="ce-body">
+                    <div className="ce-canvas" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
                             <svg
-                                ref={svgRef}
-                                width="100%"
-                                height="100%"
-                                viewBox={`${view.x * SP} ${view.y * SP} ${view.w * SP} ${view.h * SP}`}
-                                preserveAspectRatio="xMidYMid meet"
-                                className="comp-edit-svg"
-                                onPointerDown={() => setSelectedPinIdx(null)}
-                            >
-                                {/* hole grid */}
-                                {Array.from({ length: view.w * view.h }, (_, i) => {
-                                    const c = view.x + (i % view.w), r = view.y + Math.floor(i / view.w);
-                                    return <circle key={i} cx={c * SP + SP / 2} cy={r * SP + SP / 2} r={SP * 0.16} fill="none" stroke="rgba(184,115,51,0.35)" strokeWidth={2} />;
-                                })}
+                            ref={svgRef}
+                            width="100%"
+                            height="100%"
+                            viewBox={`${view.x * SP} ${view.y * SP} ${view.w * SP} ${view.h * SP}`}
+                            preserveAspectRatio="xMidYMid meet"
+                            className="comp-edit-svg"
+                            onPointerDown={() => setSelectedPinIdx(null)}
+                        >
+                            {/* hole grid */}
+                            {Array.from({ length: view.w * view.h }, (_, i) => {
+                                const c = view.x + (i % view.w), r = view.y + Math.floor(i / view.w);
+                                return <circle key={i} cx={c * SP + SP / 2} cy={r * SP + SP / 2} r={SP * 0.16} fill="none" stroke="rgba(184,115,51,0.35)" strokeWidth={2} />;
+                            })}
 
-                                {/* body */}
-                                <rect
-                                    x={bodyBox.x * SP + 3} y={bodyBox.y * SP + 3}
-                                    width={bodyBox.w * SP - 6} height={bodyBox.h * SP - 6} rx={6}
-                                    fill={mainColor} fillOpacity={0.12}
-                                    stroke={mainColor} strokeWidth={2.5}
-                                    strokeDasharray={data.body ? '7 5' : undefined}
-                                />
-                                <text x={(bodyBox.x + bodyBox.w / 2) * SP} y={(bodyBox.y + bodyBox.h / 2) * SP} dy=".35em" textAnchor="middle"
-                                    fontSize={Math.min(14, bodyBox.w * SP / Math.max(3, (data.id || '').length + 1))} fontWeight="800" fill="rgba(255,255,255,0.35)" style={{ pointerEvents: 'none' }}>{data.id}</text>
+                            {/* body */}
+                            <rect
+                                x={bodyBox.x * SP + 3} y={bodyBox.y * SP + 3}
+                                width={bodyBox.w * SP - 6} height={bodyBox.h * SP - 6} rx={6}
+                                fill={mainColor} fillOpacity={0.12}
+                                stroke={mainColor} strokeWidth={2.5}
+                                strokeDasharray={data.body ? '7 5' : undefined}
+                            />
+                            <text x={(bodyBox.x + bodyBox.w / 2) * SP} y={(bodyBox.y + bodyBox.h / 2) * SP} dy=".35em" textAnchor="middle"
+                                fontSize={Math.min(14, bodyBox.w * SP / Math.max(3, (data.id || '').length + 1))} fontWeight="800" fill="rgba(255,255,255,0.35)" style={{ pointerEvents: 'none' }}>{data.id}</text>
 
-                                {/* edge handles for a custom body */}
-                                {data.body && [['l', bodyBox.x, bodyBox.y + bodyBox.h / 2, 'ew-resize'], ['r', bodyBox.x + bodyBox.w, bodyBox.y + bodyBox.h / 2, 'ew-resize'],
-                                    ['t', bodyBox.x + bodyBox.w / 2, bodyBox.y, 'ns-resize'], ['b', bodyBox.x + bodyBox.w / 2, bodyBox.y + bodyBox.h, 'ns-resize']].map(([edge, x, y, cursor]) => (
-                                    <rect key={edge} x={x * SP - 7} y={y * SP - 7} width={14} height={14} rx={3}
-                                        fill="#fff" stroke={mainColor} strokeWidth={2} style={{ cursor }}
-                                        onPointerDown={(e) => startDrag(e, { kind: 'edge', edge })} />
-                                ))}
+                            {/* edge handles for a custom body */}
+                            {data.body && [['l', bodyBox.x, bodyBox.y + bodyBox.h / 2, 'ew-resize'], ['r', bodyBox.x + bodyBox.w, bodyBox.y + bodyBox.h / 2, 'ew-resize'],
+                                ['t', bodyBox.x + bodyBox.w / 2, bodyBox.y, 'ns-resize'], ['b', bodyBox.x + bodyBox.w / 2, bodyBox.y + bodyBox.h, 'ns-resize']].map(([edge, x, y, cursor]) => (
+                                <rect key={edge} x={x * SP - 7} y={y * SP - 7} width={14} height={14} rx={3}
+                                    fill="#fff" stroke={mainColor} strokeWidth={2} style={{ cursor }}
+                                    onPointerDown={(e) => startDrag(e, { kind: 'edge', edge })} />
+                            ))}
 
-                                {data.pins.map((p, i) => {
-                                    const isActive = selectedPinIdx === i;
-                                    const cx = p.dCol * SP + SP / 2;
-                                    const cy = p.dRow * SP + SP / 2;
-                                    const color = netColor(p.net);
-                                    return (
-                                        <g key={i} className={`edit-pin-g ${isActive ? 'active' : ''}`}
-                                            onPointerDown={(e) => startDrag(e, { kind: 'pin', idx: i })}
-                                            style={{ cursor: drag?.kind === 'pin' && isActive ? 'grabbing' : 'grab' }}>
-                                            {isActive && <rect x={p.dCol * SP + 2} y={p.dRow * SP + 2} width={SP - 4} height={SP - 4} rx={5} fill="none" stroke="#fff" strokeWidth={1.5} strokeDasharray="4 2" />}
-                                            <circle cx={cx} cy={cy} r={SP * 0.32} fill={color} stroke={isActive ? '#fff' : 'rgba(0,0,0,0.5)'} strokeWidth={isActive ? 2 : 1} />
-                                            <text x={cx} y={cy} dy=".35em" fill="#fff" fontSize={9} fontWeight="900" textAnchor="middle"
-                                                paintOrder="stroke" stroke="#000" strokeWidth="2" style={{ pointerEvents: 'none', userSelect: 'none' }}>{p.lbl}</text>
-                                        </g>
-                                    );
-                                })}
-                            </svg>
-                        </div>
+                            {data.pins.map((p, i) => {
+                                const isActive = selectedPinIdx === i;
+                                const cx = p.dCol * SP + SP / 2;
+                                const cy = p.dRow * SP + SP / 2;
+                                const color = netColor(p.net);
+                                return (
+                                    <g key={i} className={`edit-pin-g ${isActive ? 'active' : ''}`}
+                                        onPointerDown={(e) => startDrag(e, { kind: 'pin', idx: i })}
+                                        style={{ cursor: drag?.kind === 'pin' && isActive ? 'grabbing' : 'grab' }}>
+                                        {isActive && <rect x={p.dCol * SP + 2} y={p.dRow * SP + 2} width={SP - 4} height={SP - 4} rx={5} fill="none" stroke="#fff" strokeWidth={1.5} strokeDasharray="4 2" />}
+                                        <circle cx={cx} cy={cy} r={SP * 0.32} fill={color} stroke={isActive ? '#fff' : 'rgba(0,0,0,0.5)'} strokeWidth={isActive ? 2 : 1} />
+                                        <text x={cx} y={cy} dy=".35em" fill="#fff" fontSize={9} fontWeight="900" textAnchor="middle"
+                                            paintOrder="stroke" stroke="#000" strokeWidth="2" style={{ pointerEvents: 'none', userSelect: 'none' }}>{p.lbl}</text>
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                        <div className="ce-canvas-hint">Drag pins{data.body ? ' and the outline handles' : ''} · arrows move the selected pin · Del removes it</div>
                     </div>
 
-
-                    {/* Right Panel: Mapping (The largest part of the side-menu structure) */}
-                    <div className="editor-side-panel right mapping-panel">
-                        <section className="settings-section pins-section">
-                            <div className="section-header mapping-header">
-                                <Type size={16} />
-                                <h4>Pin Mapping ({data.pins.length})</h4>
-                                <button className="add-pin-btn" onClick={addPin} title="Add Pin">
-                                    <Plus size={18} />
-                                </button>
+                    <aside className="ce-side">
+                        <section>
+                            <div className="ce-row3">
+                                <label>ID<input value={data.id} onChange={e => handleUpdate('id', e.target.value)} /></label>
+                                <label>Value<input value={data.value} onChange={e => handleUpdate('value', e.target.value)} /></label>
+                                <label className="ce-color" title="Body colour">Colour
+                                    <input type="color" value={toHex(data.color || compColor(data))} onChange={e => handleUpdate('color', e.target.value)} />
+                                </label>
                             </div>
-                            <div className="pin-table scroll-container">
+                            <label>Name<input value={data.name} onChange={e => handleUpdate('name', e.target.value)} /></label>
+                        </section>
+
+                        <section>
+                            <div className="ce-label">Body</div>
+                            <div className="ce-seg">
+                                <button className={!data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: null }))}>Spans the pins</button>
+                                <button className={data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger housing</button>
+                            </div>
+                            <p className="ce-hint">{data.body
+                                ? 'Drag the outline to the housing size. Other parts and jumpers stay out; wires still pass underneath.'
+                                : 'Move a pin outward and the part grows with it.'}</p>
+                        </section>
+
+                        <section className="ce-pins">
+                            <div className="ce-label">Pins <span>{data.pins.length}</span>
+                                <button className="ce-add" onClick={addPin} title="Add a pin"><Plus size={14} /> Add</button>
+                            </div>
+                            <datalist id="ce-nets">{netNames.map(n => <option key={n} value={n} />)}</datalist>
+                            <div className="ce-pin-list">
                                 {data.pins.map((p, i) => (
-                                    <div 
-                                        key={i} 
-                                        className={`pin-row ${selectedPinIdx === i ? 'selected' : ''}`}
-                                        onClick={() => setSelectedPinIdx(i)}
-                                    >
-                                        <input 
-                                            className="pin-label-input" 
-                                            type="text" 
-                                            value={p.lbl} 
-                                            onChange={e => updatePin(i, 'lbl', e.target.value)} 
-                                            placeholder="Pad"
-                                        />
-                                        <div className="pin-net-container">
-                                            <input 
-                                                className="pin-net-input" 
-                                                type="text" 
-                                                value={p.net || ''} 
-                                                onChange={e => updatePin(i, 'net', e.target.value)} 
-                                                placeholder="Unassigned"
-                                            />
-                                            {p.net && (
-                                                <button className="pin-unbind-btn" onClick={(e) => { e.stopPropagation(); unbindPin(i); }}>
-                                                    <Link2Off size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                        <button className="pin-remove-btn" onClick={(e) => { e.stopPropagation(); removePin(i); }}>
-                                            <Trash2 size={16} />
-                                        </button>
+                                    <div key={i} className={`ce-pin ${selectedPinIdx === i ? 'sel' : ''}`} onClick={() => setSelectedPinIdx(i)}>
+                                        <span className="ce-dot" style={{ background: netColor(p.net) }} />
+                                        <input className="ce-lbl" value={p.lbl} onChange={e => updatePin(i, 'lbl', e.target.value)} placeholder="Pin" aria-label="Pin label" />
+                                        <input className="ce-net" list="ce-nets" value={p.net || ''} onChange={e => updatePin(i, 'net', e.target.value)} placeholder="not connected" aria-label="Net" />
+                                        <button className="ce-icon" onClick={(e) => { e.stopPropagation(); removePin(i); }} title="Remove pin"><Trash2 size={13} /></button>
                                     </div>
                                 ))}
                             </div>
                         </section>
-                    </div>
-                </div>
-
-                <div className="modal-footer">
-                    <div className="footer-hint">Drag pins · arrow keys move the selected pin · Delete removes it</div>
-                    <div className="footer-actions">
-                        <button className="btn ghost" onClick={onClose}>Discard Changes</button>
-                        <button className="btn grn" onClick={save}>Save Footprint</button>
-                    </div>
+                    </aside>
                 </div>
             </div>
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .component-editor-modal { 
-                    max-width: 1440px; 
-                    width: 98vw; 
-                    height: 85vh; 
-                    display: flex; 
-                    flex-direction: column; 
-                    background: var(--bg2);
-                    padding: 0;
-                    border: 1px solid var(--border2);
-                    box-shadow: 0 40px 100px rgba(0,0,0,0.9);
-                }
-
-                .modal-header {
-                    padding: 16px 24px;
-                    border-bottom: 1px solid var(--border);
-                    background: var(--bg3);
-                    display: flex; justify-content: space-between; align-items: center;
-                }
-                .header-title { display: flex; align-items: center; gap: 12px; }
-                .header-title h3 { font-size: var(--fs-lg); color: var(--txt1); }
-
-                .editor-layout {
-                    flex: 1;
-                    display: grid;
-                    grid-template-columns: 320px 1fr 480px;
-                    overflow: hidden;
-                    background: #05070a;
-                }
-
-                .editor-side-panel {
-                    background: var(--bg2);
-                    display: flex; flex-direction: column;
-                    padding: 0 24px 24px 24px;
-                    gap: 0;
-                }
-                .editor-side-panel.left { border-right: 1px solid var(--border); }
-                .editor-side-panel.right { border-left: 1px solid var(--border); }
-
-                .settings-section { 
-                    display: flex; flex-direction: column; gap: 20px; 
-                    padding: 24px 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.05);
-                }
-                .settings-section:last-child { border-bottom: none; }
-
-                .section-header { 
-                    display: flex; align-items: center; gap: 8px; 
-                    color: var(--txt2); margin-bottom: 12px;
-                }
-                .section-header h4 { font-size: var(--fs-sm); font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-
-                .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-
-                .field-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-                .field-group label { font-size: var(--fs-xs); color: var(--txt2); font-weight: 700; text-transform: uppercase; }
-                .field-group input { font-size: var(--fs-md) !important; height: 38px; padding: 0 12px; }
-
-                .foot-size { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--txt0); font-size: 1.05em; }
-                .foot-size span { color: var(--txt2); font-weight: 500; font-size: .85em; }
-                .body-mode { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: 8px; padding: 2px; margin-top: 10px; }
-                .body-mode button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 6px; border-radius: 6px; cursor: pointer; }
-                .body-mode button.active { background: var(--blu); color: #fff; }
-                .footer-hint { font-size: var(--fs-xs); color: var(--txt2); margin-right: auto; align-self: center; }
-                .dim-times { font-weight: 800; color: var(--txt2); font-size: var(--fs-sm); }
-                .dim-hint { margin: 8px 0 0; font-size: var(--fs-xs); color: var(--txt1); line-height: 1.4; }
-
-                .color-picker-row { display: flex; gap: 10px; align-items: center; }
-                .color-picker-row input[type="color"] { 
-                    width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; 
-                }
-
-                .mapping-panel { padding-top: 0 !important; }
-                .pins-section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-top: 0; }
-                .mapping-header { padding: 24px 0 16px 0; }
-
-                .pin-table {
-                    flex: 1;
-                    overflow-y: auto;
-                    border: 1px solid var(--border);
-                    border-radius: 8px;
-                    background: rgba(0,0,0,0.3);
-                }
-
-                .pin-row {
-                    display: flex; align-items: center; gap: 12px; padding: 10px 18px;
-                    border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.1s;
-                }
-                .pin-row:hover { background: rgba(255,255,255,0.02); }
-                .pin-row.selected { background: rgba(31, 111, 235, 0.1); border-left: 2px solid var(--blu-bright); padding-left: 16px; }
-
-                .pin-label-input { width: 70px !important; font-size: var(--fs-md) !important; font-weight: 800; border-radius: 4px; height: 32px; }
-                .pin-net-container { flex: 1; position: relative; display: flex; align-items: center; }
-                .pin-net-input { color: var(--blu-bright) !important; font-size: var(--fs-md) !important; border-radius: 4px; height: 32px; }
-                
-                .add-pin-btn {
-                    margin-left: auto;
-                    background: rgba(88, 166, 255, 0.15);
-                    border: 1px solid rgba(88, 166, 255, 0.3);
-                    color: var(--blu-bright);
-                    width: 34px; height: 34px; border-radius: 6px;
-                    display: flex; align-items: center; justify-content: center;
-                    cursor: pointer; transition: 0.2s;
-                }
-                .add-pin-btn:hover { background: var(--blu); color: #fff; transform: translateY(-1px); }
-
-                .pin-unbind-btn {
-                    position: absolute; right: 10px; background: none; border: none; color: var(--txt2); opacity: 0.5; cursor: pointer; display: flex; align-items: center;
-                }
-                .pin-unbind-btn:hover { color: var(--org); opacity: 1; }
-                
-                .pin-remove-btn { 
-                    background: none; border: none; color: var(--txt2); opacity: 0.4; cursor: pointer;
-                    padding: 8px; border-radius: 6px; display: flex; align-items: center;
-                }
-                .pin-remove-btn:hover { color: var(--red); background: rgba(248, 81, 73, 0.1); opacity: 1; }
-
-                .editor-canvas-area { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #080a0c; overflow: hidden; }
-                .canvas-viewport { flex: 1; min-height: 0; position: relative; }
-                .canvas-viewport > svg { position: absolute; inset: 24px; width: calc(100% - 48px); height: calc(100% - 48px); }
-                .comp-edit-svg { width: 100%; height: 100%; touch-action: none; user-select: none; }
-
-                .modal-footer {
-                    padding: 16px 24px;
-                    background: var(--bg3);
-                    border-top: 1px solid var(--border);
-                    display: flex; justify-content: flex-end;
-                }
-                .footer-actions { display: flex; gap: 12px; }
-                .footer-actions .btn { font-size: var(--fs-md); padding: 12px 24px; min-width: 140px; }
-
-                @media (max-width: 1100px) {
-                    .editor-layout { grid-template-columns: 260px 1fr 340px; }
-                }
-                /* Phone: stack identity, canvas and pin mapping in one scrolling column. */
+            <style dangerouslySetInnerHTML={{ __html: `
+                .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
+                .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+                .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }
+                .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: 6px; }
+                .ce-size { font-size: var(--fs-xs); color: var(--txt2); font-family: ui-monospace, Consolas, monospace; }
+                .ce-head-actions { margin-left: auto; display: flex; gap: 6px; }
+                .ce-btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+                .ce-btn:hover { border-color: var(--txt2); }
+                .ce-btn.primary { background: var(--grn); border-color: var(--grn-bright); color: #fff; }
+                .ce-btn.primary:hover { background: #2a9a40; }
+                .ce-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+                .ce-canvas { position: relative; min-width: 0; min-height: 0; background: #080a0c; }
+                .ce-canvas > svg { position: absolute; inset: 16px 16px 34px; width: calc(100% - 32px); height: calc(100% - 50px); touch-action: none; user-select: none; }
+                .ce-canvas-hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: var(--fs-xs); color: var(--txt2); pointer-events: none; }
+                .ce-side { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--bg2); }
+                .ce-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+                .ce-side label { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); min-width: 0; }
+                .ce-side input:not([type=color]) { height: 28px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 6px; color: var(--txt0); font-family: inherit; font-size: 13px; font-weight: 500; min-width: 0; width: 100%; }
+                .ce-side input:focus { outline: none; border-color: var(--blu-bright); }
+                .ce-row3 { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; }
+                .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+                .ce-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
+                .ce-label span { color: var(--txt1); }
+                .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
+                .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: 5px; cursor: pointer; }
+                .ce-seg button.active { background: var(--blu); color: #fff; }
+                .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
+                .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
+                .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
+                .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }
+                .ce-pin { display: grid; grid-template-columns: 10px 48px 1fr 24px; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 6px; border: 1px solid transparent; }
+                .ce-pin.sel { background: rgba(31,111,235,.12); border-color: rgba(88,166,255,.35); }
+                .ce-dot { width: 10px; height: 10px; border-radius: 50%; }
+                .ce-pin input { height: 26px !important; }
+                .ce-icon { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
+                .ce-icon:hover { color: var(--red); background: rgba(248,81,73,.1); }
                 @media (max-width: 760px) {
-                    .component-editor-modal { width: 100vw; height: 100dvh; border-radius: 0; border: none; }
-                    .editor-layout { display: flex; flex-direction: column; overflow-y: auto; }
-                    .editor-side-panel { padding: 0 16px 16px 16px; flex: none; overflow: visible; }
-                    .editor-side-panel.left, .editor-side-panel.right { border: none; border-bottom: 1px solid var(--border); }
-                    .settings-section { padding: 16px 0; gap: 12px; }
-                    .editor-canvas-area { flex: none; height: 42dvh; order: -1; position: sticky; top: 0; z-index: 2; }
-                    .canvas-viewport > svg { inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); }
-                    .footer-hint { display: none; }
-                    .pin-table { flex: none; }
-                    .pin-row { padding: 8px 10px; gap: 8px; }
-                    .pin-label-input { width: 56px !important; }
-                    .pin-net-input { min-width: 0; }
-                    .modal-header, .modal-footer { padding: 12px 16px; }
-                    .footer-actions { width: 100%; }
-                    .footer-actions .btn { flex: 1; min-width: 0; padding: 12px; }
+                    .ce-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
+                    .ce-size { display: none; }
+                    .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
+                    .ce-canvas { flex: none; height: 42dvh; position: sticky; top: 0; z-index: 2; }
+                    .ce-side { border-left: 0; }
+                    .ce-pins { flex: none; }
+                    .ce-pin-list { overflow: visible; }
                 }
-
-                @keyframes selection-pulse { from { opacity: 0.4; } to { opacity: 1; } }
-                .selection-bracket { animation: selection-pulse 0.8s infinite alternate; }
-                `
-            }} />
+            ` }} />
         </div>
     );
 }
@@ -516,4 +326,15 @@ function moveEdge(d, edge, g) {
     if (b.w < 1 || b.h < 1) return d;
     const isAuto = b.x === pb.x && b.y === pb.y && b.w === pb.w && b.h === pb.h;
     return { ...d, body: isAuto ? null : b };
+}
+
+// <input type=color> needs #rrggbb; part colours may be hsl(...) from compColor.
+function toHex(c) {
+    if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+    const m = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/i.exec(c || '');
+    if (!m) return '#5a6270';
+    const h = +m[1], sat = m[2] / 100, l = m[3] / 100;
+    const k = (n) => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
+    const f = (n) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+    return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
 }

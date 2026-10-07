@@ -154,6 +154,7 @@ function App() {
     try { if (exampleTitle) localStorage.setItem('pcb_example_title', exampleTitle); else localStorage.removeItem('pcb_example_title'); } catch { /* storage unavailable */ }
   }, [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
+  const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'add' (from the Library)
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
   const [previewPath, setPreviewPath] = useState(null);
@@ -419,12 +420,22 @@ function App() {
       cy = Math.min(...board.components.map(c => c.oy));
     }
     const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
-    engine.setState({ components: [...board.components, newComp], wires: board.wires });
-    setIsLibraryOpen(false); setSelectedId(newId); saveHistory();
-  }, [board.components, board.wires, engine, saveHistory]);
+    // Show it big in the editor first (pins, nets, body can be adjusted); "Add to circuit" adds it.
+    setIsLibraryOpen(false);
+    setEditorMode('add');
+    setEditingComp(newComp);
+    setIsEditorOpen(true);
+  }, [board.components]);
 
   const handleSaveEdit = useCallback(async (updated) => { 
     if (!editingComp) return;
+    if (editorMode === 'add') {
+      const comp = { ...updated, pins: updated.pins.map(p => ({ ...p, col: updated.ox + p.dCol, row: updated.oy + p.dRow })) };
+      engine.setState({ components: [...board.components, comp], wires: board.wires });
+      setIsEditorOpen(false); setEditingComp(null); setEditorMode('edit');
+      setSelectedId(comp.id); saveHistory();
+      return;
+    }
     const isExisting = board.components.some(c => c.id === editingComp.id);
     const newComps = isExisting
       ? board.components.map(c => c.id === editingComp.id ? updated : c)
@@ -446,7 +457,7 @@ function App() {
     setIsEditorOpen(false); 
     setEditingComp(null);
     saveHistory(); 
-  }, [board.components, engine, saveHistory, editingComp]);
+  }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode]);
 
   const handleExportState = useCallback(() => {
     const state = { components: board.components, wires: board.wires, cols: board.cols, rows: board.rows };
@@ -658,6 +669,7 @@ function App() {
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
           onOpenLibrary={() => setIsLibraryOpen(true)}
           onAddNewComponent={() => {
+            setEditorMode('edit');
             // The editor needs a component to edit; start from a blank 2-pin part with a free id.
             const ids = new Set(board.components.map(c => c.id));
             let n = board.components.length + 1; while (ids.has(`C${n}`)) n++;
@@ -665,7 +677,7 @@ function App() {
               pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
             setIsEditorOpen(true);
           }}
-          onEditComponent={(id) => { setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
+          onEditComponent={(id) => { setEditorMode('edit'); setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
         <div id="ca-col">
@@ -732,7 +744,7 @@ function App() {
       </div>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={handleAddFromLibrary} />
-      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => setIsEditorOpen(false)} onSave={handleSaveEdit} />
+      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay
         isOpen={confirmData.isOpen}

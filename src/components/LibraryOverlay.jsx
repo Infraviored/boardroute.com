@@ -125,9 +125,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect }) {
                         return (
                             <div key={e.origin + ':' + (c.source || c.name)} className="lib-item" onClick={() => onSelect(c)}
                                 title={c.desc || c.name}>
-                                {e.origin === 'kicad'
-                                    ? <Thumb part={c} />
-                                    : <div className="lib-swatch" style={{ background: compColor(c) }}></div>}
+                                <Thumb part={c} />
                                 <div className="lib-info">
                                     <div className="lib-name">{c.name}</div>
                                     <div className="lib-val">
@@ -147,7 +145,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect }) {
                     )}
                 </div>
                 <div className="lib-credit">
-                    Footprints marked with a thumbnail are generated from the{' '}
+                    Parts not marked Curated are generated from the{' '}
                     <a href="https://gitlab.com/kicad/libraries/kicad-footprints" target="_blank" rel="noreferrer">KiCad footprint libraries</a>
                     {' '}(CC-BY-SA 4.0 with an exception for designs using them); only through-hole parts whose pins sit on the 2.54 mm grid.
                 </div>
@@ -180,7 +178,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect }) {
         }
         .lib-item:hover { background: var(--bg4); border-color: var(--blu); }
         .lib-swatch { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
-        .lib-thumb { width: 32px; height: 32px; flex-shrink: 0; background: #0a0f0c; border-radius: 4px; }
+        .lib-thumb { width: 52px; height: 40px; flex-shrink: 0; background: #0a0f0c; border-radius: 6px; padding: 3px; }
         .lib-info { min-width: 0; }
         .lib-name { font-size: .85em; font-weight: 700; color: var(--txt0); overflow-wrap: anywhere; }
         .lib-val { font-size: .7em; color: var(--txt2); margin-top: 2px; }

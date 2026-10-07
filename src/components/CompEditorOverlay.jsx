@@ -13,193 +13,143 @@ import {
     Link2Off,
     Edit3
 } from 'lucide-react';
-import { SP, netColor, boostColor } from '../engine/render-utils.js';
+import { SP, netColor, boostColor, compColor } from '../engine/render-utils.js';
+
+// Footprint editor.
+// Model: pins sit on integer holes (any coordinates while editing, normalised on save) and the
+// body is either "auto" (exactly the box around the pins: a resistor grows when a pin is moved
+// out) or a custom rectangle (relay, electrolytic, dev board) that is extended automatically
+// whenever a pin is dragged outside it. The view always frames the whole part.
+function fromComponent(component) {
+    if (!component) return null;
+    const c = JSON.parse(JSON.stringify(component));
+    const pins = (c.pins || []).map(p => ({ lbl: p.lbl ?? '', net: p.net || '', dCol: p.dCol || 0, dRow: p.dRow || 0 }));
+    const pb = boxOf(pins);
+    // a body larger than the pins' box is a custom body
+    const w = c.w || pb.w, h = c.h || pb.h;
+    const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, pins,
+        body: custom ? { x: 0, y: 0, w, h } : null };
+}
+
+function boxOf(pins) {
+    if (!pins.length) return { x: 0, y: 0, w: 1, h: 1 };
+    const xs = pins.map(p => p.dCol), ys = pins.map(p => p.dRow);
+    const x = Math.min(...xs), y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x + 1, h: Math.max(...ys) - y + 1 };
+}
+const union = (a, b) => {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+};
 
 export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
-    const [data, setData] = useState(() => {
-        if (!component) return null;
-        const copy = JSON.parse(JSON.stringify(component));
-        // Ensure w/h exist
-        if (!copy.w || !copy.h) {
-            let mw = 1, mh = 1;
-            copy.pins.forEach(p => {
-                mw = Math.max(mw, (p.dCol || 0) + 1);
-                mh = Math.max(mh, (p.dRow || 0) + 1);
-            });
-            copy.w = mw;
-            copy.h = mh;
-        }
-        // Ensure pins have dCol/dRow
-        copy.pins = copy.pins.map(p => ({
-            ...p,
-            dCol: p.dCol || 0,
-            dRow: p.dRow || 0,
-            net: p.net || ''
-        }));
-        return copy;
-    });
+    const [data, setData] = useState(() => fromComponent(component));
     const [selectedPinIdx, setSelectedPinIdx] = useState(null);
-    const [isDragging, setIsDragging] = useState(false);
+    const [drag, setDrag] = useState(null); // { kind: 'pin', idx } | { kind: 'edge', edge: 'l'|'r'|'t'|'b' }
+    const [frozenView, setFrozenView] = useState(null); // view box held still while dragging
     const svgRef = useRef(null);
 
-    // Sync state when component prop changes
+    // Reset when the dialog (re)opens or gets another part (state adjusted during render).
+    const [openedFor, setOpenedFor] = useState({ component, isOpen });
+    if (openedFor.component !== component || openedFor.isOpen !== isOpen) {
+        setOpenedFor({ component, isOpen });
+        if (component && isOpen) { setData(fromComponent(component)); setSelectedPinIdx(null); }
+    }
+
+    // Keyboard: arrows move the selected pin, Delete removes it (not while typing).
     useEffect(() => {
-        if (component && isOpen) {
-            const copy = JSON.parse(JSON.stringify(component));
-            if (!copy.w || !copy.h) {
-                let mw = 1, mh = 1;
-                copy.pins.forEach(p => {
-                    mw = Math.max(mw, (p.dCol || 0) + 1);
-                    mh = Math.max(mh, (p.dRow || 0) + 1);
-                });
-                copy.w = mw;
-                copy.h = mh;
+        if (!isOpen) return;
+        const onKey = (e) => {
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (e.key === 'Escape') { onClose(); return; }
+            if (selectedPinIdx === null) return;
+            const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+            if (d) { e.preventDefault(); setData(prev => movePin(prev, selectedPinIdx, prev.pins[selectedPinIdx].dCol + d[0], prev.pins[selectedPinIdx].dRow + d[1])); }
+            else if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                setData(prev => ({ ...prev, pins: prev.pins.filter((_, i) => i !== selectedPinIdx) }));
+                setSelectedPinIdx(null);
             }
-            copy.pins = copy.pins.map(p => ({
-                ...p,
-                dCol: p.dCol || 0,
-                dRow: p.dRow || 0,
-                net: p.net || ''
-            }));
-            setData(copy);
-        }
-    }, [component, isOpen]);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    });
 
     if (!isOpen || !data) return null;
 
+    const pinBox = boxOf(data.pins);
+    const bodyBox = data.body ? data.body : pinBox;
+    const foot = union(pinBox, bodyBox);
+    // Frame the part with 2 holes of room; while dragging keep the frame still so the grid
+    // doesn't slide under the pointer, and refit when the drag ends.
+    const liveView = { x: foot.x - 2, y: foot.y - 2, w: foot.w + 4, h: foot.h + 4 };
+    const view = frozenView || liveView;
+
     const handleUpdate = (field, val) => setData(prev => ({ ...prev, [field]: val }));
 
-    const handleDimensionChange = (field, val) => {
-        const num = Math.max(1, parseInt(val) || 1);
-        setData(prev => {
-            const nextW = field === 'w' ? num : prev.w;
-            const nextH = field === 'h' ? num : prev.h;
-
-            // Refuse if area is too small for existing pins
-            if (nextW * nextH < prev.pins.length) {
-                console.warn("Component footprint area too small for current pin count");
-                return prev;
-            }
-
-            const next = { ...prev, [field]: num };
-
-            // When shrinking, we must pack pins into the new bounds without overlap
-            // A simple approach: for each pin, if out of bounds, find the nearest empty spot
-            const pins = [...next.pins];
-            const isOccupied = (c, r, ignoreIdx) => pins.some((p, i) => i !== ignoreIdx && p.dCol === c && p.dRow === r);
-
-            for (let i = 0; i < pins.length; i++) {
-                let p = { ...pins[i] };
-                if (p.dCol >= nextW || p.dRow >= nextH) {
-                    p.dCol = Math.min(p.dCol, nextW - 1);
-                    p.dRow = Math.min(p.dRow, nextH - 1);
-                    
-                    // If target restricted spot is occupied, spiral out to find first vacant spot
-                    if (isOccupied(p.dCol, p.dRow, i)) {
-                        let found = false;
-                        for (let r = nextH - 1; r >= 0 && !found; r--) {
-                            for (let c = nextW - 1; c >= 0 && !found; c--) {
-                                if (!isOccupied(c, r, i)) {
-                                    p.dCol = c; p.dRow = r; found = true;
-                                }
-                            }
-                        }
-                    }
-                    pins[i] = p;
-                }
-            }
-            next.pins = pins;
-            return next;
-        });
-    };
-
     const addPin = () => {
-        const next = { ...data, pins: [...data.pins] };
-        
-        // Find first vacant spot
-        let dCol = 0, dRow = 0, found = false;
-        for (let r = 0; r < next.h && !found; r++) {
-            for (let c = 0; c < next.w && !found; c++) {
-                if (!next.pins.some(p => p.dCol === c && p.dRow === r)) {
-                    dCol = c; dRow = r; found = true;
-                }
-            }
-        }
-        
-        if (!found) {
-            alert("No space left in current footprint to add a pin. Please increase dimensions.");
-            return;
-        }
-
-        next.pins = [...next.pins, { lbl: `P${next.pins.length + 1}`, net: '', dCol, dRow }];
-        setData(next);
-        setSelectedPinIdx(next.pins.length - 1);
+        // next free hole along the right edge of the footprint, then below
+        const taken = new Set(data.pins.map(p => `${p.dCol},${p.dRow}`));
+        let spot = null;
+        for (let r = foot.y; r < foot.y + foot.h && !spot; r++) for (let c = foot.x; c < foot.x + foot.w && !spot; c++) if (!taken.has(`${c},${r}`)) spot = [c, r];
+        if (!spot) spot = [foot.x + foot.w, foot.y];
+        const pins = [...data.pins, { lbl: `${data.pins.length + 1}`, net: '', dCol: spot[0], dRow: spot[1] }];
+        setData({ ...data, pins });
+        setSelectedPinIdx(pins.length - 1);
     };
 
     const removePin = (idx) => {
-        const next = { ...data, pins: [...data.pins] };
-        next.pins.splice(idx, 1);
-        setData(next);
-        if (selectedPinIdx === idx) setSelectedPinIdx(null);
-        else if (selectedPinIdx > idx) setSelectedPinIdx(selectedPinIdx - 1);
+        setData(prev => ({ ...prev, pins: prev.pins.filter((_, i) => i !== idx) }));
+        setSelectedPinIdx(sel => (sel === idx ? null : sel > idx ? sel - 1 : sel));
     };
 
-    const updatePin = (idx, field, val) => {
-        const next = { ...data, pins: [...data.pins] };
-        next.pins[idx] = { ...next.pins[idx], [field]: val };
-        setData(next);
+    const updatePin = (idx, field, val) => setData(prev => ({ ...prev, pins: prev.pins.map((p, i) => (i === idx ? { ...p, [field]: val } : p)) }));
+    const unbindPin = (idx) => updatePin(idx, 'net', '');
+
+    const toGrid = (e) => {
+        const ctm = svgRef.current?.getScreenCTM();
+        if (!ctm) return null;
+        const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+        return { col: Math.floor(pt.x / SP), row: Math.floor(pt.y / SP), x: pt.x / SP, y: pt.y / SP };
     };
 
-    const unbindPin = (idx) => {
-        const next = { ...data, pins: [...data.pins] };
-        next.pins[idx] = { ...next.pins[idx], net: '' };
-        setData(next);
-    };
-
-    const handlePointerDown = (e, idx) => {
-        setSelectedPinIdx(idx);
-        setIsDragging(true);
-        e.currentTarget.setPointerCapture(e.pointerId);
+    const startDrag = (e, d) => {
         e.stopPropagation();
+        if (d.kind === 'pin') setSelectedPinIdx(d.idx);
+        setDrag(d);
+        setFrozenView(view); // same frame while dragging (no zoom jump); refit on release
+        e.currentTarget.setPointerCapture?.(e.pointerId);
     };
 
     const handlePointerMove = (e) => {
-        if (!isDragging || selectedPinIdx === null) return;
-        // Map the pointer into viewBox (user) coordinates. The viewBox has a 1.5-hole margin and
-        // preserveAspectRatio="meet" letterboxes it, so a plain rect-ratio scale is wrong.
-        const ctm = svgRef.current?.getScreenCTM();
-        if (!ctm) return;
-        const { x: viewBoxX, y: viewBoxY } = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+        if (!drag) return;
+        const g = toGrid(e);
+        if (!g) return;
+        if (drag.kind === 'pin') setData(prev => movePin(prev, drag.idx, g.col, g.row));
+        else setData(prev => moveEdge(prev, drag.edge, g));
+    };
 
-        const col = Math.floor(viewBoxX / SP);
-        const row = Math.floor(viewBoxY / SP);
+    const handlePointerUp = () => { setDrag(null); setFrozenView(null); };
 
-        // Clamp to component bounds
-        const clampedCol = Math.max(0, Math.min(col, data.w - 1));
-        const clampedRow = Math.max(0, Math.min(row, data.h - 1));
-
-        const targetPinIdx = data.pins.findIndex((p, i) => i !== selectedPinIdx && p.dCol === clampedCol && p.dRow === clampedRow);
-
-        if (data.pins[selectedPinIdx].dCol !== clampedCol || data.pins[selectedPinIdx].dRow !== clampedRow) {
-            const next = { ...data, pins: [...data.pins] };
-            if (targetPinIdx !== -1) {
-                // FLIP: Swap coordinates
-                const oldCol = next.pins[selectedPinIdx].dCol;
-                const oldRow = next.pins[selectedPinIdx].dRow;
-                next.pins[selectedPinIdx] = { ...next.pins[selectedPinIdx], dCol: clampedCol, dRow: clampedRow };
-                next.pins[targetPinIdx] = { ...next.pins[targetPinIdx], dCol: oldCol, dRow: oldRow };
-            } else {
-                next.pins[selectedPinIdx] = { ...next.pins[selectedPinIdx], dCol: clampedCol, dRow: clampedRow };
-            }
-            setData(next);
+    const save = () => {
+        const seen = new Set();
+        for (const p of data.pins) {
+            const key = `${p.dCol},${p.dRow}`;
+            if (seen.has(key)) { alert(`Two pins in the same hole (${key})`); return; }
+            seen.add(key);
         }
+        // normalise: footprint box starts at 0,0; w/h cover pins and body
+        onSave({
+            ...component, // keeps position and anything the editor doesn't touch
+            id: data.id, name: data.name, value: data.value, color: data.color, routeUnder: data.routeUnder,
+            w: foot.w, h: foot.h,
+            pins: data.pins.map(p => ({ ...p, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
+        });
     };
 
-    const handlePointerUp = () => {
-        setIsDragging(false);
-    };
-
-    const mainColor = boostColor(data.color || '#333333');
+    const mainColor = boostColor(compColor(data));
 
     return (
         <div className="overlay-bg">
@@ -239,18 +189,14 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                                 <Maximize size={16} />
                                 <h4>Footprint</h4>
                             </div>
-                            <div className="dimension-row">
-                                <div className="field-group">
-                                    <label>Width (Cols)</label>
-                                    <input type="number" min="1" value={data.w} onChange={e => handleDimensionChange('w', e.target.value)} />
-                                </div>
-                                <div className="dim-times">×</div>
-                                <div className="field-group">
-                                    <label>Height (Rows)</label>
-                                    <input type="number" min="1" value={data.h} onChange={e => handleDimensionChange('h', e.target.value)} />
-                                </div>
+                            <div className="foot-size">{foot.w} × {foot.h} holes <span>({(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm)</span></div>
+                            <div className="body-mode">
+                                <button className={!data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: null }))}>Body = pins</button>
+                                <button className={data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger body</button>
                             </div>
-                            <p className="dim-hint">The part's outline in holes. Make it larger than the pins when the body is (relay, electrolytic, dev board): no other part or jumper may sit inside it. Wires on the solder side still pass under.</p>
+                            <p className="dim-hint">{data.body
+                                ? 'Drag the edges of the dashed outline to match the housing (relay, electrolytic, dev board). No other part or jumper may sit inside it; wires on the solder side still pass under.'
+                                : 'The body spans exactly the pins: move a pin outward and the part grows with it (a resistor bent to 10 mm, a wider DIP).'}</p>
                         </section>
 
                         <section className="settings-section">
@@ -269,77 +215,58 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                     </div>
 
                     {/* Center: Canvas Area (Smart Zoom) */}
-                    <div className="editor-canvas-area" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+                    <div className="editor-canvas-area" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
                         <div className="canvas-viewport">
-                            <svg 
+                            <svg
                                 ref={svgRef}
-                                width="100%" 
+                                width="100%"
                                 height="100%"
-                                viewBox={`${-SP * 1.5} ${-SP * 1.5} ${data.w * SP + SP * 3} ${data.h * SP + SP * 3}`}
+                                viewBox={`${view.x * SP} ${view.y * SP} ${view.w * SP} ${view.h * SP}`}
                                 preserveAspectRatio="xMidYMid meet"
                                 className="comp-edit-svg"
+                                onPointerDown={() => setSelectedPinIdx(null)}
                             >
-                                <defs>
-                                    <pattern id="grid-pattern" width={SP} height={SP} patternUnits="userSpaceOnUse" patternTransform={`translate(${-SP * 1.5}, ${-SP * 1.5})`}>
-                                        <circle cx={SP/2} cy={SP/2} r={1.5} fill="rgba(255,255,255,0.15)" />
-                                    </pattern>
-                                </defs>
-                                
-                                <rect 
-                                    x={SP * 0.08} 
-                                    y={SP * 0.08} 
-                                    width={data.w * SP - SP * 0.16} 
-                                    height={data.h * SP - SP * 0.16} 
-                                    rx={6}
-                                    fill="var(--bg4)"
-                                    fillOpacity={0.8}
-                                    stroke={mainColor}
-                                    strokeWidth={2}
-                                    className="comp-body-rect"
-                                />
+                                {/* hole grid */}
+                                {Array.from({ length: view.w * view.h }, (_, i) => {
+                                    const c = view.x + (i % view.w), r = view.y + Math.floor(i / view.w);
+                                    return <circle key={i} cx={c * SP + SP / 2} cy={r * SP + SP / 2} r={SP * 0.16} fill="none" stroke="rgba(184,115,51,0.35)" strokeWidth={2} />;
+                                })}
 
-                                <rect x={-SP * 1.5} y={-SP * 1.5} width={data.w * SP + SP * 3} height={data.h * SP + SP * 3} fill="url(#grid-pattern)" style={{ pointerEvents: 'none' }} />
+                                {/* body */}
+                                <rect
+                                    x={bodyBox.x * SP + 3} y={bodyBox.y * SP + 3}
+                                    width={bodyBox.w * SP - 6} height={bodyBox.h * SP - 6} rx={6}
+                                    fill={mainColor} fillOpacity={0.12}
+                                    stroke={mainColor} strokeWidth={2.5}
+                                    strokeDasharray={data.body ? '7 5' : undefined}
+                                />
+                                <text x={(bodyBox.x + bodyBox.w / 2) * SP} y={(bodyBox.y + bodyBox.h / 2) * SP} dy=".35em" textAnchor="middle"
+                                    fontSize={Math.min(14, bodyBox.w * SP / Math.max(3, (data.id || '').length + 1))} fontWeight="800" fill="rgba(255,255,255,0.35)" style={{ pointerEvents: 'none' }}>{data.id}</text>
+
+                                {/* edge handles for a custom body */}
+                                {data.body && [['l', bodyBox.x, bodyBox.y + bodyBox.h / 2, 'ew-resize'], ['r', bodyBox.x + bodyBox.w, bodyBox.y + bodyBox.h / 2, 'ew-resize'],
+                                    ['t', bodyBox.x + bodyBox.w / 2, bodyBox.y, 'ns-resize'], ['b', bodyBox.x + bodyBox.w / 2, bodyBox.y + bodyBox.h, 'ns-resize']].map(([edge, x, y, cursor]) => (
+                                    <rect key={edge} x={x * SP - 7} y={y * SP - 7} width={14} height={14} rx={3}
+                                        fill="#fff" stroke={mainColor} strokeWidth={2} style={{ cursor }}
+                                        onPointerDown={(e) => startDrag(e, { kind: 'edge', edge })} />
+                                ))}
 
                                 {data.pins.map((p, i) => {
                                     const isActive = selectedPinIdx === i;
                                     const cx = p.dCol * SP + SP / 2;
                                     const cy = p.dRow * SP + SP / 2;
                                     const color = netColor(p.net);
-
                                     return (
-                                        <g 
-                                            key={i} 
-                                            className={`edit-pin-g ${isActive ? 'active' : ''}`}
-                                            onPointerDown={(e) => handlePointerDown(e, i)}
-                                            style={{ cursor: isDragging && isActive ? 'grabbing' : 'grab' }}
-                                        >
-                                            <circle 
-                                                cx={cx} cy={cy} r={SP * 0.3} 
-                                                fill={color} fillOpacity={0.9}
-                                                stroke={isActive ? "#fff" : "rgba(255,255,255,0.3)"}
-                                                strokeWidth={isActive ? 2 : 1}
-                                            />
-                                            <text 
-                                                x={cx} y={cy} dy=".35em" fill="#fff"
-                                                fontSize={9} fontWeight="900" textAnchor="middle"
-                                                paintOrder="stroke" stroke="#000" strokeWidth="2"
-                                                style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                            >
-                                                {p.lbl}
-                                            </text>
+                                        <g key={i} className={`edit-pin-g ${isActive ? 'active' : ''}`}
+                                            onPointerDown={(e) => startDrag(e, { kind: 'pin', idx: i })}
+                                            style={{ cursor: drag?.kind === 'pin' && isActive ? 'grabbing' : 'grab' }}>
+                                            {isActive && <rect x={p.dCol * SP + 2} y={p.dRow * SP + 2} width={SP - 4} height={SP - 4} rx={5} fill="none" stroke="#fff" strokeWidth={1.5} strokeDasharray="4 2" />}
+                                            <circle cx={cx} cy={cy} r={SP * 0.32} fill={color} stroke={isActive ? '#fff' : 'rgba(0,0,0,0.5)'} strokeWidth={isActive ? 2 : 1} />
+                                            <text x={cx} y={cy} dy=".35em" fill="#fff" fontSize={9} fontWeight="900" textAnchor="middle"
+                                                paintOrder="stroke" stroke="#000" strokeWidth="2" style={{ pointerEvents: 'none', userSelect: 'none' }}>{p.lbl}</text>
                                         </g>
                                     );
                                 })}
-
-                                {selectedPinIdx !== null && (
-                                    <rect 
-                                        x={data.pins[selectedPinIdx].dCol * SP + 2} 
-                                        y={data.pins[selectedPinIdx].dRow * SP + 2} 
-                                        width={SP - 4} height={SP - 4} fill="none" 
-                                        stroke={mainColor} strokeWidth={2} rx={4}
-                                        strokeDasharray="4 2" className="selection-bracket"
-                                    />
-                                )}
                             </svg>
                         </div>
                     </div>
@@ -394,17 +321,10 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                 </div>
 
                 <div className="modal-footer">
+                    <div className="footer-hint">Drag pins · arrow keys move the selected pin · Delete removes it</div>
                     <div className="footer-actions">
                         <button className="btn ghost" onClick={onClose}>Discard Changes</button>
-                        <button className="btn grn" onClick={() => {
-                            const seen = new Set();
-                            for (const p of data.pins) {
-                                const key = `${p.dCol},${p.dRow}`;
-                                if (seen.has(key)) { alert(`Overlap detected at ${key}`); return; }
-                                seen.add(key);
-                            }
-                            onSave(data);
-                        }}>Save Footprint</button>
+                        <button className="btn grn" onClick={save}>Save Footprint</button>
                     </div>
                 </div>
             </div>
@@ -468,7 +388,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                 .field-group label { font-size: var(--fs-xs); color: var(--txt2); font-weight: 700; text-transform: uppercase; }
                 .field-group input { font-size: var(--fs-md) !important; height: 38px; padding: 0 12px; }
 
-                .dimension-row { display: flex; align-items: center; gap: 10px; }
+                .foot-size { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--txt0); font-size: 1.05em; }
+                .foot-size span { color: var(--txt2); font-weight: 500; font-size: .85em; }
+                .body-mode { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: 8px; padding: 2px; margin-top: 10px; }
+                .body-mode button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 6px; border-radius: 6px; cursor: pointer; }
+                .body-mode button.active { background: var(--blu); color: #fff; }
+                .footer-hint { font-size: var(--fs-xs); color: var(--txt2); margin-right: auto; align-self: center; }
                 .dim-times { font-weight: 800; color: var(--txt2); font-size: var(--fs-sm); }
                 .dim-hint { margin: 8px 0 0; font-size: var(--fs-xs); color: var(--txt1); line-height: 1.4; }
 
@@ -522,9 +447,10 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                 }
                 .pin-remove-btn:hover { color: var(--red); background: rgba(248, 81, 73, 0.1); opacity: 1; }
 
-                .editor-canvas-area { flex: 1; display: flex; flex-direction: column; background: #080a0c; overflow: hidden; }
-                .canvas-viewport { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; }
-                .comp-edit-svg { filter: drop-shadow(0 20px 60px rgba(0,0,0,0.6)); overflow: visible; max-width: 95%; max-height: 95%; }
+                .editor-canvas-area { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #080a0c; overflow: hidden; }
+                .canvas-viewport { flex: 1; min-height: 0; position: relative; }
+                .canvas-viewport > svg { position: absolute; inset: 24px; width: calc(100% - 48px); height: calc(100% - 48px); }
+                .comp-edit-svg { width: 100%; height: 100%; touch-action: none; user-select: none; }
 
                 .modal-footer {
                     padding: 16px 24px;
@@ -545,8 +471,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
                     .editor-side-panel { padding: 0 16px 16px 16px; flex: none; overflow: visible; }
                     .editor-side-panel.left, .editor-side-panel.right { border: none; border-bottom: 1px solid var(--border); }
                     .settings-section { padding: 16px 0; gap: 12px; }
-                    .editor-canvas-area { flex: none; height: 240px; }
-                    .canvas-viewport { padding: 16px; }
+                    .editor-canvas-area { flex: none; height: 42dvh; order: -1; position: sticky; top: 0; z-index: 2; }
+                    .canvas-viewport > svg { inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); }
+                    .footer-hint { display: none; }
                     .pin-table { flex: none; }
                     .pin-row { padding: 8px 10px; gap: 8px; }
                     .pin-label-input { width: 56px !important; }
@@ -562,4 +489,31 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave }) {
             }} />
         </div>
     );
+}
+
+// Move pin idx to (col,row); a pin already there swaps places. A custom body grows to keep the
+// pin inside; the auto body follows by definition.
+function movePin(d, idx, col, row) {
+    const p = d.pins[idx];
+    if (!p || (p.dCol === col && p.dRow === row)) return d;
+    const pins = d.pins.map(q => ({ ...q }));
+    const other = pins.findIndex((q, i) => i !== idx && q.dCol === col && q.dRow === row);
+    if (other !== -1) { pins[other].dCol = p.dCol; pins[other].dRow = p.dRow; }
+    pins[idx].dCol = col; pins[idx].dRow = row;
+    const body = d.body ? union(d.body, { x: col, y: row, w: 1, h: 1 }) : null;
+    return { ...d, pins, body };
+}
+
+// Drag one edge of the body; the body never shrinks past the pins (they stay on the part).
+function moveEdge(d, edge, g) {
+    const pb = boxOf(d.pins);
+    const b = { ...(d.body || pb) };
+    const right = b.x + b.w, bottom = b.y + b.h;
+    if (edge === 'l') { const x = Math.min(Math.round(g.x), pb.x); b.w = right - x; b.x = x; }
+    if (edge === 'r') { const r = Math.max(Math.round(g.x), pb.x + pb.w); b.w = r - b.x; }
+    if (edge === 't') { const y = Math.min(Math.round(g.y), pb.y); b.h = bottom - y; b.y = y; }
+    if (edge === 'b') { const r = Math.max(Math.round(g.y), pb.y + pb.h); b.h = r - b.y; }
+    if (b.w < 1 || b.h < 1) return d;
+    const isAuto = b.x === pb.x && b.y === pb.y && b.w === pb.w && b.h === pb.h;
+    return { ...d, body: isAuto ? null : b };
 }

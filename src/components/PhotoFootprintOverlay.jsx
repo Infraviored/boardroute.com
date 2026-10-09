@@ -367,7 +367,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-msg { color: var(--txt1); font-size: var(--fs-sm); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 420px; text-align: center; padding: 16px; }
                 .pf-msg.err { color: var(--red); }
                 .pf-msg.err .pf-tiplist { color: var(--txt1); text-align: left; }
-                .pf-side { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; background: var(--bg2); }
+                .pf-side { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; overflow-x: hidden; background: var(--bg2); }
                 .pf-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
                 .pf-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
                 .pf-row .ce-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; }
@@ -379,13 +379,14 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-file { display: inline-flex; align-items: center; gap: 6px; line-height: 30px; cursor: pointer; }
                 .pf-url { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--txt2); }
                 .pf-url input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; }
-                .pf-count { display: flex; align-items: center; gap: 6px; }
+                .pf-count { display: flex; align-items: center; gap: 6px; min-width: 0; }
                 .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }
                 .pf-count .primary { margin-left: auto; }
                 .pf-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1; background: #f0883e; color: #111; font-weight: 700; font-size: var(--fs-sm); padding: 6px 12px; border-radius: 8px; pointer-events: none; }
                 .pf-wide { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); }
-                .pf-n { width: 56px; flex: none; height: 30px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; font-weight: 700; }
+                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 30px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: 14px; font-weight: 700; -moz-appearance: textfield; }
+                .pf-count .pf-n::-webkit-inner-spin-button, .pf-count .pf-n::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
                 .pf-modal .ce-btn { white-space: nowrap; }
                 .pf-check { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--txt0); cursor: pointer; }
                 .pf-warn { color: var(--orange, #d29922); }

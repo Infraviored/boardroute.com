@@ -535,3 +535,11 @@ kbd {
 .active-pin {
   filter: drop-shadow(0 0 5px var(--active-color)) drop-shadow(0 0 10px var(--active-color));
 }
+
+/* fast tooltips (components/FastTooltips.jsx) */
+.fast-tip {
+  position: fixed; z-index: 10000; max-width: 280px; padding: 5px 9px; border-radius: 6px;
+  background: #1c2128; border: 1px solid #3d444d; color: #e6edf3; font-size: 12px; line-height: 1.35;
+  box-shadow: 0 6px 20px rgba(0,0,0,.45); pointer-events: none; opacity: 0; transition: opacity .1s;
+}
+.fast-tip.show { opacity: 1; }

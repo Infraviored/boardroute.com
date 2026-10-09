@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Edit3, Camera } from 'lucide-react';
+import { Plus, Trash2, Edit3, Camera, Undo2 } from 'lucide-react';
 import { SP, netColor, boostColor, compColor } from '../engine/render-utils.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 
@@ -37,14 +37,32 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     const [drag, setDrag] = useState(null); // { kind: 'pin', idx } | { kind: 'edge', edge: 'l'|'r'|'t'|'b' }
     const [frozenView, setFrozenView] = useState(null); // view box held still while dragging
     const svgRef = useRef(null);
-    const [photoFile, setPhotoFile] = useState(photo); // photo being turned into a footprint
-    const fileRef = useRef(null);
+    // photo session: kept after "Use footprint" so "Back to photo" returns to it as it was
+    const [photoSession, setPhotoSession] = useState(() => (photo ? { file: photo === 'pick' ? null : photo, open: true, key: 1 } : null));
+    // undo: earlier states of the part; typing in one field counts as one step
+    const [past, setPast] = useState([]);
+    const lastKey = useRef(null);
+    const update = (u, key = null) => {
+        if (!key || key !== lastKey.current) setPast(p => [...p.slice(-49), data]);
+        lastKey.current = key;
+        setData(u);
+    };
+    const undo = () => {
+        if (!past.length) return;
+        lastKey.current = null;
+        setData(past[past.length - 1]);
+        setPast(p => p.slice(0, -1));
+        setSelectedPinIdx(null);
+    };
 
     // Reset when the dialog (re)opens or gets another part (state adjusted during render).
     const [openedFor, setOpenedFor] = useState({ component, isOpen });
     if (openedFor.component !== component || openedFor.isOpen !== isOpen) {
         setOpenedFor({ component, isOpen });
-        if (component && isOpen) { setData(fromComponent(component)); setSelectedPinIdx(null); setPhotoFile(photo); }
+        if (component && isOpen) {
+            setData(fromComponent(component)); setSelectedPinIdx(null); setPast([]);
+            setPhotoSession(s => (photo ? { file: photo === 'pick' ? null : photo, open: true, key: (s?.key || 0) + 1 } : null));
+        }
     }
 
     // Keyboard: arrows move the selected pin, Delete removes it (not while typing).
@@ -52,14 +70,15 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         if (!isOpen) return;
         const onKey = (e) => {
             const tag = document.activeElement?.tagName;
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || photoFile) return;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || photoSession?.open) return;
             if (e.key === 'Escape') { onClose(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
             if (selectedPinIdx === null) return;
             const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-            if (d) { e.preventDefault(); setData(prev => movePin(prev, selectedPinIdx, prev.pins[selectedPinIdx].dCol + d[0], prev.pins[selectedPinIdx].dRow + d[1])); }
+            if (d) { e.preventDefault(); update(prev => movePin(prev, selectedPinIdx, prev.pins[selectedPinIdx].dCol + d[0], prev.pins[selectedPinIdx].dRow + d[1])); }
             else if (e.key === 'Delete' || e.key === 'Backspace') {
                 e.preventDefault();
-                setData(prev => ({ ...prev, pins: prev.pins.filter((_, i) => i !== selectedPinIdx) }));
+                update(prev => ({ ...prev, pins: prev.pins.filter((_, i) => i !== selectedPinIdx) }));
                 setSelectedPinIdx(null);
             }
         };
@@ -77,7 +96,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     const liveView = { x: foot.x - 2, y: foot.y - 2, w: foot.w + 4, h: foot.h + 4 };
     const view = frozenView || liveView;
 
-    const handleUpdate = (field, val) => setData(prev => ({ ...prev, [field]: val }));
+    const handleUpdate = (field, val) => update(prev => ({ ...prev, [field]: val }), field);
 
     const addPin = () => {
         // next free hole along the right edge of the footprint, then below
@@ -86,16 +105,16 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         for (let r = foot.y; r < foot.y + foot.h && !spot; r++) for (let c = foot.x; c < foot.x + foot.w && !spot; c++) if (!taken.has(`${c},${r}`)) spot = [c, r];
         if (!spot) spot = [foot.x + foot.w, foot.y];
         const pins = [...data.pins, { lbl: `${data.pins.length + 1}`, net: '', dCol: spot[0], dRow: spot[1] }];
-        setData({ ...data, pins });
+        update({ ...data, pins });
         setSelectedPinIdx(pins.length - 1);
     };
 
     const removePin = (idx) => {
-        setData(prev => ({ ...prev, pins: prev.pins.filter((_, i) => i !== idx) }));
+        update(prev => ({ ...prev, pins: prev.pins.filter((_, i) => i !== idx) }));
         setSelectedPinIdx(sel => (sel === idx ? null : sel > idx ? sel - 1 : sel));
     };
 
-    const updatePin = (idx, field, val) => setData(prev => ({ ...prev, pins: prev.pins.map((p, i) => (i === idx ? { ...p, [field]: val } : p)) }));
+    const updatePin = (idx, field, val) => update(prev => ({ ...prev, pins: prev.pins.map((p, i) => (i === idx ? { ...p, [field]: val } : p)) }), `${field}${idx}`);
 
     const toGrid = (e) => {
         const ctm = svgRef.current?.getScreenCTM();
@@ -107,6 +126,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     const startDrag = (e, d) => {
         e.stopPropagation();
         if (d.kind === 'pin') setSelectedPinIdx(d.idx);
+        setPast(p => [...p.slice(-49), data]); lastKey.current = null; // one undo step per drag
         setDrag(d);
         setFrozenView(view); // same frame while dragging (no zoom jump); refit on release
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -143,7 +163,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     // Pins found in a photo replace the current ones; with the same count the labels and nets
     // carry over (re-measuring a part that is already wired).
     const applyPhoto = ({ pins, body }) => {
-        setData(prev => {
+        update(prev => {
             const keep = prev.pins.length === pins.length;
             const next = pins.map(([c, r], i) => ({ lbl: keep ? prev.pins[i].lbl : String(i + 1), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
             const pb = boxOf(next);
@@ -151,7 +171,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             return { ...prev, pins: next, body: larger ? body : null };
         });
         setSelectedPinIdx(null);
-        setPhotoFile(null);
+        setPhotoSession(s => ({ ...s, open: false }));
     };
 
     return (
@@ -163,6 +183,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     <span className="ce-id" style={{ borderColor: mainColor, color: mainColor }}>{data.id || '?'}</span>
                     <span className="ce-size">{foot.w} × {foot.h} holes · {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
                     <div className="ce-head-actions">
+                        <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /> Undo</button>
                         <button className="ce-btn" onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</button>
                         <button className="ce-btn primary" onClick={save}>{mode === 'add' ? 'Add to circuit' : 'Save'}</button>
                     </div>
@@ -239,8 +260,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                         <section>
                             <div className="ce-label">Body</div>
                             <div className="ce-seg">
-                                <button className={!data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: null }))}>Spans the pins</button>
-                                <button className={data.body ? 'active' : ''} onClick={() => setData(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger housing</button>
+                                <button className={!data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: null }))}>Spans the pins</button>
+                                <button className={data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger housing</button>
                             </div>
                             <p className="ce-hint">{data.body
                                 ? 'Drag the outline to the housing size. Other parts and jumpers stay out; wires still pass underneath.'
@@ -248,8 +269,10 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                         </section>
 
                         <section>
-                            <button className="ce-btn ce-photo" onClick={() => fileRef.current?.click()}><Camera size={14} /> Footprint from a photo</button>
-                            <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) setPhotoFile(e.target.files[0]); e.target.value = ''; }} />
+                            <div className="ce-photo-row">
+                                {photoSession && <button className="ce-btn primary ce-photo" onClick={() => setPhotoSession(s => ({ ...s, open: true }))}><Camera size={14} /> Back to photo</button>}
+                                <button className="ce-btn ce-photo" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1 }))}><Camera size={14} /> {photoSession ? 'New photo' : 'Footprint from a photo'}</button>
+                            </div>
                         </section>
 
                         <section className="ce-pins">
@@ -272,10 +295,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 </div>
             </div>
 
-            {photoFile && <PhotoFootprintOverlay file={photoFile} onCancel={() => setPhotoFile(null)} onApply={applyPhoto} />}
+            {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
+                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} />}
 
             <style dangerouslySetInnerHTML={{ __html: `
-                .ce-photo { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+                .ce-photo-row { display: flex; gap: 6px; }
+                .ce-photo { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
                 .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
                 .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }
@@ -284,6 +309,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-head-actions { margin-left: auto; display: flex; gap: 6px; }
                 .ce-btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
                 .ce-btn:hover { border-color: var(--txt2); }
+                .ce-btn:disabled { opacity: .45; cursor: default; }
+                .ce-undo { display: inline-flex; align-items: center; gap: 5px; }
                 .ce-btn.primary { background: var(--grn); border-color: var(--grn-bright); color: #fff; }
                 .ce-btn.primary:hover { background: #2a9a40; }
                 .ce-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }

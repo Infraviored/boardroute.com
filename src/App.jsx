@@ -7,6 +7,7 @@ import { SidebarRight } from './components/SidebarRight.jsx';
 import { ProcessingBar } from './components/ProcessingBar.jsx';
 import { LibraryOverlay } from './components/LibraryOverlay.jsx';
 import { CompEditorOverlay } from './components/CompEditorOverlay.jsx';
+import { FastTooltips } from './components/FastTooltips.jsx';
 import { PromptOverlay } from './components/PromptOverlay.jsx';
 import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
@@ -155,7 +156,7 @@ function App() {
   }, [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
   const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'add' (from the Library)
-  const [editorPhoto, setEditorPhoto] = useState(null);  // photo to read a new part's footprint from
+  const [editorPhoto, setEditorPhoto] = useState(null);  // 'pick': open the editor with the photo dialog
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
   const [previewPath, setPreviewPath] = useState(null);
@@ -746,8 +747,9 @@ function App() {
         />
       </div>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
+      <FastTooltips />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(c) => handleAddFromLibrary(c)}
-        onPhoto={(file) => handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, file)} />
+        onPhoto={() => handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, 'pick')} />
       <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} photo={editorPhoto} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay

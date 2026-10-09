@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Minus, Plus, FlipHorizontal2, RotateCcw, Loader2, Ruler } from 'lucide-react';
+import { Camera, Minus, Plus, FlipHorizontal2, RotateCcw, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2 } from 'lucide-react';
 import { bodyHoles } from '../engine/photo-footprint.js';
 
 const MAX_SIDE = 1600; // photos are scaled down to this before detection
 
 // Footprint from a photo: runs the detection in a worker, shows the straightened photo with the
 // hole grid and the found pins on top, and lets the user fix what the detection got wrong
-// (drag = move the grid, click = toggle a pin, +/- = pitch, or measure: click the first and last
-// pin of a row and say how many pins that is) before the pins go to the editor.
+// (drag = move the grid, click = toggle a pin; measure: click the first and last pin of a row
+// and say how many pins that is; mark another row: two clicks on the grid) before the pins go to
+// the editor. The photo comes from a file/camera, the clipboard (Ctrl+V), drag & drop or a URL.
 // Grid: hole (c, r) sits at origin + pitch·R(angle)·(c, r) in the straightened photo.
 const holeAt = (g, c, r) => {
     const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0);
@@ -17,21 +18,77 @@ const holeOf = (g, x, y) => {
     const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0), dx = (x - g.phaseX) / g.pitch, dy = (y - g.phaseY) / g.pitch;
     return [Math.round(dx * cs + dy * sn), Math.round(-dx * sn + dy * cs)];
 };
-export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
-    const [state, setState] = useState({ status: 'loading' }); // loading | ready | error
+export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden = false }) {
+    const [src, setSrc] = useState(file); // the photo (Blob); null = ask for one
+    const [state, setState] = useState({ status: file ? 'loading' : 'pick' }); // pick | loading | ready | error
     const [grid, setGrid] = useState(null); // { pitch, phaseX, phaseY }
     const [pins, setPins] = useState([]);   // [[col, row]]
     const [mirror, setMirror] = useState(false);
     const [drag, setDrag] = useState(null);
-    const [measure, setMeasure] = useState(null); // null | { a } waiting for 2nd click | { a, b, n } asking for the pin count
+    // null | { kind: 'scale' | 'row', a?, b?, n? }: 'scale' sets the grid from two pins and a
+    // count, 'row' adds the pins between two clicked holes on the current grid
+    const [measure, setMeasure] = useState(null);
+    const [url, setUrl] = useState('');
+    const [over, setOver] = useState(false); // a file dragged over the dialog
+    const [hist, setHist] = useState([]);    // undo: earlier { grid, pins }
+    const snap = () => setHist(h => [...h.slice(-49), { grid, pins }]);
+    const undo = () => setHist(h => {
+        if (!h.length) return h;
+        const last = h[h.length - 1];
+        setGrid(last.grid); setPins(last.pins); setMeasure(null);
+        return h.slice(0, -1);
+    });
     const svgRef = useRef(null);
 
+    const load = (blob) => {
+        if (!blob || !/^image\//.test(blob.type || 'image/')) return;
+        setMeasure(null); setMirror(false); setHist([]); setState({ status: 'loading' }); setSrc(blob);
+    };
+
+    // paste an image anywhere while the dialog is open
     useEffect(() => {
+        if (hidden) return;
+        const onPaste = (e) => {
+            const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+            if (item) { e.preventDefault(); load(item.getAsFile()); }
+        };
+        window.addEventListener('paste', onPaste);
+        return () => window.removeEventListener('paste', onPaste);
+    }, [hidden]);
+
+    const pasteButton = async () => {
+        try {
+            for (const item of await navigator.clipboard.read()) {
+                const type = item.types.find(t => t.startsWith('image/'));
+                if (type) return load(await item.getType(type));
+            }
+            setState({ status: 'pick', reason: 'No image in the clipboard. Copy an image first (right-click → Copy image).' });
+        } catch {
+            setState({ status: 'pick', reason: 'The browser blocked reading the clipboard. Press Ctrl+V (⌘V) instead.' });
+        }
+    };
+
+    const loadUrl = async () => {
+        const u = url.trim();
+        if (!u) return;
+        setState({ status: 'loading' });
+        try {
+            const r = await fetch(u, { mode: 'cors' });
+            const blob = await r.blob();
+            if (!r.ok || !blob.type.startsWith('image/')) throw new Error();
+            load(blob);
+        } catch {
+            setState({ status: 'pick', reason: 'That site does not let other pages load its images. Open the image, right-click → Copy image, and paste it here with Ctrl+V.' });
+        }
+    };
+
+    useEffect(() => {
+        if (!src) return;
         let alive = true;
         const worker = new Worker(new URL('../engine/photo.worker.js', import.meta.url), { type: 'module' });
         (async () => {
             try {
-                const bmp = await createImageBitmap(file);
+                const bmp = await createImageBitmap(src);
                 const f = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
                 const canvas = document.createElement('canvas');
                 canvas.width = Math.round(bmp.width * f); canvas.height = Math.round(bmp.height * f);
@@ -64,13 +121,17 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
             }
         })();
         return () => { alive = false; worker.terminate(); };
-    }, [file]);
+    }, [src]);
 
     useEffect(() => {
-        const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } };
+        if (hidden) return;
+        const onKey = (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); if (measure) setMeasure(null); else onCancel(); }
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && document.activeElement?.tagName !== 'INPUT') { e.preventDefault(); e.stopPropagation(); undo(); }
+        };
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [onCancel]);
+    });
 
     const toImage = (e) => {
         const ctm = svgRef.current?.getScreenCTM();
@@ -90,6 +151,7 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
         if (!moved) return;
         const p = toImage(e);
         if (!p) return;
+        if (!drag.moved) snap();
         setDrag({ ...drag, moved: true });
         setGrid({ ...drag.g, phaseX: drag.g.phaseX + p.x - drag.x, phaseY: drag.g.phaseY + p.y - drag.y });
         if (measure) setMeasure(null);
@@ -99,8 +161,10 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
         if (!drag.moved) {
             const p = toImage(e);
             if (p && measure && !measure.b) {
-                if (!measure.a) setMeasure({ a: [p.x, p.y] });
+                if (!measure.a) setMeasure({ ...measure, a: [p.x, p.y] });
+                else if (measure.kind === 'row') { snap(); addRow(measure.a, [p.x, p.y]); setMeasure(null); }
                 else {
+                    snap();
                     const b = [p.x, p.y], d = Math.hypot(b[0] - measure.a[0], b[1] - measure.a[1]);
                     const n = Math.max(2, Math.round(d / grid.pitch) + 1);
                     setMeasure({ ...measure, b, n });
@@ -108,20 +172,27 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
                 }
             } else if (p && !measure) {
                 const [c, r] = holeOf(grid, p.x, p.y);
+                snap();
                 setPins(prev => prev.some(([a, b]) => a === c && b === r) ? prev.filter(([a, b]) => a !== c || b !== r) : [...prev, [c, r]]);
             }
         }
         setDrag(null);
     };
 
-    // change the pitch, keeping the middle of the pins where it is
-    const scale = (f) => setGrid(g => {
-        const mc = pins.length ? pins.reduce((s, p) => s + p[0], 0) / pins.length : 0;
-        const mr = pins.length ? pins.reduce((s, p) => s + p[1], 0) / pins.length : 0;
-        const [x, y] = holeAt(g, mc, mr), g2 = { ...g, pitch: g.pitch * f };
-        const [x2, y2] = holeAt(g2, mc, mr);
-        return { ...g2, phaseX: g.phaseX + x - x2, phaseY: g.phaseY + y - y2 };
-    });
+    // Another row on the current grid: both clicks snap to holes, every hole on the straight
+    // line between them becomes a pin.
+    const addRow = (a, b) => {
+        const [c0, r0] = holeOf(grid, ...a), [c1, r1] = holeOf(grid, ...b);
+        const n = Math.max(Math.abs(c1 - c0), Math.abs(r1 - r0));
+        const add = [];
+        for (let i = 0; i <= n; i++) add.push([Math.round(c0 + (c1 - c0) * i / (n || 1)), Math.round(r0 + (r1 - r0) * i / (n || 1))]);
+        setPins(prev => {
+            const have = new Set(prev.map(q => q.join()));
+            return [...prev, ...add.filter(q => !have.has(q.join()))];
+        });
+    };
+
+    const setCount = (n) => { n = Math.max(2, Math.min(80, n)); setMeasure(m => ({ ...m, n })); applyMeasure(measure.a, measure.b, n); };
 
     // Two clicked pins n pins apart define the grid exactly: spacing, angle and position.
     // The row between them becomes pins (it almost always is a header).
@@ -176,7 +247,7 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
     }
 
     return (
-        <div className="overlay-bg pf-bg" onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+        <div className="overlay-bg pf-bg" style={hidden ? { display: 'none' } : undefined} onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
             <div className="modal pf-modal" role="dialog" aria-label="Footprint from a photo">
                 <header className="ce-head">
                     <Camera size={16} className="icon-accent" />
@@ -189,10 +260,31 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
                 </header>
 
                 <div className="pf-body">
-                    <div className="pf-view">
+                    <div className={'pf-view' + (over ? ' over' : '')}
+                        onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+                        onDrop={e => { e.preventDefault(); setOver(false); load(e.dataTransfer.files?.[0]); }}>
+                        {state.status === 'pick' && (
+                            <div className="pf-pick">
+                                <ImageUp size={34} />
+                                <b>Add a photo of the part</b>
+                                <span>Straight from above, on white paper. Drop it here, paste it (Ctrl+V) or:</span>
+                                <div className="pf-row pf-center">
+                                    <label className="ce-btn primary pf-file"><Camera size={14} /> Choose or take a photo
+                                        <input type="file" accept="image/*" hidden onChange={e => { load(e.target.files?.[0]); e.target.value = ''; }} />
+                                    </label>
+                                    <button className="ce-btn" onClick={pasteButton}><ClipboardPaste size={14} /> Paste</button>
+                                </div>
+                                <form className="pf-url" onSubmit={e => { e.preventDefault(); loadUrl(); }}>
+                                    <Link2 size={14} />
+                                    <input value={url} onChange={e => setUrl(e.target.value)} placeholder="…or an image URL" aria-label="Image URL" />
+                                    <button className="ce-btn" type="submit" disabled={!url.trim()}>Load</button>
+                                </form>
+                                {state.reason && <div className="pf-warn">{state.reason}</div>}
+                            </div>
+                        )}
                         {state.status === 'loading' && <div className="pf-msg"><Loader2 size={22} className="spin" /> Finding pins…</div>}
                         {state.status === 'error' && <div className="pf-msg err">{state.reason}<Tips /></div>}
-                        {ready && measure && !measure.b && <div className="pf-banner">{measure.a ? 'Now click the centre of the last pin of that row' : 'Click the centre of the first pin of a row'}</div>}
+                        {ready && measure && !measure.b && <div className="pf-banner">{measure.a ? 'Now click the last pin of that row' : 'Click the first pin of a row'}</div>}
                         {ready && (
                             <svg ref={svgRef} viewBox={`0 0 ${state.W} ${state.H}`} preserveAspectRatio="xMidYMid meet"
                                 onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
@@ -223,41 +315,42 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
                         <section>
                             <div className="ce-label">Check the result</div>
                             <p className="ce-hint">
-                                {ready && !state.found ? <b className="pf-warn">{state.reason || 'No pins found.'} Measure with two pins, mark them by hand or try another photo. </b> : null}
-                                Every pin needs a green ring. <b>Click</b> a hole to add or remove a pin, <b>drag</b> to move the grid onto the pins.
+                                {ready && !state.found ? <b className="pf-warn">{state.reason || 'No pins found.'} Measure one row below. </b> : null}
+                                Every pin needs a green ring. <b>Drag</b> the photo to move the grid onto the pins.
                             </p>
                         </section>
                         <section>
-                            <div className="ce-label">Scale from two pins</div>
-                            {!measure && <button className="ce-btn pf-wide" disabled={!ready} onClick={() => setMeasure({})}><Ruler size={14} /> Click first and last pin of a row</button>}
-                            {measure && !measure.b && <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel measuring</button>}
-                            {measure?.b && (
-                                <div className="pf-row">
-                                    <span className="pf-lbl">Pins in that row</span>
-                                    <button className="ce-btn" onClick={() => { const n = Math.max(2, measure.n - 1); setMeasure({ ...measure, n }); applyMeasure(measure.a, measure.b, n); }}><Minus size={14} /></button>
-                                    <input className="pf-n" type="number" min="2" max="80" value={measure.n} aria-label="Pins in that row"
-                                        onChange={e => { const n = Math.max(2, Math.min(80, Math.round(+e.target.value) || 2)); setMeasure({ ...measure, n }); applyMeasure(measure.a, measure.b, n); }} />
-                                    <button className="ce-btn" onClick={() => { const n = measure.n + 1; setMeasure({ ...measure, n }); applyMeasure(measure.a, measure.b, n); }}><Plus size={14} /></button>
-                                    <button className="ce-btn" onClick={() => setMeasure(null)}>Done</button>
-                                </div>
+                            <div className="ce-label">1 · Scale from one row</div>
+                            {measure?.kind !== 'scale' && <button className="ce-btn pf-wide" disabled={!ready || !!measure} onClick={() => setMeasure({ kind: 'scale' })}><Ruler size={14} /> Click first and last pin of a row</button>}
+                            {measure?.kind === 'scale' && !measure.b && <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel</button>}
+                            {measure?.kind === 'scale' && measure.b && (
+                                <>
+                                    <span className="pf-lbl">How many pins are in that row?</span>
+                                    <div className="pf-count">
+                                        <button className="ce-btn" onClick={() => setCount(measure.n - 1)} aria-label="One pin less"><Minus size={14} /></button>
+                                        <input className="pf-n" type="number" min="2" max="80" value={measure.n} aria-label="Pins in that row"
+                                            onChange={e => setCount(Math.round(+e.target.value) || 2)} />
+                                        <button className="ce-btn" onClick={() => setCount(measure.n + 1)} aria-label="One pin more"><Plus size={14} /></button>
+                                        <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
+                                    </div>
+                                </>
                             )}
-                            <p className="ce-hint">Most reliable: the pins of a header are 2.54 mm apart, so two clicked pins and their count give the exact scale and angle.</p>
+                            <p className="ce-hint">Header pins are 2.54 mm apart: two clicked pins and their count set the grid exactly.</p>
                         </section>
                         <section>
-                            <div className="ce-label">Grid spacing</div>
-                            <div className="pf-row">
-                                <button className="ce-btn" onClick={() => scale(1 / 1.005)} disabled={!ready} title="Smaller grid"><Minus size={14} /></button>
-                                <span className="pf-val">{ready ? grid.pitch.toFixed(1) : '–'} px</span>
-                                <button className="ce-btn" onClick={() => scale(1.005)} disabled={!ready} title="Larger grid"><Plus size={14} /></button>
-                            </div>
-                            <p className="ce-hint">Pins are 2.54 mm apart, so the grid spacing is the photo's scale. Adjust it until the rings sit on the pins at both ends of a row.</p>
+                            <div className="ce-label">2 · More rows</div>
+                            {measure?.kind !== 'row' && <button className="ce-btn pf-wide" disabled={!ready || !!measure} onClick={() => setMeasure({ kind: 'row' })}><Rows3 size={14} /> Mark another row</button>}
+                            {measure?.kind === 'row' && <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel</button>}
+                            <p className="ce-hint">Click its first and last pin; every hole between becomes a pin. Single pins: click a hole.</p>
                         </section>
                         <section>
                             <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
                             <p className="ce-hint">The solder side is the mirror image of the top; this flips it back.</p>
                             <div className="pf-row">
-                                <button className="ce-btn" disabled={!ready} onClick={() => { setMeasure(null); setGrid({ angle: 0, pitch: state.auto.pitch, phaseX: state.auto.phaseX, phaseY: state.auto.phaseY }); setPins(state.auto.pins); }}><RotateCcw size={13} /> Undo my changes</button>
-                                <button className="ce-btn" disabled={!ready || !pins.length} onClick={() => setPins([])}>Clear pins</button>
+                                <button className="ce-btn" disabled={!hist.length} onClick={undo} title="Ctrl+Z"><Undo2 size={13} /> Undo</button>
+                                <button className="ce-btn" disabled={!ready} onClick={() => { snap(); setMeasure(null); setGrid({ angle: 0, pitch: state.auto.pitch, phaseX: state.auto.phaseX, phaseY: state.auto.phaseY }); setPins(state.auto.pins); }} title="Back to what was found automatically"><RotateCcw size={13} /> Reset</button>
+                                <button className="ce-btn" disabled={!ready || !pins.length} onClick={() => { snap(); setPins([]); }}>Clear pins</button>
+                                <button className="ce-btn" disabled={state.status === 'loading'} onClick={() => { setMeasure(null); setState({ status: 'pick' }); }}><ImageUp size={13} /> Other photo</button>
                             </div>
                         </section>
                         <section className="pf-tips"><Tips /></section>
@@ -278,11 +371,21 @@ export function PhotoFootprintOverlay({ file, onCancel, onApply }) {
                 .pf-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
                 .pf-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
                 .pf-row .ce-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; }
-                .pf-val { font-family: ui-monospace, Consolas, monospace; font-size: var(--fs-sm); color: var(--txt0); min-width: 70px; text-align: center; }
+                .pf-view.over { outline: 2px dashed var(--blu-bright); outline-offset: -8px; }
+                .pf-pick { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 440px; padding: 24px; text-align: center; color: var(--txt1); font-size: var(--fs-sm); }
+                .pf-pick > svg { color: var(--txt2); }
+                .pf-pick b { color: var(--txt0); font-size: var(--fs-md); }
+                .pf-center { justify-content: center; }
+                .pf-file { display: inline-flex; align-items: center; gap: 6px; line-height: 30px; cursor: pointer; }
+                .pf-url { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--txt2); }
+                .pf-url input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; }
+                .pf-count { display: flex; align-items: center; gap: 6px; }
+                .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }
+                .pf-count .primary { margin-left: auto; }
                 .pf-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1; background: #f0883e; color: #111; font-weight: 700; font-size: var(--fs-sm); padding: 6px 12px; border-radius: 8px; pointer-events: none; }
                 .pf-wide { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-                .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); margin-right: auto; }
-                .pf-n { width: 52px; height: 30px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; font-weight: 700; }
+                .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); }
+                .pf-n { width: 56px; flex: none; height: 30px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; font-weight: 700; }
                 .pf-modal .ce-btn { white-space: nowrap; }
                 .pf-check { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--txt0); cursor: pointer; }
                 .pf-warn { color: var(--orange, #d29922); }

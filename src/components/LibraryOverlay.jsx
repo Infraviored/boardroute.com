@@ -99,10 +99,9 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
                 <div className="modal-header">
                     <h3>Component Library</h3>
                     {onPhoto && (
-                        <label className="lib-photo" title="Take or pick a photo of the part: pins and size are read from it">
+                        <button className="lib-photo" onClick={onPhoto} title="Photo, pasted image or URL of the part: pins and size are read from it">
                             <Camera size={14} /> From a photo
-                            <input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(f); }} />
-                        </label>
+                        </button>
                     )}
                     <button className="close-btn" onClick={onClose}>✕</button>
                 </div>
@@ -161,7 +160,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
             <style dangerouslySetInnerHTML={{
                 __html: `
         .lib-modal { max-width: 640px; max-height: 86vh; }
-        .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--blu); color: var(--blu-bright); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+        .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--blu); color: var(--blu-bright); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; background: none; font-family: inherit; }
         .lib-photo:hover { background: rgba(31,111,235,.12); }
         .lib-cats { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
         .lib-cat {

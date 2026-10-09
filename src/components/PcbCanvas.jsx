@@ -123,6 +123,8 @@ export function PcbCanvas({
     };
 
     const handlePointerDown = (e) => {
+        // the toolbar sits inside the canvas: capturing the pointer here would steal its clicks
+        if (e.target.closest?.('.canvas-controls')) return;
         const pos = getMousePos(e);
         if (side === 'bottom') {
             // The solder-side view is mirrored and view-only: every drag pans.

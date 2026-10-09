@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Edit3 } from 'lucide-react';
+import { Plus, Trash2, Edit3, Camera } from 'lucide-react';
 import { SP, netColor, boostColor, compColor } from '../engine/render-utils.js';
+import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 
 // Footprint editor.
 // Model: pins sit on integer holes (any coordinates while editing, normalised on save) and the
@@ -30,18 +31,20 @@ const union = (a, b) => {
     return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
 };
 
-export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames = [], mode = 'edit' }) {
+export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames = [], mode = 'edit', photo = null }) {
     const [data, setData] = useState(() => fromComponent(component));
     const [selectedPinIdx, setSelectedPinIdx] = useState(null);
     const [drag, setDrag] = useState(null); // { kind: 'pin', idx } | { kind: 'edge', edge: 'l'|'r'|'t'|'b' }
     const [frozenView, setFrozenView] = useState(null); // view box held still while dragging
     const svgRef = useRef(null);
+    const [photoFile, setPhotoFile] = useState(photo); // photo being turned into a footprint
+    const fileRef = useRef(null);
 
     // Reset when the dialog (re)opens or gets another part (state adjusted during render).
     const [openedFor, setOpenedFor] = useState({ component, isOpen });
     if (openedFor.component !== component || openedFor.isOpen !== isOpen) {
         setOpenedFor({ component, isOpen });
-        if (component && isOpen) { setData(fromComponent(component)); setSelectedPinIdx(null); }
+        if (component && isOpen) { setData(fromComponent(component)); setSelectedPinIdx(null); setPhotoFile(photo); }
     }
 
     // Keyboard: arrows move the selected pin, Delete removes it (not while typing).
@@ -49,7 +52,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         if (!isOpen) return;
         const onKey = (e) => {
             const tag = document.activeElement?.tagName;
-            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || photoFile) return;
             if (e.key === 'Escape') { onClose(); return; }
             if (selectedPinIdx === null) return;
             const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
@@ -136,6 +139,20 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     };
 
     const mainColor = boostColor(compColor(data));
+
+    // Pins found in a photo replace the current ones; with the same count the labels and nets
+    // carry over (re-measuring a part that is already wired).
+    const applyPhoto = ({ pins, body }) => {
+        setData(prev => {
+            const keep = prev.pins.length === pins.length;
+            const next = pins.map(([c, r], i) => ({ lbl: keep ? prev.pins[i].lbl : String(i + 1), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
+            const pb = boxOf(next);
+            const larger = body.x < pb.x || body.y < pb.y || body.x + body.w > pb.x + pb.w || body.y + body.h > pb.y + pb.h;
+            return { ...prev, pins: next, body: larger ? body : null };
+        });
+        setSelectedPinIdx(null);
+        setPhotoFile(null);
+    };
 
     return (
         <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -230,6 +247,11 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 : 'Move a pin outward and the part grows with it.'}</p>
                         </section>
 
+                        <section>
+                            <button className="ce-btn ce-photo" onClick={() => fileRef.current?.click()}><Camera size={14} /> Footprint from a photo</button>
+                            <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) setPhotoFile(e.target.files[0]); e.target.value = ''; }} />
+                        </section>
+
                         <section className="ce-pins">
                             <div className="ce-label">Pins <span>{data.pins.length}</span>
                                 <button className="ce-add" onClick={addPin} title="Add a pin"><Plus size={14} /> Add</button>
@@ -250,7 +272,10 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 </div>
             </div>
 
+            {photoFile && <PhotoFootprintOverlay file={photoFile} onCancel={() => setPhotoFile(null)} onApply={applyPhoto} />}
+
             <style dangerouslySetInnerHTML={{ __html: `
+                .ce-photo { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
                 .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
                 .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }

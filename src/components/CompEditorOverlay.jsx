@@ -190,7 +190,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     const applyPhoto = ({ pins, body, image }) => {
         update(prev => {
             const keep = prev.pins.length === pins.length;
-            const next = pins.map(([c, r], i) => ({ lbl: keep ? prev.pins[i].lbl : String(i + 1), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
+            // names read from the photo win; otherwise keep the old labels (same count) or number them
+            const next = pins.map(([c, r, label], i) => ({ lbl: label || (keep ? prev.pins[i].lbl : String(i + 1)), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
             const pb = boxOf(next);
             const larger = body.x < pb.x || body.y < pb.y || body.x + body.w > pb.x + pb.w || body.y + body.h > pb.y + pb.h;
             return { ...prev, pins: next, body: larger ? body : null, image: image ? { src: image.src, turn: 0, box: { x: image.x, y: image.y, w: image.w, h: image.h }, base: { w: image.w, h: image.h } } : prev.image };

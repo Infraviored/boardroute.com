@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Minus, Plus, FlipHorizontal2, RotateCcw, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2 } from 'lucide-react';
+import { Camera, Minus, Plus, FlipHorizontal2, RotateCcw, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2, ScanText } from 'lucide-react';
 import { bodyHoles } from '../engine/photo-footprint.js';
+import { readLabels } from './ocr-labels.js';
 
 const MAX_SIDE = 1600; // photos are scaled down to this before detection
 
@@ -28,6 +29,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const [mirror, setMirror] = useState(false);
     const [box, setBox] = useState(null);       // body set by hand: { x0, y0, x1, y1 } in holes; null = from the photo
     const [keepPhoto, setKeepPhoto] = useState(true); // the cut-out photo becomes the part's picture
+    const [labels, setLabels] = useState({});  // pin names read by OCR: { "col,row": text }
+    const [ocr, setOcr] = useState(null);      // null | { done, total } while reading | { read, of, error? } after
+    const [textDir, setTextDir] = useState('auto'); // reading direction: 'auto' | 0 | 1 | 3 quarter turns
     const [drag, setDrag] = useState(null);
     // null | { kind: 'scale' | 'row', a?, b?, n? }: 'scale' sets the grid from two pins and a
     // count, 'row' adds the pins between two clicked holes on the current grid
@@ -35,18 +39,18 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const [url, setUrl] = useState('');
     const [over, setOver] = useState(false); // a file dragged over the dialog
     const [hist, setHist] = useState([]);    // undo: earlier { grid, pins }
-    const snap = () => setHist(h => [...h.slice(-49), { grid, pins, box }]);
+    const snap = () => setHist(h => [...h.slice(-49), { grid, pins, box, labels }]);
     const undo = () => setHist(h => {
         if (!h.length) return h;
         const last = h[h.length - 1];
-        setGrid(last.grid); setPins(last.pins); setBox(last.box); setMeasure(null);
+        setGrid(last.grid); setPins(last.pins); setBox(last.box); setLabels(last.labels || {}); setMeasure(null);
         return h.slice(0, -1);
     });
     const svgRef = useRef(null);
 
     const load = (blob) => {
         if (!blob || !/^image\//.test(blob.type || 'image/')) return;
-        setMeasure(null); setMirror(false); setHist([]); setBox(null); setState({ status: 'loading' }); setSrc(blob);
+        setMeasure(null); setMirror(false); setHist([]); setBox(null); setLabels({}); setOcr(null); setState({ status: 'loading' }); setSrc(blob);
     };
 
     // paste an image anywhere while the dialog is open
@@ -146,6 +150,13 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const onPointerDown = (e) => {
         const p = toImage(e);
         if (!p || !grid) return;
+        if (measure?.kind === 'ocr') {
+            // drawing the box over a row of labels
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+            setMeasure({ kind: 'ocr', a: [p.x, p.y], b: [p.x, p.y] });
+            setDrag({ ocr: true });
+            return;
+        }
         const edge = e.target.getAttribute?.('data-edge');
         if (edge) {
             // a handle of the body outline: drag that edge
@@ -160,6 +171,11 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     };
     const onPointerMove = (e) => {
         if (!drag) return;
+        if (drag.ocr) {
+            const p = toImage(e);
+            if (p) setMeasure(m => ({ ...m, b: [p.x, p.y] }));
+            return;
+        }
         if (drag.edge) {
             const p = toImage(e);
             if (!p) return;
@@ -188,6 +204,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const onPointerUp = (e) => {
         if (!drag) return;
         if (drag.edge) { setDrag(null); return; }
+        if (drag.ocr) { setDrag(null); runOcr(measure.a, measure.b); return; }
         if (!drag.moved) {
             const p = toImage(e);
             if (p && measure && !measure.b) {
@@ -230,6 +247,38 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         if (n >= 2 && n <= 80) { setMeasure(m => ({ ...m, n, text })); applyMeasure(measure.a, measure.b, n); }
     };
 
+    // OCR: the drawn box, cut into one cell per pin of the row next to it (the row runs along
+    // the box's long side; for each column the pin nearest to the box gets the label)
+    async function runOcr(a, b) {
+        const [ua, va] = gridOf(grid, ...a), [ub, vb] = gridOf(grid, ...b);
+        const u0 = Math.min(ua, ub), u1 = Math.max(ua, ub), v0 = Math.min(va, vb), v1 = Math.max(va, vb);
+        setMeasure(null);
+        if (u1 - u0 < 0.4 && v1 - v0 < 0.4) return;
+        const along = u1 - u0 >= v1 - v0; // row runs horizontally
+        const cells = [];
+        const [lo, hi, mid] = along ? [u0, u1, (v0 + v1) / 2] : [v0, v1, (u0 + u1) / 2];
+        for (let i = Math.ceil(lo - 0.3); i <= Math.floor(hi + 0.3); i++) {
+            const inLine = pins.filter(p => (along ? p[0] : p[1]) === i);
+            if (!inLine.length) continue;
+            const pin = inLine.reduce((best, p) => (Math.abs((along ? p[1] : p[0]) - mid) < Math.abs((along ? best[1] : best[0]) - mid) ? p : best));
+            // a bit wider than one pitch: this pin's label stays whole, neighbours' letters touch the
+            // edge and are dropped
+            // (and a little taller than drawn: letters the box only grazes stay whole)
+            cells.push(along ? { key: pin.join(), c0: i - 0.65, c1: i + 0.65, r0: v0 - 0.05, r1: v1 + 0.05 } : { key: pin.join(), c0: u0 - 0.05, c1: u1 + 0.05, r0: i - 0.65, r1: i + 0.65 });
+        }
+        if (!cells.length) { setOcr({ read: 0, of: 0, error: 'No pins next to that box.' }); return; }
+        setOcr({ done: 0, total: cells.length });
+        try {
+            const res = await readLabels(state.url, grid, cells, { turn: textDir, progress: (done, total) => setOcr({ done, total }) });
+            snap();
+            setLabels(prev => ({ ...prev, ...res.labels }));
+            setOcr({ read: Object.keys(res.labels).length, of: cells.length });
+        } catch (err) {
+            console.error(err);
+            setOcr({ read: 0, of: cells.length, error: 'Text recognition could not be loaded.' });
+        }
+    }
+
     // Two clicked pins n pins apart define the grid exactly: spacing, angle and position.
     // The row between them becomes pins (it almost always is a header).
     function applyMeasure(a, b, n) {
@@ -241,6 +290,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const g = { pitch: d / (n - 1), angle: ang, phaseX: a[0], phaseY: a[1] };
         setGrid(g);
         setBox(null);
+        setLabels({});
         const steps = [[1, 0], [0, 1], [-1, 0], [0, -1]][((quarter % 4) + 4) % 4];
         setPins(Array.from({ length: n }, (_, i) => [steps[0] * i, steps[1] * i]));
     }
@@ -266,10 +316,10 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
     const apply = async () => {
         if (!pins.length) return;
-        let ps = pins.map(([c, r]) => [c - body.x, r - body.y]);
+        let ps = pins.map(([c, r]) => [c - body.x, r - body.y, labels[c + ',' + r]]);
         let b = { x: 0, y: 0, w: body.w, h: body.h };
         // an underside photo shows the footprint mirrored
-        if (mirror) ps = ps.map(([c, r]) => [b.w - 1 - c, r]);
+        if (mirror) ps = ps.map(([c, r, l]) => [b.w - 1 - c, r, l]);
         ps.sort((p, q) => p[1] - q[1] || p[0] - q[0]);
         let image = null;
         if (keepPhoto) {
@@ -336,7 +386,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         )}
                         {state.status === 'loading' && <div className="pf-msg"><Loader2 size={22} className="spin" /> Finding pins…</div>}
                         {state.status === 'error' && <div className="pf-msg err">{state.reason}<Tips /></div>}
-                        {ready && measure && !measure.b && <div className="pf-banner">{measure.a ? 'Now click the last pin of that row' : 'Click the first pin of a row'}</div>}
+                        {ready && measure && measure.kind !== 'ocr' && !measure.b && <div className="pf-banner">{measure.a ? 'Now click the last pin of that row' : 'Click the first pin of a row'}</div>}
+                        {ready && measure?.kind === 'ocr' && !drag && <div className="pf-banner">Drag a box over the labels next to one row of pins</div>}
+                        {ocr && 'total' in ocr && <div className="pf-banner"><Loader2 size={13} className="spin" /> Reading labels… {ocr.done}/{ocr.total}</div>}
                         {ready && (
                             <svg ref={svgRef} viewBox={`0 0 ${state.W} ${state.H}`} preserveAspectRatio="xMidYMid meet"
                                 onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
@@ -358,7 +410,15 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                         <title>Drag to change the part's outline</title>
                                     </rect>
                                 ))}
-                                {measure?.a && <circle cx={measure.a[0]} cy={measure.a[1]} r={Math.max(6, grid.pitch * 0.18)} fill="#f0883e" stroke="#fff" strokeWidth={2} />}
+                                {pins.map(([c, r]) => { const t = labels[c + ',' + r]; if (!t) return null; const [x, y] = holeAt(grid, c, r); return (
+                                    <text key={'l' + c + ',' + r} x={x} y={y} dy=".35em" textAnchor="middle" fontSize={grid.pitch * Math.min(0.42, 1.1 / Math.max(2, t.length))} fontWeight="800"
+                                        fill="#ffd33d" stroke="#000" strokeWidth={grid.pitch / 22} paintOrder="stroke" style={{ pointerEvents: 'none' }}>{t}</text>
+                                ); })}
+                                {measure?.kind === 'ocr' && measure.a && measure.b && (
+                                    <rect x={Math.min(measure.a[0], measure.b[0])} y={Math.min(measure.a[1], measure.b[1])} width={Math.abs(measure.b[0] - measure.a[0])} height={Math.abs(measure.b[1] - measure.a[1])}
+                                        fill="rgba(255,211,61,.15)" stroke="#ffd33d" strokeWidth={Math.max(2, grid.pitch / 16)} strokeDasharray={`${grid.pitch / 5} ${grid.pitch / 8}`} />
+                                )}
+                                {measure?.kind !== 'ocr' && measure?.a && <circle cx={measure.a[0]} cy={measure.a[1]} r={Math.max(6, grid.pitch * 0.18)} fill="#f0883e" stroke="#fff" strokeWidth={2} />}
                                 {measure?.b && <>
                                     <line x1={measure.a[0]} y1={measure.a[1]} x2={measure.b[0]} y2={measure.b[1]} stroke="#f0883e" strokeWidth={Math.max(2, grid.pitch / 16)} />
                                     <circle cx={measure.b[0]} cy={measure.b[1]} r={Math.max(6, grid.pitch * 0.18)} fill="#f0883e" stroke="#fff" strokeWidth={2} />
@@ -407,6 +467,26 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                             <p className="ce-hint">Cut to the outline, the background made transparent.</p>
                         </section>
                         <section>
+                            <div className="ce-label">4 · Pin names (optional)</div>
+                            {measure?.kind !== 'ocr'
+                                ? <button className="ce-btn pf-wide" disabled={!ready || !pins.length || !!measure || (ocr && 'total' in ocr)} onClick={() => setMeasure({ kind: 'ocr' })}><ScanText size={14} /> Read labels next to a row</button>
+                                : <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel</button>}
+                            <div className="pf-row">
+                                <span className="pf-lbl">Text runs</span>
+                                <select className="pf-select" value={String(textDir)} onChange={e => setTextDir(e.target.value === 'auto' ? 'auto' : +e.target.value)}>
+                                    <option value="auto">find out</option>
+                                    <option value="0">left to right</option>
+                                    <option value="3">bottom to top</option>
+                                    <option value="1">top to bottom</option>
+                                    <option value="2">upside down</option>
+                                </select>
+                                {Object.keys(labels).length > 0 && <button className="ce-btn" onClick={() => { snap(); setLabels({}); setOcr(null); }}>Clear names</button>}
+                            </div>
+                            <p className="ce-hint">{ocr && 'read' in ocr
+                                ? (ocr.error || `Read ${ocr.read} of ${ocr.of} labels. Wrong ones can be fixed in the editor; or draw the box again, tighter around the text.`)
+                                : 'Draw a box over the printed names beside a header; each pin gets the text next to it. Repeat for the other rows.'}</p>
+                        </section>
+                        <section>
                             <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
                             <p className="ce-hint">The solder side is the mirror image of the top; this flips it back.</p>
                             <div className="pf-row">
@@ -442,6 +522,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-file { display: inline-flex; align-items: center; gap: 6px; line-height: 30px; cursor: pointer; }
                 .pf-url { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--txt2); }
                 .pf-url input { flex: 1; min-width: 0; height: 30px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; }
+                .pf-select { height: 28px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; padding: 0 6px; }
+                .pf-banner svg { vertical-align: -2px; }
                 .pf-count { display: flex; align-items: center; gap: 6px; min-width: 0; }
                 .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }
                 .pf-count .primary { margin-left: auto; }

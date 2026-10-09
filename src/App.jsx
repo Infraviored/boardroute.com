@@ -155,6 +155,7 @@ function App() {
   }, [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
   const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'add' (from the Library)
+  const [editorPhoto, setEditorPhoto] = useState(null);  // photo to read a new part's footprint from
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
   const [previewPath, setPreviewPath] = useState(null);
@@ -404,7 +405,7 @@ function App() {
   }, [confirmData, engine, handleRouteOnly, handleLoadTemplate, saveHistory]);
 
   const handleReset = useCallback(() => setConfirmData({ isOpen: true, type: 'reset', targetId: 'board' }), []);
-  const handleAddFromLibrary = useCallback((compDef) => {
+  const handleAddFromLibrary = useCallback((compDef, photo = null) => {
     // a free id: name initial + number (R3, C2, U1, ...)
     const prefix = (compDef.name || 'P').replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase() || 'P';
     const ids = new Set(board.components.map(c => c.id));
@@ -422,6 +423,7 @@ function App() {
     const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     // Show it big in the editor first (pins, nets, body can be adjusted); "Add to circuit" adds it.
     setIsLibraryOpen(false);
+    setEditorPhoto(photo);
     setEditorMode('add');
     setEditingComp(newComp);
     setIsEditorOpen(true);
@@ -669,6 +671,7 @@ function App() {
           onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
           onOpenLibrary={() => setIsLibraryOpen(true)}
           onAddNewComponent={() => {
+            setEditorPhoto(null);
             setEditorMode('edit');
             // The editor needs a component to edit; start from a blank 2-pin part with a free id.
             const ids = new Set(board.components.map(c => c.id));
@@ -677,7 +680,7 @@ function App() {
               pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
             setIsEditorOpen(true);
           }}
-          onEditComponent={(id) => { setEditorMode('edit'); setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
+          onEditComponent={(id) => { setEditorMode('edit'); setEditorPhoto(null); setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
         <div id="ca-col">
@@ -743,8 +746,9 @@ function App() {
         />
       </div>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
-      <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={handleAddFromLibrary} />
-      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} />
+      <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(c) => handleAddFromLibrary(c)}
+        onPhoto={(file) => handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, file)} />
+      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} photo={editorPhoto} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay
         isOpen={confirmData.isOpen}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Camera } from 'lucide-react';
 import { compColor } from '../engine/render-utils.js';
 
 const CURATED = 'Curated';
@@ -39,7 +40,7 @@ function Thumb({ part }) {
     );
 }
 
-export function LibraryOverlay({ isOpen, onClose, onSelect }) {
+export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
     const [curated, setCurated] = useState([]);
     const [kicad, setKicad] = useState(null); // null = not loaded yet
     const [kicadError, setKicadError] = useState(false);
@@ -97,6 +98,12 @@ export function LibraryOverlay({ isOpen, onClose, onSelect }) {
             <div className="modal lib-modal">
                 <div className="modal-header">
                     <h3>Component Library</h3>
+                    {onPhoto && (
+                        <label className="lib-photo" title="Take or pick a photo of the part: pins and size are read from it">
+                            <Camera size={14} /> From a photo
+                            <input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(f); }} />
+                        </label>
+                    )}
                     <button className="close-btn" onClick={onClose}>✕</button>
                 </div>
                 <input
@@ -154,6 +161,8 @@ export function LibraryOverlay({ isOpen, onClose, onSelect }) {
             <style dangerouslySetInnerHTML={{
                 __html: `
         .lib-modal { max-width: 640px; max-height: 86vh; }
+        .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--blu); color: var(--blu-bright); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+        .lib-photo:hover { background: rgba(31,111,235,.12); }
         .lib-cats { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
         .lib-cat {
           font-size: .7em; padding: 3px 8px; border-radius: 10px; cursor: pointer;

@@ -30,3 +30,6 @@ bench/tmp/
 bench/results/
 .wt/
 .claude/worktrees/
+
+# OCR engine copied from node_modules (scripts/copy-ocr-assets.js)
+public/ocr/

@@ -8,12 +8,16 @@
     "build": "vite build && node scripts/build-site.js",
     "build:site": "node scripts/build-site.js",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predev": "node scripts/copy-ocr-assets.js",
+    "prebuild": "node scripts/copy-ocr-assets.js"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

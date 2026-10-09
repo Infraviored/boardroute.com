@@ -255,7 +255,41 @@ export function generateRatsnestSVG(components, wires = []) {
   return out;
 }
 
-export function renderCompSVG(c, isSelected = false, activePin = null) {
+// Which of the four 90° turns (as done by rotateComp90InPlace) takes a picture's footprint
+// (offs: pin offsets in pin order, fw x fh) to the part's current pins; -1 when the footprint was
+// changed since the picture was taken.
+export function photoTurn(c, photo) {
+  if (!photo?.offs || photo.offs.length !== c.pins.length) return -1;
+  let w = photo.fw, h = photo.fh, offs = photo.offs.map(o => [o[0], o[1]]);
+  for (let k = 0; k < 4; k++) {
+    if (w === c.w && h === c.h && offs.every((o, i) => o[0] === c.pins[i].dCol && o[1] === c.pins[i].dRow)) return k;
+    offs = offs.map(([dc, dr]) => [h - 1 - dr, dc]);
+    [w, h] = [h, w];
+  }
+  return -1;
+}
+
+// <image> of a part's photo in its current orientation (empty string if it doesn't fit any more)
+export function photoSVG(c, photo) {
+  const k = photoTurn(c, photo);
+  if (k < 0 || !SAFE_IMG.test(photo.src || '')) return '';
+  return `<g transform="translate(${c.ox * SP},${c.oy * SP}) matrix(${turnMatrix(k, photo.fw * SP, photo.fh * SP)})" style="pointer-events:none">` +
+    `<image href="${photo.src}" x="${photo.x * SP}" y="${photo.y * SP}" width="${photo.w * SP}" height="${photo.h * SP}" preserveAspectRatio="none"/></g>`;
+}
+
+// SVG matrix turning a W0 x H0 frame k times by 90°: (x, y) -> (H0 - y, x) per turn, the same
+// as rotateComp90InPlace does to pin offsets
+export function turnMatrix(k, W0, H0) {
+  return ['1,0,0,1,0,0', `0,1,-1,0,${H0},0`, `-1,0,0,-1,${W0},${H0}`, `0,-1,1,0,0,${W0}`][((k % 4) + 4) % 4];
+}
+
+// one turn of a rectangle { x, y, w, h } inside a W x H frame (the frame becomes H x W)
+export function turnRect(r, W, H) {
+  return { x: H - r.y - r.h, y: r.x, w: r.h, h: r.w };
+}
+const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
+
+export function renderCompSVG(c, isSelected = false, activePin = null, photo = null) {
   const bx = c.ox * SP + SP * .08, by = c.oy * SP + SP * .08;
   const bw = c.w * SP - SP * .16, bh = c.h * SP - SP * .16;
   const mainColor = boostColor(compColor(c));
@@ -278,10 +312,13 @@ export function renderCompSVG(c, isSelected = false, activePin = null) {
   const half = sw / 2;
   // Body: Inset by half the stroke width so it doesn't overlap the inner stroke half
   out += `<rect x="${bx + half}" y="${by + half}" width="${bw - sw}" height="${bh - sw}" rx="3" fill="#080808" fill-opacity="0.8"/>`;
+  // a photo of the real part, between the dark body and the rim/pins
+  const pic = photo ? photoSVG(c, photo) : '';
+  out += pic;
   // Rim: Drawn with fill="none" to ensure uniform wire visibility through the stroke
   out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)
-  out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
+  if (!pic) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
 
   let labelsOut = '';
   // 2. Draw Pins

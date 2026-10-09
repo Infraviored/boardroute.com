@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Edit3, Camera, Undo2 } from 'lucide-react';
-import { SP, netColor, boostColor, compColor } from '../engine/render-utils.js';
+import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect } from '../engine/render-utils.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 
 // Footprint editor.
@@ -17,7 +17,31 @@ function fromComponent(component) {
     const w = c.w || pb.w, h = c.h || pb.h;
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
     return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, pins,
-        body: custom ? { x: 0, y: 0, w, h } : null };
+        body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
+}
+
+// Part picture in the editor: { src, turn, box } -- box in editor coordinates as shown, turn =
+// how often the stored picture is turned to match the part's current rotation.
+function imageFromRecord(rec, comp) {
+    if (!rec?.src) return null;
+    const turn = photoTurn(comp, rec);
+    if (turn < 0) return null; // footprint changed elsewhere; the picture no longer fits
+    let box = { x: rec.x, y: rec.y, w: rec.w, h: rec.h }, W = rec.fw, H = rec.fh;
+    for (let k = 0; k < turn; k++) { box = turnRect(box, W, H); [W, H] = [H, W]; }
+    return { src: rec.src, turn, box, base: { w: rec.w, h: rec.h } };
+}
+
+// ...and back to the stored form (unturned, relative to the footprint) when saving
+function recordFromImage(img, foot, pins) {
+    if (!img) return null;
+    let box = { x: img.box.x - foot.x, y: img.box.y - foot.y, w: img.box.w, h: img.box.h };
+    let offs = pins.map(p => [p.dCol - foot.x, p.dRow - foot.y]), W = foot.w, H = foot.h;
+    for (let k = 0; k < (4 - img.turn) % 4; k++) {
+        box = turnRect(box, W, H);
+        offs = offs.map(([dc, dr]) => [H - 1 - dr, dc]);
+        [W, H] = [H, W];
+    }
+    return { src: img.src, ...box, fw: W, fh: H, offs };
 }
 
 function boxOf(pins) {
@@ -155,6 +179,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             id: data.id, name: data.name, value: data.value, color: data.color, routeUnder: data.routeUnder,
             w: foot.w, h: foot.h,
             pins: data.pins.map(p => ({ ...p, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
+            image: recordFromImage(data.image, foot, data.pins),
         });
     };
 
@@ -162,13 +187,13 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
 
     // Pins found in a photo replace the current ones; with the same count the labels and nets
     // carry over (re-measuring a part that is already wired).
-    const applyPhoto = ({ pins, body }) => {
+    const applyPhoto = ({ pins, body, image }) => {
         update(prev => {
             const keep = prev.pins.length === pins.length;
             const next = pins.map(([c, r], i) => ({ lbl: keep ? prev.pins[i].lbl : String(i + 1), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
             const pb = boxOf(next);
             const larger = body.x < pb.x || body.y < pb.y || body.x + body.w > pb.x + pb.w || body.y + body.h > pb.y + pb.h;
-            return { ...prev, pins: next, body: larger ? body : null };
+            return { ...prev, pins: next, body: larger ? body : null, image: image ? { src: image.src, turn: 0, box: { x: image.x, y: image.y, w: image.w, h: image.h }, base: { w: image.w, h: image.h } } : prev.image };
         });
         setSelectedPinIdx(null);
         setPhotoSession(s => ({ ...s, open: false }));
@@ -214,6 +239,11 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 stroke={mainColor} strokeWidth={2.5}
                                 strokeDasharray={data.body ? '7 5' : undefined}
                             />
+                            {data.image && (
+                                <g transform={`translate(${data.image.box.x * SP},${data.image.box.y * SP}) matrix(${turnMatrix(data.image.turn, data.image.base.w * SP, data.image.base.h * SP)})`} style={{ pointerEvents: 'none' }}>
+                                    <image href={data.image.src} x="0" y="0" width={data.image.base.w * SP} height={data.image.base.h * SP} preserveAspectRatio="none" opacity="0.9" />
+                                </g>
+                            )}
                             <text x={(bodyBox.x + bodyBox.w / 2) * SP} y={(bodyBox.y + bodyBox.h / 2) * SP} dy=".35em" textAnchor="middle"
                                 fontSize={Math.min(14, bodyBox.w * SP / Math.max(3, (data.id || '').length + 1))} fontWeight="800" fill="rgba(255,255,255,0.35)" style={{ pointerEvents: 'none' }}>{data.id}</text>
 
@@ -270,6 +300,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
 
                         <section>
                             <div className="ce-photo-row">
+                                {data.image && <button className="ce-btn ce-photo" onClick={() => update(d => ({ ...d, image: null }))} title="Keep the footprint, drop the picture">Remove picture</button>}
                                 {photoSession && <button className="ce-btn primary ce-photo" onClick={() => setPhotoSession(s => ({ ...s, open: true }))}><Camera size={14} /> Back to photo</button>}
                                 <button className="ce-btn ce-photo" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1 }))}><Camera size={14} /> {photoSession ? 'New photo' : 'Footprint from a photo'}</button>
                             </div>
@@ -299,7 +330,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} />}
 
             <style dangerouslySetInnerHTML={{ __html: `
-                .ce-photo-row { display: flex; gap: 6px; }
+                .ce-photo-row { display: flex; gap: 6px; flex-wrap: wrap; }
+                .ce-photo-row .ce-photo { flex: 1 1 40%; white-space: nowrap; }
+                .ce-photo-row .ce-photo.primary { flex-basis: 100%; order: -1; }
                 .ce-photo { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
                 .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }

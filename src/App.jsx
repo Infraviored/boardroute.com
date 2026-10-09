@@ -156,6 +156,14 @@ function App() {
   }, [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
   const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'add' (from the Library)
+  // part pictures (from "Footprint from a photo"), by component id; kept out of the circuit JSON
+  // so the text the AI reads stays small. Stored on their own; WebP data URLs of ~20-60 KB.
+  const [partImages, setPartImages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pcb_part_images')) || {}; } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('pcb_part_images', JSON.stringify(partImages)); } catch (e) { console.warn('part pictures not saved', e); }
+  }, [partImages]);
   const [editorPhoto, setEditorPhoto] = useState(null);  // 'pick': open the editor with the photo dialog
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -430,8 +438,16 @@ function App() {
     setIsEditorOpen(true);
   }, [board.components]);
 
-  const handleSaveEdit = useCallback(async (updated) => { 
+  const handleSaveEdit = useCallback(async (edited) => {
     if (!editingComp) return;
+    // the picture goes to its own store; the part itself stays plain
+    const { image, ...updated } = edited;
+    setPartImages(prev => {
+      const next = { ...prev };
+      delete next[editingComp.id];
+      if (image) next[updated.id] = image;
+      return next;
+    });
     if (editorMode === 'add') {
       const comp = { ...updated, pins: updated.pins.map(p => ({ ...p, col: updated.ox + p.dCol, row: updated.oy + p.dRow })) };
       engine.setState({ components: [...board.components, comp], wires: board.wires });
@@ -463,12 +479,13 @@ function App() {
   }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode]);
 
   const handleExportState = useCallback(() => {
-    const state = { components: board.components, wires: board.wires, cols: board.cols, rows: board.rows };
+    const pictures = Object.fromEntries(board.components.filter(c => partImages[c.id]).map(c => [c.id, partImages[c.id]]));
+    const state = { components: board.components, wires: board.wires, cols: board.cols, rows: board.rows, ...(Object.keys(pictures).length ? { partImages: pictures } : {}) };
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'pcb_circuit.json'; a.click();
     URL.revokeObjectURL(url);
-  }, [board]);
+  }, [board, partImages]);
 
   const handleImportState = useCallback(() => {
     const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
@@ -482,6 +499,7 @@ function App() {
             const cols = parsed.cols || board.cols;
             const rows = parsed.rows || board.rows;
             engine.setState({ components: parsed.components, wires: parsed.wires || [], cols, rows });
+            if (parsed.partImages) setPartImages(prev => ({ ...prev, ...parsed.partImages }));
             saveHistory();
           }
         } catch (err) { console.error(err); }
@@ -681,7 +699,7 @@ function App() {
               pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
             setIsEditorOpen(true);
           }}
-          onEditComponent={(id) => { setEditorMode('edit'); setEditorPhoto(null); setEditingComp(board.components.find(x => x.id === id)); setIsEditorOpen(true); }}
+          onEditComponent={(id) => { setEditorMode('edit'); setEditorPhoto(null); const c = board.components.find(x => x.id === id); setEditingComp(c && partImages[id] ? { ...c, image: partImages[id] } : c); setIsEditorOpen(true); }}
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
         <div id="ca-col">
@@ -696,7 +714,7 @@ function App() {
           )}
           <main id="ca">
             <PcbCanvas
-              components={board.components} wires={board.wires} cols={board.cols} rows={board.rows}
+              components={board.components} wires={board.wires} cols={board.cols} rows={board.rows} partImages={partImages}
               selectedId={selectedId} onSelect={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
               onSelectNet={(net) => { setSelectedNet(net); if (net) setSelectedId(null); }}
               activeNets={activeNets} activePin={activePin} onMove={handleMoveComp} onRotate={handleRotateComp} onMoveEnd={saveHistory}

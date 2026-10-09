@@ -14,16 +14,20 @@ const holeAt = (g, c, r) => {
     const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0);
     return [g.phaseX + g.pitch * (c * cs - r * sn), g.phaseY + g.pitch * (c * sn + r * cs)];
 };
-const holeOf = (g, x, y) => {
+// grid coordinates of an image point (not rounded) and the nearest hole
+const gridOf = (g, x, y) => {
     const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0), dx = (x - g.phaseX) / g.pitch, dy = (y - g.phaseY) / g.pitch;
-    return [Math.round(dx * cs + dy * sn), Math.round(-dx * sn + dy * cs)];
+    return [dx * cs + dy * sn, -dx * sn + dy * cs];
 };
+const holeOf = (g, x, y) => gridOf(g, x, y).map(Math.round);
 export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden = false }) {
     const [src, setSrc] = useState(file); // the photo (Blob); null = ask for one
     const [state, setState] = useState({ status: file ? 'loading' : 'pick' }); // pick | loading | ready | error
     const [grid, setGrid] = useState(null); // { pitch, phaseX, phaseY }
     const [pins, setPins] = useState([]);   // [[col, row]]
     const [mirror, setMirror] = useState(false);
+    const [box, setBox] = useState(null);       // body set by hand: { x0, y0, x1, y1 } in holes; null = from the photo
+    const [keepPhoto, setKeepPhoto] = useState(true); // the cut-out photo becomes the part's picture
     const [drag, setDrag] = useState(null);
     // null | { kind: 'scale' | 'row', a?, b?, n? }: 'scale' sets the grid from two pins and a
     // count, 'row' adds the pins between two clicked holes on the current grid
@@ -31,18 +35,18 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const [url, setUrl] = useState('');
     const [over, setOver] = useState(false); // a file dragged over the dialog
     const [hist, setHist] = useState([]);    // undo: earlier { grid, pins }
-    const snap = () => setHist(h => [...h.slice(-49), { grid, pins }]);
+    const snap = () => setHist(h => [...h.slice(-49), { grid, pins, box }]);
     const undo = () => setHist(h => {
         if (!h.length) return h;
         const last = h[h.length - 1];
-        setGrid(last.grid); setPins(last.pins); setMeasure(null);
+        setGrid(last.grid); setPins(last.pins); setBox(last.box); setMeasure(null);
         return h.slice(0, -1);
     });
     const svgRef = useRef(null);
 
     const load = (blob) => {
         if (!blob || !/^image\//.test(blob.type || 'image/')) return;
-        setMeasure(null); setMirror(false); setHist([]); setState({ status: 'loading' }); setSrc(blob);
+        setMeasure(null); setMirror(false); setHist([]); setBox(null); setState({ status: 'loading' }); setSrc(blob);
     };
 
     // paste an image anywhere while the dialog is open
@@ -112,7 +116,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                     const autoPins = found ? res.pins : [];
                     setGrid(g);
                     setPins(autoPins);
-                    setState({ status: 'ready', url: c.toDataURL('image/jpeg', 0.88), W: res.image.width, H: res.image.height, bodyPx: res.bodyPx, found,
+                    setState({ status: 'ready', url: c.toDataURL('image/jpeg', 0.92), W: res.image.width, H: res.image.height, bodyPx: res.bodyPx, found, bg: borderColour(res.image),
                         reason: found ? null : res.ok ? 'Not sure where the pins are.' : res.reason, auto: { ...g, pins: autoPins } });
                 };
                 worker.postMessage({ data: img.data, width: img.width, height: img.height }, [img.data.buffer]);
@@ -142,11 +146,36 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const onPointerDown = (e) => {
         const p = toImage(e);
         if (!p || !grid) return;
+        const edge = e.target.getAttribute?.('data-edge');
+        if (edge) {
+            // a handle of the body outline: drag that edge
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+            snap();
+            setBox({ x0: body.x, y0: body.y, x1: body.x + body.w - 1, y1: body.y + body.h - 1 });
+            setDrag({ edge });
+            return;
+        }
         e.currentTarget.setPointerCapture?.(e.pointerId);
         setDrag({ x: p.x, y: p.y, sx: e.clientX, sy: e.clientY, g: grid, moved: false });
     };
     const onPointerMove = (e) => {
         if (!drag) return;
+        if (drag.edge) {
+            const p = toImage(e);
+            if (!p) return;
+            const [u, v] = gridOf(grid, p.x, p.y);
+            // edges sit between holes; the body never gets smaller than the pins
+            const pc = pins.map(q => q[0]), pr = pins.map(q => q[1]);
+            setBox(b => {
+                const n = { ...b };
+                if (drag.edge === 'l') n.x0 = Math.min(Math.round(u + 0.5), pc.length ? Math.min(...pc) : b.x1);
+                if (drag.edge === 'r') n.x1 = Math.max(Math.round(u - 0.5), pc.length ? Math.max(...pc) : b.x0);
+                if (drag.edge === 't') n.y0 = Math.min(Math.round(v + 0.5), pr.length ? Math.min(...pr) : b.y1);
+                if (drag.edge === 'b') n.y1 = Math.max(Math.round(v - 0.5), pr.length ? Math.max(...pr) : b.y0);
+                return n.x0 <= n.x1 && n.y0 <= n.y1 ? n : b;
+            });
+            return;
+        }
         const moved = drag.moved || Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4;
         if (!moved) return;
         const p = toImage(e);
@@ -158,6 +187,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     };
     const onPointerUp = (e) => {
         if (!drag) return;
+        if (drag.edge) { setDrag(null); return; }
         if (!drag.moved) {
             const p = toImage(e);
             if (p && measure && !measure.b) {
@@ -192,7 +222,13 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         });
     };
 
-    const setCount = (n) => { n = Math.max(2, Math.min(80, n)); setMeasure(m => ({ ...m, n })); applyMeasure(measure.a, measure.b, n); };
+    const setCount = (n) => { n = Math.max(2, Math.min(80, n)); setMeasure(m => ({ ...m, n, text: null })); applyMeasure(measure.a, measure.b, n); };
+    // typing: keep the text as typed ("1" on the way to "14") and apply once it is a valid count
+    const typeCount = (text) => {
+        setMeasure(m => ({ ...m, text }));
+        const n = parseInt(text, 10);
+        if (n >= 2 && n <= 80) { setMeasure(m => ({ ...m, n, text })); applyMeasure(measure.a, measure.b, n); }
+    };
 
     // Two clicked pins n pins apart define the grid exactly: spacing, angle and position.
     // The row between them becomes pins (it almost always is a header).
@@ -204,6 +240,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         ang -= quarter * Math.PI / 2;
         const g = { pitch: d / (n - 1), angle: ang, phaseX: a[0], phaseY: a[1] };
         setGrid(g);
+        setBox(null);
         const steps = [[1, 0], [0, 1], [-1, 0], [0, -1]][((quarter % 4) + 4) % 4];
         setPins(Array.from({ length: n }, (_, i) => [steps[0] * i, steps[1] * i]));
     }
@@ -219,17 +256,32 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         for (const [c, r] of pins) { x0 = Math.min(x0, c); x1 = Math.max(x1, c); y0 = Math.min(y0, r); y1 = Math.max(y1, r); }
         Object.assign(body, { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
     }
+    // a body drawn by hand wins (still around all pins)
+    if (body && box) {
+        let { x0, y0, x1, y1 } = box;
+        for (const [c, r] of pins) { x0 = Math.min(x0, c); x1 = Math.max(x1, c); y0 = Math.min(y0, r); y1 = Math.max(y1, r); }
+        Object.assign(body, { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    }
     const rows = new Set(pins.map(p => p[1])).size;
 
-    const apply = () => {
+    const apply = async () => {
         if (!pins.length) return;
         let ps = pins.map(([c, r]) => [c - body.x, r - body.y]);
         let b = { x: 0, y: 0, w: body.w, h: body.h };
         // an underside photo shows the footprint mirrored
         if (mirror) ps = ps.map(([c, r]) => [b.w - 1 - c, r]);
         ps.sort((p, q) => p[1] - q[1] || p[0] - q[0]);
-        onApply({ pins: ps, body: b });
+        let image = null;
+        if (keepPhoto) {
+            try { image = { src: await cutOut(state, grid, body, mirror), x: 0, y: 0, w: body.w, h: body.h }; } catch (err) { console.error(err); }
+        }
+        onApply({ pins: ps, body: b, image });
     };
+
+    // body outline corners and edge handles in image coordinates (the grid may be turned)
+    const outline = ready ? [[body.x - 0.5, body.y - 0.5], [body.x + body.w - 0.5, body.y - 0.5], [body.x + body.w - 0.5, body.y + body.h - 0.5], [body.x - 0.5, body.y + body.h - 0.5]].map(([c, r]) => holeAt(grid, c, r)) : null;
+    const handles = ready ? [['l', body.x - 0.5, body.y + (body.h - 1) / 2], ['r', body.x + body.w - 0.5, body.y + (body.h - 1) / 2],
+        ['t', body.x + (body.w - 1) / 2, body.y - 0.5], ['b', body.x + (body.w - 1) / 2, body.y + body.h - 0.5]].map(([e, c, r]) => [e, ...holeAt(grid, c, r)]) : null;
 
     // every grid hole that lands on the photo
     let holes = null;
@@ -290,9 +342,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
                                 style={{ cursor: drag?.moved ? 'grabbing' : 'crosshair' }}>
                                 <image href={state.url} x="0" y="0" width={state.W} height={state.H} />
-                                <rect x={grid.phaseX + (body.x - 0.5) * grid.pitch} y={grid.phaseY + (body.y - 0.5) * grid.pitch}
-                                    width={body.w * grid.pitch} height={body.h * grid.pitch}
-                                    transform={`rotate(${(grid.angle || 0) * 180 / Math.PI} ${grid.phaseX} ${grid.phaseY})`}
+                                <polygon points={outline.map(p => p.join(',')).join(' ')}
                                     fill="none" stroke="#58a6ff" strokeWidth={Math.max(2, grid.pitch / 18)} strokeDasharray={`${grid.pitch / 4} ${grid.pitch / 6}`} />
                                 {holes.map(([c, r, x, y]) => (
                                     <circle key={c + ',' + r} cx={x} cy={y} r={grid.pitch * 0.07}
@@ -302,6 +352,12 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                     <circle key={'p' + c + ',' + r} cx={x} cy={y} r={grid.pitch * 0.36}
                                         fill="rgba(63,185,80,.18)" stroke="#3fb950" strokeWidth={Math.max(2, grid.pitch / 14)} />
                                 ); })}
+                                {!measure && handles.map(([e, x, y]) => (
+                                    <rect key={e} data-edge={e} x={x - grid.pitch * 0.22} y={y - grid.pitch * 0.22} width={grid.pitch * 0.44} height={grid.pitch * 0.44} rx={grid.pitch * 0.08}
+                                        fill="#fff" stroke="#58a6ff" strokeWidth={Math.max(2, grid.pitch / 16)} style={{ cursor: e === 'l' || e === 'r' ? 'ew-resize' : 'ns-resize' }}>
+                                        <title>Drag to change the part's outline</title>
+                                    </rect>
+                                ))}
                                 {measure?.a && <circle cx={measure.a[0]} cy={measure.a[1]} r={Math.max(6, grid.pitch * 0.18)} fill="#f0883e" stroke="#fff" strokeWidth={2} />}
                                 {measure?.b && <>
                                     <line x1={measure.a[0]} y1={measure.a[1]} x2={measure.b[0]} y2={measure.b[1]} stroke="#f0883e" strokeWidth={Math.max(2, grid.pitch / 16)} />
@@ -328,8 +384,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                     <span className="pf-lbl">How many pins are in that row?</span>
                                     <div className="pf-count">
                                         <button className="ce-btn" onClick={() => setCount(measure.n - 1)} aria-label="One pin less"><Minus size={14} /></button>
-                                        <input className="pf-n" type="number" min="2" max="80" value={measure.n} aria-label="Pins in that row"
-                                            onChange={e => setCount(Math.round(+e.target.value) || 2)} />
+                                        <input className="pf-n" type="text" inputMode="numeric" value={measure.text ?? String(measure.n)} aria-label="Pins in that row"
+                                            onChange={e => typeCount(e.target.value.replace(/\D/g, '').slice(0, 2))} onBlur={() => setMeasure(m => m && ({ ...m, text: null }))}
+                                            onKeyDown={e => { if (e.key === 'ArrowUp') { e.preventDefault(); setCount(measure.n + 1); } if (e.key === 'ArrowDown') { e.preventDefault(); setCount(measure.n - 1); } }} />
                                         <button className="ce-btn" onClick={() => setCount(measure.n + 1)} aria-label="One pin more"><Plus size={14} /></button>
                                         <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
                                     </div>
@@ -344,11 +401,17 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                             <p className="ce-hint">Click its first and last pin; every hole between becomes a pin. Single pins: click a hole.</p>
                         </section>
                         <section>
+                            <div className="ce-label">3 · Outline</div>
+                            <p className="ce-hint">Drag the white handles of the blue outline to the edges of the part.</p>
+                            <label className="pf-check"><input type="checkbox" checked={keepPhoto} onChange={e => setKeepPhoto(e.target.checked)} /> Use the photo as the part's picture</label>
+                            <p className="ce-hint">Cut to the outline, the background made transparent.</p>
+                        </section>
+                        <section>
                             <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
                             <p className="ce-hint">The solder side is the mirror image of the top; this flips it back.</p>
                             <div className="pf-row">
                                 <button className="ce-btn" disabled={!hist.length} onClick={undo} title="Ctrl+Z"><Undo2 size={13} /> Undo</button>
-                                <button className="ce-btn" disabled={!ready} onClick={() => { snap(); setMeasure(null); setGrid({ angle: 0, pitch: state.auto.pitch, phaseX: state.auto.phaseX, phaseY: state.auto.phaseY }); setPins(state.auto.pins); }} title="Back to what was found automatically"><RotateCcw size={13} /> Reset</button>
+                                <button className="ce-btn" disabled={!ready} onClick={() => { snap(); setMeasure(null); setBox(null); setGrid({ angle: 0, pitch: state.auto.pitch, phaseX: state.auto.phaseX, phaseY: state.auto.phaseY }); setPins(state.auto.pins); }} title="Back to what was found automatically"><RotateCcw size={13} /> Reset</button>
                                 <button className="ce-btn" disabled={!ready || !pins.length} onClick={() => { snap(); setPins([]); }}>Clear pins</button>
                                 <button className="ce-btn" disabled={state.status === 'loading'} onClick={() => { setMeasure(null); setState({ status: 'pick' }); }}><ImageUp size={13} /> Other photo</button>
                             </div>
@@ -415,6 +478,63 @@ function plausible(pins) {
     for (const [c, r] of pins) { count.set('r' + r, (count.get('r' + r) || 0) + 1); count.set('c' + c, (count.get('c' + c) || 0) + 1); }
     const lines = [...count.values()].filter(n => n >= 4);
     return lines.length > 0 && lines.length <= 8;
+}
+
+// median colour of the image border (the background around the part)
+function borderColour(img) {
+    const { width: W, height: H, data } = img;
+    const ch = [[], [], []];
+    const take = (x, y) => { const i = (y * W + x) * 4; for (let k = 0; k < 3; k++) ch[k].push(data[i + k]); };
+    for (let x = 0; x < W; x += 2) { take(x, 0); take(x, 1); take(x, H - 1); take(x, H - 2); }
+    for (let y = 0; y < H; y += 2) { take(0, y); take(1, y); take(W - 1, y); take(W - 2, y); }
+    return ch.map(a => a.sort((p, q) => p - q)[a.length >> 1]);
+}
+
+// The part as a picture: the straightened photo cut to the body outline (turned with the grid,
+// mirrored for underside photos), the background that reaches in from the edge made transparent
+// (white silkscreen inside the part stays). WebP keeps it small enough for local storage.
+async function cutOut(state, grid, body, mirror) {
+    const img = new Image();
+    img.src = state.url;
+    await img.decode();
+    const S = Math.max(8, Math.min(40, Math.floor(640 / Math.max(body.w, body.h)))); // px per hole
+    const W = body.w * S, H = body.h * S;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    if (mirror) ctx.setTransform(-1, 0, 0, 1, W, 0);
+    // output pixel -> image: P = holeAt(corner) + pitch/S · R(angle) · out; draw with the inverse
+    const k = S / grid.pitch, cs = Math.cos(grid.angle || 0), sn = Math.sin(grid.angle || 0);
+    const [tx, ty] = holeAt(grid, body.x - 0.5, body.y - 0.5);
+    const a = k * cs, b = -k * sn, cc = k * sn, d = k * cs;
+    ctx.transform(a, b, cc, d, -(a * tx + cc * ty), -(b * tx + d * ty));
+    ctx.drawImage(img, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const px = ctx.getImageData(0, 0, W, H), dt = px.data, bg = state.bg || [255, 255, 255];
+    const far = (i) => Math.hypot(dt[i * 4] - bg[0], dt[i * 4 + 1] - bg[1], dt[i * 4 + 2] - bg[2]);
+    const T = 48;
+    const seen = new Uint8Array(W * H), stack = [];
+    for (let x = 0; x < W; x++) stack.push(x, (H - 1) * W + x);
+    for (let y = 0; y < H; y++) stack.push(y * W, y * W + W - 1);
+    while (stack.length) {
+        const i = stack.pop();
+        if (seen[i] || far(i) > T) continue;
+        seen[i] = 1;
+        dt[i * 4 + 3] = 0;
+        const x = i % W, y = (i / W) | 0;
+        if (x > 0) stack.push(i - 1);
+        if (x < W - 1) stack.push(i + 1);
+        if (y > 0) stack.push(i - W);
+        if (y < H - 1) stack.push(i + W);
+    }
+    // soften the cut: pixels next to the removed background become half transparent
+    for (let i = 0; i < W * H; i++) {
+        if (seen[i]) continue;
+        const x = i % W, y = (i / W) | 0;
+        if ((x > 0 && seen[i - 1]) || (x < W - 1 && seen[i + 1]) || (y > 0 && seen[i - W]) || (y < H - 1 && seen[i + W])) dt[i * 4 + 3] = 140;
+    }
+    ctx.putImageData(px, 0, 0);
+    return c.toDataURL('image/webp', 0.85);
 }
 
 function Tips() {

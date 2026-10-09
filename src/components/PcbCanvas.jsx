@@ -27,6 +27,7 @@ const { SNAP } = TRACKING_MODES;
 
 export function PcbCanvas({
     components,
+    partImages = null, // { [componentId]: photo record } drawn inside the parts
     wires,
     cols,
     rows,
@@ -548,11 +549,11 @@ export function PcbCanvas({
     const compsSplit = useMemo(() => {
         void tick;
         if (customComponentsSvg) return { base: customComponentsSvg, labels: '' };
-        if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin)).join(''), labels: '' };
+        if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id])).join(''), labels: '' };
         // solder side: part outlines under the copper, labels on top
         const parts = view.components.map(c => renderCompSVG(c, 'split'));
         return { base: parts.map(r => r.base).join(''), labels: parts.map(r => r.labels).join('') };
-    }, [solder, view, components, selectedId, activePin, tick, customComponentsSvg]);
+    }, [solder, view, components, selectedId, activePin, tick, customComponentsSvg, partImages]);
     const conflictsSvg = useMemo(() => {
         if (!conflicts || solder) return '';
         const ids = new Set(conflicts.parts);

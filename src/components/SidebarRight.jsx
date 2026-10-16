@@ -10,7 +10,8 @@ import {
   MousePointer2,
   Share2,
   Ruler,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from 'lucide-react';
 
 const SECTIONS_KEY = 'pcb_rsb_sections';
@@ -24,6 +25,8 @@ export function SidebarRight({
   selectedNet,
   setSelectedNet,
   activeNets = [],
+  mobileOpen = false,
+  onCloseDrawer
 }) {
   // Which accordion sections are open. Component and Network also open on their own when
   // something gets selected.
@@ -59,7 +62,12 @@ export function SidebarRight({
   const done = stats.completion >= 100;
 
   return (
-    <aside id="rsb">
+    <aside id="rsb" className={mobileOpen ? 'mobile-open' : ''}>
+      <div className="mobile-sheet-head">
+        <div className="mobile-sheet-handle" />
+        <div className="mobile-sheet-title">Inspector &amp; Stats</div>
+        <button type="button" className="mobile-sheet-close" onClick={onCloseDrawer} aria-label="Close drawer"><X size={18} /></button>
+      </div>
       {/* Board stats: always visible, one compact block */}
       <div className="rs-stats" aria-label="Board stats">
         <div className="rs-stat-grid">
@@ -479,6 +487,63 @@ export function SidebarRight({
           flex-shrink: 0;
         }
 
+        .mobile-sheet-head { display: none; }
+
+        @media (max-width: 768px) {
+          .mobile-sheet-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px 10px;
+            position: sticky;
+            top: 0;
+            background: var(--bg2);
+            z-index: 20;
+            border-bottom: 1px solid var(--border);
+          }
+          .mobile-sheet-handle {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 36px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.25);
+          }
+          .mobile-sheet-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--txt0);
+          }
+          .mobile-sheet-close {
+            background: none;
+            border: none;
+            color: var(--txt1);
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+          }
+          .mobile-sheet-close:active {
+            background: var(--bg4);
+            color: var(--txt0);
+          }
+          .net-row {
+            min-height: 44px;
+            padding: 8px 12px;
+          }
+          .rs-head {
+            min-height: 44px;
+          }
+          .rs-stat {
+            padding: 8px 4px;
+          }
+        }
       `}} />
     </aside>
   );

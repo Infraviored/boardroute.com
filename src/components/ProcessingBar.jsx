@@ -296,6 +296,47 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         #proc-bar.perfect { border-top-color: #e3b341; }
         #proc-bar.perfect .pb-title { color: #e3b341; }
         #proc-bar.results { border-top-color: var(--grn-bright); background: linear-gradient(180deg, #101413 0%, #050706 100%); }
+
+        @media (max-width: 768px) {
+          #proc-bar {
+            height: auto;
+            min-height: 110px;
+            max-height: 160px;
+            padding: 10px 14px;
+            bottom: var(--bottom-nav-height, 54px);
+            border-top-width: 1px;
+          }
+          .pb-content-wrap {
+            gap: 10px;
+            flex-direction: column;
+            align-items: stretch;
+            height: auto;
+          }
+          .pb-preview {
+            display: none !important;
+          }
+          .pb-left {
+            gap: 6px;
+          }
+          .active-metrics {
+            gap: 16px;
+            padding: 2px 0;
+          }
+          .pb-btn-glass {
+            width: 100%;
+            min-height: 44px;
+            margin-top: 4px;
+          }
+          .res-grid {
+            gap: 12px;
+          }
+          .res-val {
+            font-size: 1.25rem;
+          }
+          .res-val.small {
+            font-size: 1.1rem;
+          }
+        }
       `}} />
     </div>
   );

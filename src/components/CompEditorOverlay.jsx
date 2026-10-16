@@ -373,14 +373,22 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-pin input { height: 26px !important; }
                 .ce-icon { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
                 .ce-icon:hover { color: var(--red); background: rgba(248,81,73,.1); }
-                @media (max-width: 760px) {
+                @media (max-width: 768px) {
                     .ce-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
                     .ce-size { display: none; }
                     .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
-                    .ce-canvas { flex: none; height: 42dvh; position: sticky; top: 0; z-index: 2; }
+                    .ce-canvas { flex: none; height: 32dvh; position: sticky; top: 0; z-index: 2; }
                     .ce-side { border-left: 0; }
                     .ce-pins { flex: none; }
                     .ce-pin-list { overflow: visible; }
+                    .ce-pin { grid-template-columns: 12px 60px 1fr 38px; gap: 8px; padding: 4px 6px; }
+                    .ce-pin input { height: 36px !important; font-size: 14px; }
+                    .ce-icon { width: 38px; height: 38px; }
+                    .ce-side input:not([type=color]) { height: 36px; font-size: 14px; }
+                    .ce-color input { height: 36px; }
+                    .ce-seg button { padding: 8px 6px; font-size: var(--fs-sm); }
+                    .ce-add { height: 32px; padding: 0 12px; }
+                    .ce-head .ce-btn { min-height: 36px; }
                 }
             ` }} />
         </div>

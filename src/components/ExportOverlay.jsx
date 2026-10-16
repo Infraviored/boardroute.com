@@ -160,10 +160,44 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; }
         .ex-btn.primary { background: var(--blu); border-color: var(--blu-bright); }
         .ex-btn:disabled { opacity: .5; cursor: default; }
-        @media (max-width: 760px) {
-          .export-modal { flex-direction: column; height: calc(100dvh - 16px); width: calc(100% - 16px); }
-          .ex-preview { flex: 0 0 42%; padding: 12px; }
-          .ex-side { width: auto; border-left: 0; border-top: 1px solid var(--border); padding: 16px; }
+        @media (max-width: 768px) {
+          .export-modal {
+            flex-direction: column;
+            height: 100dvh;
+            width: 100vw;
+            max-height: 100dvh;
+            border-radius: 0;
+            border: none;
+          }
+          .ex-preview {
+            flex: 0 0 28vh;
+            max-height: 28vh;
+            padding: 8px;
+          }
+          .ex-side {
+            flex: 1;
+            width: auto;
+            border-left: 0;
+            border-top: 1px solid var(--border);
+            padding: 14px 16px;
+            overflow-y: auto;
+          }
+          .ex-actions {
+            position: sticky;
+            bottom: 0;
+            margin-top: 12px;
+            padding: 12px 0 env(safe-area-inset-bottom, 8px);
+            background: var(--bg2);
+            border-top: 1px solid var(--border);
+            z-index: 10;
+          }
+          .ex-btn {
+            min-height: 44px;
+            font-size: 0.92rem;
+          }
+          .ex-seg button {
+            min-height: 38px;
+          }
         }
       `}} />
         </div>

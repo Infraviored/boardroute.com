@@ -742,13 +742,15 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .ce-btn:disabled { opacity: .5; cursor: default; }
                 .spin { animation: pfspin 1s linear infinite; }
                 @keyframes pfspin { to { transform: rotate(360deg); } }
-                @media (max-width: 760px) {
+                @media (max-width: 768px) {
                     .pf-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
                     .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
                     .pf-view { flex: none; height: 55dvh; position: sticky; top: 0; z-index: 2; }
                     .pf-side { border-left: 0; overflow: visible; }
+                    .pf-side .ce-btn { min-height: 40px; }
                     .ce-size { display: none; }
                     .pf-modal .ce-head h3 { font-size: var(--fs-sm); }
+                    .pf-modal .ce-head .ce-btn { min-height: 36px; }
                 }
             ` }} />
         </div>

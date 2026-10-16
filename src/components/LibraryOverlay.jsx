@@ -194,6 +194,68 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
         .lib-more { align-self: center; margin: 4px 0; flex-shrink: 0; }
         .lib-credit { font-size: .65em; color: var(--txt2); line-height: 1.4; }
         .lib-credit a { color: var(--txt1); }
+
+        @media (max-width: 768px) {
+          .lib-modal {
+            width: 100vw;
+            height: 100dvh;
+            max-height: 100dvh;
+            max-width: 100vw;
+            border-radius: 0;
+            padding: 14px 16px;
+            margin: 0;
+          }
+          .lib-modal .modal-header {
+            gap: 8px;
+            margin-bottom: 8px;
+          }
+          .lib-photo {
+            height: 36px;
+            padding: 0 12px;
+            font-size: 0.85rem;
+          }
+          .lib-modal .close-btn {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .lib-modal input[type="text"] {
+            height: 42px;
+            font-size: 16px;
+            padding: 0 12px;
+          }
+          .lib-cats {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 6px;
+            margin: 0 -16px;
+            padding-left: 16px;
+            padding-right: 16px;
+          }
+          .lib-cat {
+            min-height: 38px;
+            padding: 8px 14px;
+            font-size: 0.82rem;
+            border-radius: 999px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .lib-item {
+            min-height: 52px;
+            padding: 10px 12px;
+          }
+          .lib-more {
+            min-height: 44px;
+            padding: 10px 18px;
+          }
+        }
       `}} />
         </div>
     );

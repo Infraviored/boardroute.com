@@ -83,6 +83,33 @@ export function ConfirmOverlay({ isOpen, title, message, onConfirm, onCancel }) 
                   transform: translateY(-1px);
                   box-shadow: 0 4px 12px rgba(248, 81, 73, 0.3);
                 }
+
+                @media (max-width: 768px) {
+                  .confirm-modal {
+                    width: calc(100vw - 32px);
+                    padding: 24px 18px;
+                  }
+                  .confirm-modal .close-btn {
+                    width: 40px;
+                    height: 40px;
+                    min-width: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  }
+                  .modal-footer {
+                    flex-direction: column-reverse;
+                    gap: 8px;
+                  }
+                  .c-btn {
+                    width: 100%;
+                    min-height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.95rem;
+                  }
+                }
                 `
             }} />
         </div>

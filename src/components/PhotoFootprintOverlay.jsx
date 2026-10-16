@@ -120,6 +120,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 photoRef.current = canvas;
                 const W = canvas.width, H = canvas.height;
                 setFrame(startFrame(W, H));
+                setCropView(null);
                 setState({ status: 'crop', photo: canvas.toDataURL('image/jpeg', 0.9), PW: W, PH: H, bg: borderColour(ctx.getImageData(0, 0, W, H)) });
             } catch (err) {
                 if (alive) setState({ status: 'error', reason: 'Could not read this image (' + (err?.message || err) + ')' });
@@ -173,22 +174,51 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
     // --- step 1: the frame ---------------------------------------------------------------------
     const cropping = state.status === 'crop' && frame;
-    // handles keep a usable size on screen (bigger for fingers): screen px per photo px, measured
-    const [zoom, setZoom] = useState(1);
+    // The view follows the frame: after every change it glides so the frame fills about 60 % of
+    // it (zooms in on a small part, out when the frame is dragged larger), so the frame can be
+    // placed precisely and its handles never pile up, also with fingers on a phone.
+    const [cropView, setCropView] = useState(null); // [x, y, w, h] in photo px
+    const [svgSize, setSvgSize] = useState({ w: 1, h: 1 });
+    const viewAnim = useRef(null);
     useEffect(() => {
         const svg = svgRef.current;
         if (state.status !== 'crop' || !svg) return;
-        const measure = () => setZoom(svg.getScreenCTM()?.a || 1);
+        const measure = () => { const r = svg.getBoundingClientRect(); setSvgSize({ w: r.width || 1, h: r.height || 1 }); };
         measure();
         const ro = new ResizeObserver(measure);
         ro.observe(svg);
         return () => ro.disconnect();
     }, [state.status, state.photo]);
+    const fitView = (f) => {
+        const cs = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => fromFrame(f, u * f.w / 2, v * f.h / 2));
+        cs.push(fromFrame(f, 0, -f.h / 2 - 0.3 * Math.max(f.w, f.h))); // room for the turn handle
+        const x0 = Math.min(...cs.map(c => c[0])), x1 = Math.max(...cs.map(c => c[0]));
+        const y0 = Math.min(...cs.map(c => c[1])), y1 = Math.max(...cs.map(c => c[1]));
+        const aspect = svgSize.w / svgSize.h, big = Math.max(state.PW, state.PH) * 1.3;
+        let w = Math.max((x1 - x0) / 0.6, 80), h = Math.max((y1 - y0) / 0.6, 80);
+        if (w / h < aspect) w = h * aspect; else h = w / aspect;
+        if (w > big * aspect && h > big) { const k = Math.max(big / h, big * aspect / w); w *= k; h *= k; }
+        return [(x0 + x1) / 2 - w / 2, (y0 + y1) / 2 - h / 2, w, h];
+    };
+    const glideTo = (target) => {
+        cancelAnimationFrame(viewAnim.current);
+        const from = cropView || target, t0 = performance.now();
+        const step = (t) => {
+            const k = Math.min(1, (t - t0) / 260), e = 1 - (1 - k) ** 3;
+            setCropView(from.map((v, i) => v + (target[i] - v) * e));
+            if (k < 1) viewAnim.current = requestAnimationFrame(step);
+        };
+        viewAnim.current = requestAnimationFrame(step);
+    };
+    useEffect(() => () => cancelAnimationFrame(viewAnim.current), []);
+    const view1 = cropView || (cropping ? [0, 0, state.PW, state.PH] : null);
+    const zoom = view1 ? Math.min(svgSize.w / view1[2], svgSize.h / view1[3]) : 1; // screen px per photo px
     const touch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
     const hs = cropping ? (touch ? 26 : 14) / zoom : 0; // handle size in photo px
     const onFrameDown = (e) => {
         const p = toImage(e);
         if (!p) return;
+        cancelAnimationFrame(viewAnim.current);
         e.currentTarget.setPointerCapture?.(e.pointerId);
         const h = e.target.getAttribute?.('data-h');
         setDrag({ h: h || 'move', x: p.x, y: p.y, f: frame });
@@ -216,7 +246,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const [cx, cy] = fromFrame(f, cu, cv);
         setFrame({ ...f, cx, cy, w, h });
     };
-    const turnFrame = (q) => setFrame(f => ({ ...f, a: f.a + q * Math.PI / 2 }));
+    const onFrameUp = () => { if (drag) glideTo(fitView(frame)); setDrag(null); };
+    const changeFrame = (f) => { setFrame(f); glideTo(fitView(f)); };
+    const turnFrame = (q) => changeFrame({ ...frame, a: frame.a + q * Math.PI / 2 });
     const deg = frame ? Math.round(((frame.a * 180 / Math.PI) % 360 + 540) % 360 - 180) : 0;
 
     // --- step 2: scale and pins ----------------------------------------------------------------
@@ -506,8 +538,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         {state.status === 'error' && <div className="pf-msg err">{state.reason}<Tips /></div>}
 
                         {cropping && (
-                            <svg ref={svgRef} viewBox={`0 0 ${state.PW} ${state.PH}`} preserveAspectRatio="xMidYMid meet"
-                                onPointerDown={onFrameDown} onPointerMove={onFrameMove} onPointerUp={() => setDrag(null)}
+                            <svg ref={svgRef} viewBox={view1.join(' ')} preserveAspectRatio="xMidYMid meet"
+                                onPointerDown={onFrameDown} onPointerMove={onFrameMove} onPointerUp={onFrameUp} onPointerCancel={onFrameUp}
                                 style={{ cursor: drag?.h === 'move' ? 'grabbing' : 'grab' }}>
                                 <image href={state.photo} x="0" y="0" width={state.PW} height={state.PH} />
                                 <path fillRule="evenodd" fill="rgba(0,0,0,.55)" style={{ pointerEvents: 'none' }}
@@ -576,11 +608,11 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 <div className="pf-row">
                                     <button className="ce-btn" onClick={() => turnFrame(-1)} title="Turn the frame 90° left"><RotateCcw size={13} /> 90°</button>
                                     <button className="ce-btn" onClick={() => turnFrame(1)} title="Turn the frame 90° right"><RotateCw size={13} /> 90°</button>
-                                    <button className="ce-btn" onClick={() => setFrame(startFrame(state.PW, state.PH))}>Reset</button>
+                                    <button className="ce-btn" onClick={() => changeFrame(startFrame(state.PW, state.PH))}>Reset</button>
                                 </div>
                                 <span className="pf-lbl">Turn: {deg}°</span>
                                 <input className="pf-range" type="range" min="-180" max="180" step="0.5" value={deg} aria-label="Turn the frame"
-                                    onChange={e => setFrame(f => ({ ...f, a: +e.target.value * Math.PI / 180 }))} />
+                                    onChange={e => changeFrame({ ...frame, a: +e.target.value * Math.PI / 180 })} />
                             </section>
                             <section>
                                 <button className="ce-btn primary pf-wide" onClick={next}>Next: pins <ArrowRight size={13} /></button>

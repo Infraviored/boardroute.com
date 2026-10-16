@@ -330,3 +330,218 @@ In `PcbCanvas.jsx`:
 3. **Lint & Build Verification**:
    - `npm run lint` must pass with zero errors.
    - `npm run build` must succeed without warnings.
+
+---
+
+## 5. Consistency Audit (Desktop and Mobile)
+
+While the desktop landing view (canvas, topbar, sidebars) provides a cohesive, functional aesthetic, an in-depth audit across the frontend reveals significant stylistic and architectural inconsistencies in sub-menus, dialog overlays, buttons, inputs, typography, and inline styling.
+
+### 5.1 Frontend Inconsistency Inventory
+
+#### A. Button Styles, Sizes, and Variants
+Across the 12 UI files, at least 14 distinct button classes and button patterns exist with conflicting heights, paddings, and radii:
+
+| Class / Location | File & Line | Height / Padding | Border Radius | Background / Border | Typographic Styling | Screenshot Reference |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `.tbtn` (Topbar action) | `src/components/Topbar.jsx:338-360` | `height: 34px`, `padding: 6px 12px` | `8px` | `var(--bg4)`, `border: 1px solid var(--border)` | `font-size: .82em`, `font-weight: 500` | `1440x900/03_main_loaded_initial.png` |
+| `.flow-btn` (Topbar workflow) | `src/components/Topbar.jsx:367-375` | `height: 34px`, `min-width: 90px` | `8px 0 0 8px` / chevron clip | Custom gradients, glow transitions | `font-size: .85em`, `font-weight: 700` | `1440x900/03_main_loaded_initial.png` |
+| `.mobile-more-btn` (Topbar mobile) | `src/components/Topbar.jsx:513-524` | `36px × 36px` | `8px` | `var(--bg4)`, `border: 1px solid var(--border)` | Icon only (`20px`) | `390x844/03_main_loaded_initial.png` |
+| `.mas-btn` (Mobile action sheet) | `src/components/Topbar.jsx:578-605` | `min-height: 44px`, `padding: 12px 14px` | `10px` | `var(--bg3)`, `border: 1px solid var(--border)` | `font-family: 'Outfit'`, `0.88rem`, `600` | `390x844/17_dialog_share.png` |
+| `.cc-btn` (Circuit actions) | `src/components/SidebarLeft.jsx:316-340` | `padding: 7px 10px` (variable height) | `8px` | `var(--bg4)`, `border: 1px solid var(--border)` | `font-size: var(--fs-sm)`, `font-weight: 700` | `1440x900/07_sidebar_left.png` |
+| `.tplbtn` (Parts library/add) | `src/components/SidebarLeft.jsx:561-585` | `padding: 6px 10px`, `min-width: 80px` | `8px` | `var(--bg3)`, `border: 1px solid var(--border)` | `font-size: var(--fs-xs)`, `font-weight: 600` | `1440x900/07_sidebar_left.png` |
+| `.edit-mini-btn` (Component card) | `src/components/SidebarLeft.jsx:686-702` | `24px × 24px` | `5px` | `transparent`, `border: 1px solid transparent` | Icon only (`13px`) | `1440x900/07_sidebar_left.png` |
+| `.canvas-btn` / `.cbtn` (Canvas bar) | `src/components/PcbCanvas.jsx:217-235` | `38px × 38px` (desktop), `44px × 44px` (mobile) | `6px` | `var(--bg3)`, `border: 1px solid var(--border)` | Icon only (`16px` / `18px`) | `1440x900/10_canvas_toolbar.png` |
+| `.lib-photo` (Photo footprint CTA) | `src/components/LibraryOverlay.jsx:163-164` | `height: 28px`, `padding: 0 10px` | `7px` | `none`, `border: 1px solid var(--blu)` | `font-size: var(--fs-sm)`, `font-weight: 600` | `1440x900/12_dialog_library.png` |
+| `.lib-cat` (Category pill) | `src/components/LibraryOverlay.jsx:166-172` | `padding: 3px 8px` (height ~22px) | `6px` | `var(--bg3)`, `border: 1px solid var(--border)` | `font-size: .7em`, `font-weight: 600` | `1440x900/12_dialog_library.png` |
+| `.ce-btn` (Comp editor action) | `src/components/CompEditorOverlay.jsx:344-349` | `height: 30px`, `padding: 0 14px` | `7px` | `var(--bg4)`, `border: 1px solid var(--border2)` | `font-size: var(--fs-sm)`, `font-weight: 600` | `1440x900/13_dialog_comp_editor.png` |
+| `.ce-add` (Add pin button) | `src/components/CompEditorOverlay.jsx:368` | `height: 24px`, `padding: 0 8px` | `6px` | `var(--bg4)`, `border: 1px solid var(--border2)` | `font-size: var(--fs-xs)`, `font-weight: 600` | `1440x900/13_dialog_comp_editor.png` |
+| `.ex-btn` (Export action) | `src/components/ExportOverlay.jsx:160-162` | `padding: 10px` (height ~40px) | `8px` | `var(--bg4)`, `border: 1px solid var(--border2)` | `font: inherit`, `font-weight: 600` | `1440x900/16_dialog_export.png` |
+| `.c-btn` (Confirm modal button) | `src/components/ConfirmOverlay.jsx:55-66` | `padding: 10px 24px` (height ~42px) | `10px` | `var(--bg4)`, `border: 1px solid var(--border2)` | `font-family: 'Inter'`, `0.85em`, `700` | `1440x900/19_dialog_confirm.png` |
+| `.copy-btn` (Prompt copy) | `src/components/PromptOverlay.jsx:119-126` | `padding: 6px 12px` | `4px` | `var(--bg2)`, `border: 1px solid var(--border)` | `font-size: 0.9em` | `1440x900/18_dialog_prompt.png` |
+| `.rc-btn` (Result card button) | `src/components/ResultCard.jsx:87-105` | `height: 32px`, `padding: 0 12px` | `6px` | `var(--bg3)`, `border: 1px solid var(--border)` | `font-size: 0.8rem`, `font-weight: 600` | `1440x900/06_result_card.png` |
+
+#### B. Border Radii Discrepancies
+There is no unified radius scale. Different components pick arbitrary border-radius values:
+- `4px`: `.lib-swatch` (`LibraryOverlay.jsx:188`), `.copy-btn` (`PromptOverlay.jsx:120`).
+- `5px`: `.ce-seg button` (`CompEditorOverlay.jsx:364`), `.ce-icon` (`CompEditorOverlay.jsx:374`), `.edit-mini-btn` (`SidebarLeft.jsx:689`).
+- `6px`: `.canvas-btn` (`PcbCanvas.jsx:219`), `.lib-cat` (`LibraryOverlay.jsx:167`), `.ce-add` (`CompEditorOverlay.jsx:368`), `.rc-btn` (`ResultCard.jsx:88`), `.prompt-scroll-container` (`PromptOverlay.jsx:131`).
+- `7px`: `.lib-photo` (`LibraryOverlay.jsx:163`), `.ce-btn` (`CompEditorOverlay.jsx:344`), `.ce-seg` (`CompEditorOverlay.jsx:363`), `.pf-url input` (`PhotoFootprintOverlay.jsx:717`).
+- `8px`: `.tbtn` (`Topbar.jsx:344`), `.cc-btn` (`SidebarLeft.jsx:323`), `.tplbtn` (`SidebarLeft.jsx:563`), `.ex-btn` (`ExportOverlay.jsx:160`), `.ex-seg` (`ExportOverlay.jsx:150`).
+- `10px`: `.c-btn` (`ConfirmOverlay.jsx:57`), `.mas-btn` (`Topbar.jsx:586`), `.lib-card` (`LibraryOverlay.jsx:177`).
+- `12px` / `14px` / `16px` for modal shells: `ConfirmOverlay` uses `border-radius: 12px`, `CompEditorOverlay` and `PhotoFootprintOverlay` use `border-radius: 14px`, `LibraryOverlay` and `ExportOverlay` use `border-radius: 16px`.
+
+#### C. Color and Semantic Token Inconsistencies
+- **Primary / Affirmative Color**:
+  - `Topbar.jsx` uses `var(--grn-bright, #3fb950)` with glowing drop-shadows.
+  - `ProcessingBar.jsx` uses `var(--grn, #238636)`.
+  - `CompEditorOverlay.jsx:348` and `ExportOverlay.jsx:161` use `var(--grn)` with `:hover { background: #2a9a40; }` (hardcoded hex instead of token).
+  - `ConfirmOverlay.jsx:76` uses `var(--err-bright)` for confirmation actions.
+  - `PromptOverlay.jsx:83` uses `var(--blu-bright)`.
+- **Borders & Backgrounds**:
+  - Some components use `var(--border)` (`rgba(255,255,255,0.08)`), others use `var(--border2)` (`rgba(255,255,255,0.14)`), others use `rgba(255,255,255,0.15)` or `rgba(31,111,235,0.25)`.
+  - Background surface steps jump unpredictably between `var(--bg0)` through `var(--bg5)` and ad-hoc semi-transparent rgba strings (e.g. `rgba(31, 111, 235, 0.12)`, `rgba(63, 185, 80, 0.1)`).
+
+#### D. Typography & Icon Sizing
+- **Font Sizes**: Mixed units without a single source of truth:
+  - Relative: `0.7em`, `0.82em`, `0.85em`, `0.9em`, `0.8rem`, `0.85rem`, `0.88rem`, `1.1rem`.
+  - Absolute: `13px`, `14px`, `16px`.
+  - Variables: `var(--fs-xs)` (11px), `var(--fs-sm)` (12px), `var(--fs-md)` (14px).
+  - Fonts: Headings alternate between `'Outfit', sans-serif`, `'Inter', sans-serif`, and system font. Monospaced sections alternate between `ui-monospace, Consolas, monospace`, `'JetBrains Mono', monospace`, and `'Consolas', monospace`.
+- **Icon Sizing**:
+  - `Lucide` icons are sized ad-hoc: 13px (`CompEditorOverlay.jsx:321`), 15px (`ExportOverlay.jsx:126`), 16px (`Topbar.jsx:134`), 18px (`Topbar.jsx:180`), 20px (`Topbar.jsx:154`).
+
+#### E. Dialog Shells, Headers, and Footers
+Each dialog modal re-invents its container shell, header layout, and close button:
+- **`LibraryOverlay.jsx`**: `.lib-modal` (max-width 640px, padding 20px, absolute `.close-btn` at top-right 14px).
+- **`ExamplesOverlay.jsx`**: `.examples-modal` (max-width 860px, padding 24px, no header close button, only overlay click, escape, or skip button).
+- **`ExportOverlay.jsx`**: `.export-modal` (max-width 1200px, padding 0, flex row 2-column preview/sidebar, sticky action footer, no visible top-right close icon).
+- **`CompEditorOverlay.jsx`**: `.ce-modal` (max-width 1120px, padding 0, `.ce-head` with title, ID chip, size, and inline button actions "Back to library", "Cancel", "Done").
+- **`ConfirmOverlay.jsx`**: `.confirm-modal` (max-width 380px, padding 32px, `.modal-header` with `✕` button, `.modal-footer` with Cancel / Danger buttons).
+- **`PromptOverlay.jsx`**: `.prompt-modal` (max-width 640px, padding 20px, `.modal-header` with `✕` button, full-width bottom confirm button).
+
+#### F. Inputs, Selects, Checkboxes, and Segmented Controls
+- **Inputs**:
+  - `CompEditorOverlay.jsx:357`: `.ce-side input:not([type=color]) { height: 28px; padding: 0 8px; border-radius: 6px; font-size: 13px; }`.
+  - `PhotoFootprintOverlay.jsx:717`: `.pf-url input { height: 30px; padding: 0 8px; border-radius: 7px; font-size: 13px; }`.
+  - `SidebarLeft.jsx` JSON editor: `<textarea>` with `'JetBrains Mono', monospace`.
+  - `PromptOverlay.jsx:136`: `.prompt-pre` with `'Consolas', monospace`.
+- **Segmented Controls**:
+  - `CompEditorOverlay.jsx:363`: `.ce-seg` (`background: var(--bg0); border-radius: 7px; padding: 2px; gap: 2px;`) with `.ce-seg button` (`padding: 5px; border-radius: 5px;`).
+  - `ExportOverlay.jsx:150`: `.ex-seg` (`background: var(--bg0); border-radius: 8px; padding: 2px; gap: 2px;`) with `.ex-seg button` (`padding: 7px 6px; border-radius: 6px;`).
+- **Checkboxes & Hints**:
+  - `ExportOverlay.jsx:155`: `.ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); }`.
+  - `PhotoFootprintOverlay.jsx:738`: `.pf-check { display: flex; gap: 6px; align-items: center; font-size: var(--fs-sm); }`.
+  - Hints alternate between `.ex-hint` (`var(--fs-xs)`, `var(--txt2)`), `.ce-hint` (`var(--fs-xs)`, line-height 1.4), and raw `<p>` elements.
+
+#### G. CSS Architecture: Per-Component `<style>` Blocks vs `index.css`
+- **Current Issue**: Every component injects its own `<style dangerouslySetInnerHTML={{ __html: ... }}>` directly into the DOM tree during render.
+- **Consequences**:
+  - High duplication of common utilities (modal overlays, headers, button states, focus rings).
+  - CSS precedence bugs depending on component mounting order.
+  - Inability to share design tokens cleanly across modals without copy-pasting.
+
+---
+
+### 5.2 Shared UI Modularisation Proposal
+
+To solve these inconsistencies without disturbing the desktop landing view, we propose introducing a focused set of shared UI components under `src/components/ui/` backed by a semantic design token layer in `src/index.css`.
+
+#### A. Design Tokens (`src/index.css`)
+Establish strict semantic scales:
+```css
+/* --- UI Sizing & Radii Tokens --- */
+--btn-h-xs: 24px;   /* micro badges, pin edit icons */
+--btn-h-sm: 28px;   /* secondary compact chips, category pills */
+--btn-h-md: 34px;   /* standard controls (matches topbar .tbtn) */
+--btn-h-lg: 42px;   /* dialog primary CTA buttons (>=44px on mobile) */
+
+--radius-xs: 4px;   /* swatches, badges */
+--radius-sm: 6px;   /* compact inputs, small buttons */
+--radius-md: 8px;   /* standard buttons, cards, segment controls */
+--radius-lg: 12px;  /* small dialogs, notification cards */
+--radius-xl: 16px;  /* full modals, bottom sheets */
+
+/* --- Semantic Intent Colors --- */
+--ui-accent: var(--accent);          /* brand highlight */
+--ui-primary: var(--grn);            /* affirmative primary (Wire, Apply, Save) */
+--ui-primary-hover: #2a9a40;
+--ui-primary-border: var(--grn-bright);
+--ui-danger: var(--err-bright);      /* destructive (Delete, Reset) */
+--ui-danger-bg: rgba(248, 81, 73, 0.1);
+--ui-neutral: var(--bg4);            /* standard secondary buttons */
+--ui-neutral-hover: var(--bg3);
+--ui-neutral-border: var(--border);
+```
+
+#### B. Component Primitives Set (`src/components/ui/`)
+1. **`Button.jsx`**:
+   - `variant`: `'primary'` (green CTA), `'secondary'` (neutral outline), `'ghost'` (borderless), `'danger'` (red destructive), `'accent'` (blue action).
+   - `size`: `'sm'` (28px), `'md'` (34px, standard), `'lg'` (42px).
+   - Props: `icon`, `disabled`, `loading`, `fullWidth`, `title`.
+2. **`IconButton.jsx`**:
+   - Standardized square icon action with built-in accessibility title and tooltip hook.
+   - Sizes: `'sm'` (24px, 14px icon), `'md'` (32px, 16px icon), `'lg'` (40px / 44px mobile, 18px/20px icon).
+3. **`ModalShell.jsx`**:
+   - Handles backdrop blur, portal mounting, click-outside dismissal, Escape key listener, and mobile full-screen / sheet mode.
+   - Standard sub-components: `ModalShell.Header` (consistent title, optional subtitle, standardized close button), `ModalShell.Body`, `ModalShell.Footer` (sticky action bar).
+4. **`SegmentedControl.jsx`**:
+   - Unifies `.ce-seg` and `.ex-seg`.
+   - Accessible keyboard tab switching, 8px outer radius, 6px pill radius.
+5. **`Field.jsx` & `Input.jsx`**:
+   - Unified label, helper hint, error state, and input styling (`height: 32px`, 6px radius, `var(--bg0)` background).
+6. **`Checkbox.jsx`**:
+   - Custom styled checkbox with consistent 16px square indicator, checkmark svg, and aligned label.
+7. **`SectionHeader.jsx` & `Hint.jsx`**:
+   - Standard uppercase category label (`var(--fs-xs)`, `letter-spacing: .06em`, `var(--txt2)`).
+
+#### C. Migration Order & Phasing
+To guarantee zero regression on the core workflow, components are migrated in four strictly decoupled phases:
+
+1. **Phase 1: Design Tokens & Primitives Foundation**
+   - Add sizing, radius, and semantic intent variables to `src/index.css`.
+   - Implement `Button`, `IconButton`, `ModalShell`, `SegmentedControl`, `Field`, `Checkbox` in `src/components/ui/`.
+   - Run zero-regression check against desktop reference.
+2. **Phase 2: Leaf & Simple Dialogs**
+   - Migrate `src/components/ConfirmOverlay.jsx` (adopts `ModalShell`, `Button`).
+   - Migrate `src/components/PromptOverlay.jsx` (adopts `ModalShell`, `Button`).
+   - Migrate `src/components/ResultCard.jsx` (adopts `Button`, `IconButton`).
+   - Verify modal behavior and screenshots.
+3. **Phase 3: Complex Overlays**
+   - Migrate `src/components/ExportOverlay.jsx` (adopts `ModalShell`, `SegmentedControl`, `Checkbox`, `Button`).
+   - Migrate `src/components/LibraryOverlay.jsx` (adopts `ModalShell`, `Button`).
+   - Migrate `src/components/CompEditorOverlay.jsx` (adopts `SegmentedControl`, `Field`, `Button`, `IconButton`).
+4. **Phase 4: Shell Integration (Desktop & Mobile Consistency)**
+   - Unify `SidebarLeft.jsx` and `SidebarRight.jsx` button variants with the shared primitives.
+   - Refactor `Topbar.jsx` action sheet (`.mas-btn`) to reuse the unified button definitions.
+
+---
+
+### 5.3 PhotoFootprintOverlay Conflict Analysis & Reconciliation
+
+#### A. Background of PR #21 (`fix/photo-crop-first`)
+In PR #21 (branch `origin/fix/photo-crop-first`), `PhotoFootprintOverlay.jsx` was extensively rewritten:
+- The component grew from 644 to 948 lines, internalizing the crop-first workflow, live grid alignment, pin count estimation, and computer vision utilities directly within the component.
+- PR #21 added an early mobile responsive media query at lines 745–752:
+  ```css
+  @media (max-width: 760px) {
+      .pf-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
+      .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
+      .pf-view { flex: none; height: 55dvh; position: sticky; top: 0; z-index: 2; }
+      .pf-side { border-left: 0; overflow: visible; }
+      .ce-size { display: none; }
+      .pf-modal .ce-head h3 { font-size: var(--fs-sm); }
+  }
+  ```
+
+#### B. Audit of PR #22's Changes on Master
+In PR #22, our mobile responsive changes to `PhotoFootprintOverlay.jsx` modified the older master version:
+1. Standardized breakpoint to `@media (max-width: 768px)` (aligning with the global 768px standard instead of 760px).
+2. Reduced `.pf-view` sticky height from `50dvh`/`55dvh` down to `40dvh`.
+   - *Rationale*: At `55dvh`, on a 780px or 844px mobile viewport, the sticky image preview leaves only ~300px for the controls. Users were forced into excessive vertical scrolling to reach pin marking and OCR buttons. `40dvh` leaves ample room for immediate tool interactions.
+3. Added touch-target accessibility rules:
+   ```css
+   .pf-side .ce-btn { min-height: 40px; }
+   .pf-modal .ce-head .ce-btn { min-height: 36px; }
+   ```
+
+#### C. Reconciliation Recipe for PR #21 and PR #22
+When merging or rebasing `feat/mobile-responsive` on top of `fix/photo-crop-first`:
+1. **Source Code**: Accept `origin/fix/photo-crop-first`'s entire JavaScript logic, hooks, state machines, and canvas rendering without modifications.
+2. **CSS Patch**: In `src/components/PhotoFootprintOverlay.jsx`, update lines 745–752 to apply the mobile ergonomic rules:
+   ```diff
+   - @media (max-width: 760px) {
+   + @media (max-width: 768px) {
+         .pf-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
+         .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
+   -     .pf-view { flex: none; height: 55dvh; position: sticky; top: 0; z-index: 2; }
+   +     .pf-view { flex: none; height: 40dvh; position: sticky; top: 0; z-index: 2; }
+         .pf-side { border-left: 0; overflow: visible; }
+   +     .pf-side .ce-btn { min-height: 40px; }
+         .ce-size { display: none; }
+         .pf-modal .ce-head h3 { font-size: var(--fs-sm); }
+   +     .pf-modal .ce-head .ce-btn { min-height: 36px; }
+     }
+   ```
+This provides a clean, conflict-free resolution that incorporates the algorithmic advancements from PR #21 with the mobile ergonomic improvements from PR #22.
+

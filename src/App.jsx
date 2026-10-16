@@ -19,6 +19,7 @@ import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
 import { useBoardView } from './hooks/useBoardView.js';
+import { Layers, Cpu, Activity } from 'lucide-react';
 
 function App() {
   // --- ENGINE ---
@@ -142,6 +143,7 @@ function App() {
   // since (its tick matches the board's), so any edit, undo or new run hides it.
   const [resultCard, setResultCard] = useState(null);
   const [boardView, setBoardView] = useBoardView();
+  const [mobileDrawer, setMobileDrawer] = useState(null); // null | 'parts' | 'inspector'
 
   // Modal states
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -700,6 +702,8 @@ function App() {
             setIsEditorOpen(true);
           }}
           onEditComponent={(id) => { setEditorMode('edit'); setEditorPhoto(null); const c = board.components.find(x => x.id === id); setEditingComp(c && partImages[id] ? { ...c, image: partImages[id] } : c); setIsEditorOpen(true); }}
+          mobileOpen={mobileDrawer === 'parts'}
+          onCloseDrawer={() => setMobileDrawer(null)}
         />
         <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
         <div id="ca-col">
@@ -762,8 +766,40 @@ function App() {
           hoveredNet={hoveredNet} setHoveredNet={setHoveredNet}
           selectedNet={selectedNet} setSelectedNet={setSelectedNet}
           activeNets={activeNets}
+          mobileOpen={mobileDrawer === 'inspector'}
+          onCloseDrawer={() => setMobileDrawer(null)}
         />
+        <div className={`mobile-drawer-backdrop ${mobileDrawer ? 'active' : ''}`} onClick={() => setMobileDrawer(null)} />
       </div>
+      <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
+        <button
+          className={`mbn-tab ${!mobileDrawer ? 'active' : ''}`}
+          onClick={() => setMobileDrawer(null)}
+          aria-label="View Board"
+        >
+          <Layers size={18} />
+          <span>Board</span>
+        </button>
+        <button
+          className={`mbn-tab ${mobileDrawer === 'parts' ? 'active' : ''}`}
+          onClick={() => setMobileDrawer(d => d === 'parts' ? null : 'parts')}
+          aria-label="View Parts and Circuit"
+        >
+          <div className="mbn-badge-wrap">
+            <Cpu size={18} />
+            {board.components.length > 0 && <span className="mbn-badge">{board.components.length}</span>}
+          </div>
+          <span>Parts</span>
+        </button>
+        <button
+          className={`mbn-tab ${mobileDrawer === 'inspector' ? 'active' : ''}`}
+          onClick={() => setMobileDrawer(d => d === 'inspector' ? null : 'inspector')}
+          aria-label="View Inspector and Stats"
+        >
+          <Activity size={18} />
+          <span>Inspector</span>
+        </button>
+      </nav>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
       <FastTooltips />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(c) => handleAddFromLibrary(c)}
@@ -801,14 +837,156 @@ function App() {
         .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); }
         .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
         .notice-close:hover { opacity: 1; }
-        /* Phone: the fixed-width sidebars would squeeze the canvas to zero width. Stack the
-           canvas on top and let both sidebars follow at full width in one scrolling column. */
-        @media (max-width: 700px) {
-          .app-main { height: 100dvh; }
-          #layout { flex-direction: column; overflow-y: auto; }
-          #ca-col { order: -1; flex: none; height: 60dvh; min-height: 300px; }
-          #lsb, #rsb { width: auto; flex: none; border-left: none; border-right: none; border-top: 1px solid var(--border); }
-          .resizer { display: none; }
+
+        .mobile-bottom-nav { display: none; }
+        .mobile-drawer-backdrop { display: none; }
+
+        @media (max-width: 768px) {
+          .app-main {
+            height: 100dvh;
+            width: 100vw;
+            position: fixed;
+            overflow: hidden;
+          }
+          #layout {
+            flex-direction: row;
+            overflow: hidden;
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            padding-bottom: var(--bottom-nav-height, 54px);
+          }
+          #ca-col {
+            flex: 1;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            order: 0;
+          }
+          #ca {
+            margin: 0;
+            border-radius: 0;
+            height: 100%;
+          }
+          .resizer { display: none !important; }
+
+          /* Bottom Navigation */
+          .mobile-bottom-nav {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: var(--bottom-nav-height, 54px);
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 160;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .mbn-tab {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            background: none;
+            border: none;
+            color: var(--txt1);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.15s;
+            position: relative;
+            min-height: 44px;
+          }
+          .mbn-tab:active {
+            color: var(--txt0);
+          }
+          .mbn-tab.active {
+            color: var(--blu-bright);
+          }
+          .mbn-tab.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: var(--blu-bright);
+            box-shadow: 0 0 8px var(--blu-bright);
+          }
+          .mbn-badge-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .mbn-badge {
+            position: absolute;
+            top: -5px;
+            right: -10px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background: var(--blu-bright);
+            color: #000;
+            font-size: 10px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          /* Backdrop */
+          .mobile-drawer-backdrop {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(3px);
+            z-index: 140;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+          }
+          .mobile-drawer-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+          }
+
+          /* Sidebars as Bottom Drawers */
+          #lsb, #rsb {
+            position: fixed !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: var(--bottom-nav-height, 54px) !important;
+            height: 75dvh !important;
+            max-height: 75dvh !important;
+            width: 100vw !important;
+            border-radius: 16px 16px 0 0 !important;
+            border: 1px solid var(--border2) !important;
+            border-bottom: none !important;
+            background: var(--bg2) !important;
+            box-shadow: 0 -8px 36px rgba(0,0,0,0.6) !important;
+            z-index: 150 !important;
+            transform: translateY(calc(100% + var(--bottom-nav-height, 54px) + 20px)) !important;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            pointer-events: none;
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+          }
+          #lsb.mobile-open, #rsb.mobile-open {
+            transform: translateY(0) !important;
+            pointer-events: auto !important;
+          }
         }
       `}} />
     </div>

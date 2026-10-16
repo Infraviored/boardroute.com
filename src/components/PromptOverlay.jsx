@@ -142,6 +142,46 @@ REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
                     color: var(--grn);
                     line-height: 1.5;
                 }
+
+                @media (max-width: 768px) {
+                  .prompt-modal {
+                    width: 100vw;
+                    max-width: 100vw;
+                    height: 100dvh;
+                    max-height: 100dvh;
+                    border-radius: 0;
+                    padding: 16px;
+                    margin: 0;
+                    display: flex;
+                    flex-direction: column;
+                  }
+                  .prompt-modal .close-btn {
+                    width: 40px;
+                    height: 40px;
+                    min-width: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  }
+                  .modal-body {
+                    flex: 1;
+                    min-height: 0;
+                  }
+                  .prompt-scroll-container {
+                    max-height: none;
+                    flex: 1;
+                  }
+                  .copy-btn {
+                    min-height: 38px;
+                    padding: 6px 14px;
+                    font-size: 0.85rem;
+                  }
+                  .modal-footer .btn {
+                    min-height: 44px;
+                    width: 100% !important;
+                    font-size: 1rem;
+                  }
+                }
                 `
             }} />
         </div>

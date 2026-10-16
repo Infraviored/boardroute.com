@@ -71,6 +71,8 @@ export function PcbCanvas({
     });
     const [isPanning, setIsPanning] = useState(false);
     const lastPos = useRef({ x: 0, y: 0 });
+    const activePointers = useRef(new Map());
+    const pinchRef = useRef(null);
     const [draggingId, setDraggingId] = useState(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [routingPos, setRoutingPos] = useState(null); // Local mouse tracking for routing
@@ -127,6 +129,26 @@ export function PcbCanvas({
         // the toolbar sits inside the canvas: capturing the pointer here would steal its clicks
         if (e.target.closest?.('.canvas-controls')) return;
         const pos = getMousePos(e);
+        activePointers.current.set(e.pointerId, pos);
+
+        // Multi-touch pinch-to-zoom / 2-finger pan initialization
+        if (activePointers.current.size === 2) {
+            const pts = Array.from(activePointers.current.values());
+            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+            const cam = camRef.current;
+            pinchRef.current = {
+                dist: Math.max(dist, 1),
+                mid,
+                camStart: { ...cam },
+                worldMid: { x: (mid.x - cam.x) / cam.z, y: (mid.y - cam.y) / cam.z }
+            };
+            setIsPanning(false);
+            setDraggingId(null);
+            e.currentTarget.setPointerCapture(e.pointerId);
+            return;
+        }
+
         if (side === 'bottom') {
             // The solder-side view is mirrored and view-only: every drag pans.
             setIsPanning(true);
@@ -187,6 +209,26 @@ export function PcbCanvas({
 
     const handlePointerMove = (e) => {
         const pos = getMousePos(e);
+        if (activePointers.current.has(e.pointerId)) {
+            activePointers.current.set(e.pointerId, pos);
+        }
+
+        // Multi-touch pinch zoom & pan handling
+        if (activePointers.current.size >= 2 && pinchRef.current) {
+            const pts = Array.from(activePointers.current.values());
+            const curDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            const curMid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+            const { dist: startDist, camStart, worldMid } = pinchRef.current;
+            const scale = curDist / startDist;
+            const newZ = Math.min(Math.max(camStart.z * scale, 0.1), 10.0);
+            const newX = curMid.x - worldMid.x * newZ;
+            const newY = curMid.y - worldMid.y * newZ;
+            applyCamera({ x: newX, y: newY, z: newZ });
+            simPan.current = { x: newX, y: newY };
+            simZoom.current = newZ;
+            return;
+        }
+
         const cam = camRef.current;
         const worldY = (pos.y - cam.y) / cam.z;
         const worldX = (pos.x - cam.x) / cam.z;
@@ -218,6 +260,14 @@ export function PcbCanvas({
     };
 
     const handlePointerUp = (e) => {
+        activePointers.current.delete(e.pointerId);
+        if (activePointers.current.size < 2) {
+            pinchRef.current = null;
+        }
+        if (activePointers.current.size === 1) {
+            const remaining = Array.from(activePointers.current.values())[0];
+            lastPos.current = remaining;
+        }
         if (draggingId) onMoveEnd?.();
         setDraggingId(null);
         setIsPanning(false);
@@ -697,12 +747,13 @@ export function PcbCanvas({
                     const cy = rect.height / 2;
                     const curZ = simZoom.current;
                     const curP = simPan.current;
-                    // eslint-disable-next-line react-hooks/immutability
+                    /* eslint-disable react-hooks/immutability */
                     simPan.current = {
                         x: cx - (cx - curP.x) * (nextZ / curZ),
                         y: cy - (cy - curP.y) * (nextZ / curZ)
                     };
                     simZoom.current = nextZ;
+                    /* eslint-enable react-hooks/immutability */
                     applyCamera({ ...simPan.current, z: nextZ });
                 }} title="Zoom In">
                     <Plus size={18} />
@@ -714,12 +765,13 @@ export function PcbCanvas({
                     const cy = rect.height / 2;
                     const curZ = simZoom.current;
                     const curP = simPan.current;
-                    // eslint-disable-next-line react-hooks/immutability
+                    /* eslint-disable react-hooks/immutability */
                     simPan.current = {
                         x: cx - (cx - curP.x) * (nextZ / curZ),
                         y: cy - (cy - curP.y) * (nextZ / curZ)
                     };
                     simZoom.current = nextZ;
+                    /* eslint-enable react-hooks/immutability */
                     applyCamera({ ...simPan.current, z: nextZ });
                 }} title="Zoom Out">
                     <Minus size={18} />
@@ -772,6 +824,28 @@ export function PcbCanvas({
                 .cbtn:active { transform: scale(0.95); }
                 .pcb-comp { transition: filter 0.2s ease; }
                 .pcb-comp:hover { filter: brightness(1.2); }
+
+                @media (max-width: 768px) {
+                  .canvas-controls {
+                    right: 12px;
+                    bottom: calc(12px + var(--bottom-nav-height, 54px));
+                    display: grid;
+                    grid-template-columns: repeat(2, 44px);
+                    gap: 6px;
+                  }
+                  .canvas-container.pb-active .canvas-controls {
+                    bottom: calc(12px + var(--bottom-nav-height, 54px) + 140px);
+                  }
+                  .cbtn {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 10px;
+                  }
+                  .cbtn svg {
+                    width: 20px;
+                    height: 20px;
+                  }
+                }
             `}} />
         </div>
     );

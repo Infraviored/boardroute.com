@@ -24,6 +24,8 @@
 
   /* Layout */
   --topbar-height: 52px;
+  --topbar-mobile-height: 50px;
+  --bottom-nav-height: 54px;
   --statusbar-height: 26px;
   --lsb-width: 280px;
   --rsb-width: 240px;
@@ -543,3 +545,16 @@ kbd {
   box-shadow: 0 6px 20px rgba(0,0,0,.45); pointer-events: none; opacity: 0; transition: opacity .1s;
 }
 .fast-tip.show { opacity: 1; }
+
+@media (hover: none) and (pointer: coarse) {
+  .fast-tip { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  html, body, #root {
+    height: 100dvh;
+    width: 100vw;
+    overflow: hidden;
+    position: fixed;
+  }
+}

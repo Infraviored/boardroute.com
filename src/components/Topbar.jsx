@@ -12,7 +12,8 @@ import {
   Eraser,
   FileJson,
   BookOpen,
-  Share2
+  Share2,
+  MoreVertical
 } from 'lucide-react';
 
 export function Topbar({
@@ -28,6 +29,7 @@ export function Topbar({
   hasLayout,
   isProcessing
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [shareState, setShareState] = React.useState(null); // null | 'copied' | 'failed'
   const shareTimer = React.useRef(null);
   React.useEffect(() => () => clearTimeout(shareTimer.current), []);
@@ -67,7 +69,7 @@ export function Topbar({
             style={{ '--flow-color': '#4da0ff' }}
           >
             <FileJson size={14} />
-            Load
+            <span>Load</span>
           </button>
           <button
             className={`flow-btn ${workflowStep >= 2 && !(workflowStep === 2 && isProcessing) ? 'completed' : ''} ${workflowStep === 2 && isProcessing ? 'processing' : ''} ${workflowStep === 1 && !isProcessing ? 'next' : ''}`}
@@ -78,7 +80,7 @@ export function Topbar({
             style={{ '--flow-color': 'var(--grn-bright)' }}
           >
             <Cable size={14} />
-            Wire
+            <span>Wire</span>
           </button>
           <button
             className={`flow-btn ${workflowStep >= 3 && !(workflowStep === 3 && isProcessing) ? 'completed' : ''} ${workflowStep === 3 && isProcessing ? 'processing' : ''} ${workflowStep === 2 && !isProcessing ? 'next' : ''}`}
@@ -89,7 +91,7 @@ export function Topbar({
             style={{ '--flow-color': '#a371f7' }}
           >
             <Minimize2 size={14} />
-            Compact
+            <span>Compact</span>
           </button>
         </div>
       </div>
@@ -142,6 +144,63 @@ export function Topbar({
           <RotateCcw size={16} />
         </button>
       </div>
+
+      <button
+        className="mobile-more-btn"
+        onClick={() => setMobileMenuOpen(o => !o)}
+        aria-label="More actions"
+        aria-expanded={mobileMenuOpen}
+      >
+        <MoreVertical size={20} />
+      </button>
+
+      {mobileMenuOpen && typeof document !== 'undefined' && createPortal(
+        <div className="mobile-action-sheet-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-action-sheet" onClick={e => e.stopPropagation()}>
+            <div className="mas-header">
+              <span className="mas-title">Menu &amp; Actions</span>
+              <button className="mas-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mas-grid">
+              <button className={`mas-btn share-btn ${shareState || ''}`} onClick={() => { share(); setMobileMenuOpen(false); }} disabled={!hasLayout || isProcessing}>
+                <Share2 size={18} />
+                <span>{shareState === 'copied' ? 'Link copied' : 'Share link'}</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onExportSVG(); setMobileMenuOpen(false); }} disabled={!hasLayout}>
+                <Download size={18} />
+                <span>Export board</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onUndo(); setMobileMenuOpen(false); }}>
+                <Undo2 size={18} />
+                <span>Undo</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onRedo(); setMobileMenuOpen(false); }}>
+                <Redo2 size={18} />
+                <span>Redo</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onRouteOnly(); setMobileMenuOpen(false); }} disabled={isProcessing}>
+                <Zap size={18} />
+                <span>Reroute</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onClearWires(); setMobileMenuOpen(false); }} disabled={isProcessing}>
+                <Eraser size={18} />
+                <span>Clear wires</span>
+              </button>
+              <a className="mas-btn docs-btn" href="/how-it-works/">
+                <BookOpen size={18} />
+                <span>How it works</span>
+              </a>
+              <button className="mas-btn danger-btn" onClick={() => { onReset(); setMobileMenuOpen(false); }}>
+                <RotateCcw size={18} />
+                <span>Reset board</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -461,6 +520,163 @@ export function Topbar({
           background: var(--err-bright);
           color: #fff;
           border-color: var(--err-bright);
+        }
+
+        .mobile-more-btn { display: none; }
+        .mobile-action-sheet-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.65);
+          backdrop-filter: blur(4px);
+          z-index: 300;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          animation: mas-fade 0.2s ease-out;
+        }
+        @keyframes mas-fade { from { opacity: 0; } to { opacity: 1; } }
+        .mobile-action-sheet {
+          background: var(--bg2);
+          border-top: 1px solid var(--border2);
+          border-radius: 16px 16px 0 0;
+          padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+          box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
+          animation: sheet-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          max-height: 80dvh;
+          overflow-y: auto;
+        }
+        @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .mas-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
+        }
+        .mas-title {
+          font-family: 'Outfit', sans-serif;
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: var(--txt0);
+        }
+        .mas-close {
+          background: none;
+          border: none;
+          color: var(--txt1);
+          width: 38px;
+          height: 38px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .mas-close:active { background: var(--bg4); color: var(--txt0); }
+        .mas-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+        .mas-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          min-height: 44px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          color: var(--txt0);
+          font-family: 'Outfit', sans-serif;
+          font-size: 0.88rem;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .mas-btn:active { background: var(--bg4); border-color: var(--border2); }
+        .mas-btn:disabled { opacity: 0.45; cursor: default; }
+        .mas-btn.danger-btn {
+          color: var(--err-bright);
+          background: rgba(248, 81, 73, 0.08);
+          border-color: rgba(248, 81, 73, 0.25);
+        }
+        .mas-btn.share-btn.copied {
+          color: var(--grn-bright);
+          border-color: rgba(63, 185, 80, 0.5);
+        }
+
+        @media (max-width: 768px) {
+          #topbar {
+            height: var(--topbar-mobile-height, 50px);
+            min-height: var(--topbar-mobile-height, 50px);
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 0 8px !important;
+            overflow: visible;
+          }
+          #topbar > .sep { display: none !important; }
+          .topbar-row-1 {
+            height: 100% !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            padding: 0 !important;
+            border-bottom: none !important;
+            flex: 1;
+            min-width: 0;
+            gap: 6px;
+          }
+          .logo {
+            width: auto !important;
+            padding: 0 2px !important;
+            font-size: 1.15rem !important;
+            flex-basis: auto !important;
+          }
+          .logo em { display: none !important; }
+          .logo-sep { display: none !important; }
+          #topbar .workflow-track {
+            margin: 0 !important;
+            flex: 1;
+            max-width: 250px;
+            min-width: 0;
+            display: flex;
+            border-radius: 8px;
+            padding: 2px;
+          }
+          .flow-btn {
+            flex: 1 !important;
+            min-width: 0 !important;
+            padding: 6px 4px !important;
+            margin: 0 !important;
+            font-size: 0.74rem !important;
+            gap: 3px !important;
+            justify-content: center !important;
+            clip-path: none !important;
+            border-radius: 6px !important;
+          }
+          .flow-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+          .flow-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .topbar-actions { display: none !important; }
+          .mobile-more-btn {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            background: var(--bg4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--txt1);
+            cursor: pointer;
+            margin-left: 6px;
+            flex-shrink: 0;
+          }
+          .mobile-more-btn:active {
+            background: var(--bg3);
+            color: var(--txt0);
+          }
         }
       `}} />
       {hint && (

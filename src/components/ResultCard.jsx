@@ -141,16 +141,31 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .result-card.perfect .rc-ok, .result-card.perfect .rc-title { color: #e3b341; }
         .rc-btn.copied { border-color: var(--grn-bright); color: var(--grn-bright); }
         .rc-btn.primary.copied { color: #fff; }
+        @media (max-width: 768px) {
+          .result-card {
+            bottom: calc(var(--bottom-nav-height, 54px) + 8px);
+            width: calc(100% - 16px);
+            padding: 10px 12px;
+          }
+          .rc-actions {
+            gap: 6px;
+          }
+          .rc-btn {
+            min-height: 40px;
+            font-size: 0.85rem;
+            padding: 0 10px;
+          }
+        }
         /* Phone: one row of numbers, the delta's "from -> to" line goes into its tooltip. */
         @media (max-width: 480px) {
-          .result-card { bottom: 8px; padding: 9px 11px 11px; width: calc(100% - 16px); }
+          .result-card { bottom: calc(var(--bottom-nav-height, 54px) + 8px); padding: 9px 11px 11px; width: calc(100% - 16px); }
           .rc-title { font-size: 0.98rem; }
           .rc-stats { gap: 4px 14px; margin: 8px 0 10px; flex-wrap: nowrap; }
           .rc-val { font-size: 1.2rem; }
           .rc-lbl { font-size: 9.5px; letter-spacing: 0.06em; }
           .rc-delta { padding: 4px 8px; }
           .rc-delta-sub { display: none; }
-          .rc-btn { height: 32px; padding: 0 8px; font-size: 0.82rem; gap: 5px; }
+          .rc-btn { min-height: 40px; height: 40px; padding: 0 8px; font-size: 0.82rem; gap: 5px; }
         }
       `}} />
     </div>

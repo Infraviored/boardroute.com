@@ -81,8 +81,57 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
         .example-meta { color: var(--txt2); font-size: var(--fs-xs); font-family: ui-monospace, Consolas, monospace; }
         .examples-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         .examples-foot .tplbtn { width: auto; padding: 8px 14px; font-size: var(--fs-sm); }
-        .examples-learn { color: var(--blu-bright); font-size: var(--fs-sm); text-decoration: none; }
-        @media (max-width: 520px) { .examples-modal { padding: 16px; } .examples-grid { grid-template-columns: minmax(0, 1fr); } .example-thumb { height: 120px; } }
+        @media (max-width: 768px) {
+          .examples-modal {
+            max-width: 100vw;
+            width: 100vw;
+            height: 100dvh;
+            max-height: 100dvh;
+            border-radius: 0;
+            padding: 16px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+          }
+          .examples-modal .modal-header {
+            gap: 10px;
+          }
+          .examples-modal .close-btn {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .examples-grid {
+            grid-template-columns: minmax(0, 1fr);
+            flex: 1;
+          }
+          .example-thumb {
+            height: 120px;
+          }
+          .examples-foot {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            margin-top: 10px;
+          }
+          .examples-foot .tplbtn {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+          }
+          .examples-learn {
+            text-align: center;
+            padding: 6px;
+            min-height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+        }
       `}} />
         </div>
     );

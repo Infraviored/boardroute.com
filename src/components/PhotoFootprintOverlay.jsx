@@ -60,6 +60,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const svgRef = useRef(null);
     const photoRef = useRef(null);   // the whole photo (canvas)
     const pixRef = useRef(null);     // the turned photo's pixels (ImageData) for pin search and counting
+    const onKeyRef = useRef(null);
 
     const load = (blob) => {
         if (!blob || !/^image\//.test(blob.type || 'image/')) return;
@@ -151,20 +152,21 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         pixRef.current = out.getContext('2d').getImageData(0, 0, OW, OH);
         const framePx = { x0: -frame.w / 2 - u0, y0: -frame.h / 2 - v0, x1: frame.w / 2 - u0, y1: frame.h / 2 - v0 };
         const same = state.usedFrame && JSON.stringify(state.usedFrame) === JSON.stringify(frame);
-        if (!same) { setGrid(null); setPins([]); setBox(null); setLabels({}); setHist([]); setFound(null); setMeasure({ kind: 'scale' }); }
+        if (!same) { setGrid(null); setPins([]); setBox(null); setLabels({}); setOcr(null); setHist([]); setFound(null); setMeasure({ kind: 'scale' }); }
         setState(s => ({ ...s, status: 'ready', usedFrame: frame, url: out.toDataURL('image/jpeg', 0.92), W: OW, H: OH, framePx }));
     };
     const backToFrame = () => { setMeasure(null); setDrag(null); setState(s => ({ ...s, status: 'crop' })); };
 
+    onKeyRef.current = (e) => {
+        if (e.key === 'Escape') { e.stopPropagation(); if (measure) setMeasure(null); else onCancel(); }
+        else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && document.activeElement?.tagName !== 'INPUT') { e.preventDefault(); e.stopPropagation(); undo(); }
+    };
     useEffect(() => {
         if (hidden) return;
-        const onKey = (e) => {
-            if (e.key === 'Escape') { e.stopPropagation(); if (measure) setMeasure(null); else onCancel(); }
-            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && document.activeElement?.tagName !== 'INPUT') { e.preventDefault(); e.stopPropagation(); undo(); }
-        };
+        const onKey = (e) => onKeyRef.current?.(e);
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
-    });
+    }, [hidden]);
 
     const toImage = (e) => {
         const ctm = svgRef.current?.getScreenCTM();
@@ -314,6 +316,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             const p = toImage(e);
             if (p && measure && !measure.b) {
                 if (!measure.a) setMeasure({ ...measure, a: [p.x, p.y] });
+                else if (Math.hypot(p.x - measure.a[0], p.y - measure.a[1]) < 4) { /* too close to the first pin: keep waiting */ }
                 else if (measure.kind === 'row') { snap(); addRow(measure.a, [p.x, p.y]); setMeasure(null); }
                 else {
                     snap();
@@ -398,6 +401,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     // The row between them becomes pins, and holes that look like them are added.
     function applyMeasure(a, b, n, search) {
         const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (d < 4) return;
         let ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
         // the row may run along x or y: keep the angle within ±45°, the row then is a column
         const quarter = Math.round(ang / (Math.PI / 2));
@@ -851,9 +855,12 @@ function guessCount(pix, a, b) {
     }
     let best = 2, bestScore = 0.05;
     for (const [n, s] of score) if (s > bestScore) { bestScore = s; best = n; }
-    for (const k of [3, 2]) {
-        const m = (best - 1) * k + 1;
-        if (score.has(m) && score.get(m) >= bestScore * 0.8) best = m;
+    if (best > 2) {
+        const orig = best;
+        for (const k of [3, 2]) {
+            const m = (orig - 1) * k + 1;
+            if (score.has(m) && score.get(m) >= bestScore * 0.8) { best = m; break; }
+        }
     }
     return best;
 }

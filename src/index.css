@@ -957,7 +957,7 @@ textarea:focus-visible,
 }
 
 /* Bug 1 Fix: Suppress coach-mark floating hint whenever any dialog or drawer is open */
-body:has(.overlay-bg, .mobile-sheet-head, .json-drawer:not(.closed), .eo-overlay, .lib-modal, .export-modal, .share-modal, .confirm-modal, .prompt-modal, .ce-modal, .pf-modal) .coach-mark {
+body:has(.overlay-bg:not([style*="display: none"]), .json-drawer, #lsb.mobile-open, #rsb.mobile-open, .mobile-action-sheet-overlay) .coach-mark {
   display: none !important;
 }
 

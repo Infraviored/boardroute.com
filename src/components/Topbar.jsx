@@ -735,22 +735,9 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
   const bubbleRef = React.useRef(null);
 
   React.useLayoutEffect(() => {
-    const isModalOrDrawerActive = () => {
-      const activeModal = document.querySelector(
-        '.overlay-bg, .mobile-sheet-head, .json-drawer:not(.closed), .eo-overlay, .lib-modal, .export-modal, .share-modal, .confirm-modal-shell, .prompt-modal-shell, .ce-modal, .pf-modal'
-      );
-      if (!activeModal) return false;
-      const s = window.getComputedStyle(activeModal);
-      return s.display !== 'none' && s.visibility !== 'hidden';
-    };
-
     const place = () => {
       const t = targetRef.current, b = bubbleRef.current;
       if (!t || !b) return;
-      if (isModalOrDrawerActive()) {
-        b.style.visibility = 'hidden';
-        return;
-      }
       const r = t.getBoundingClientRect();
       const vw = document.documentElement.clientWidth;
       const w = b.offsetWidth;
@@ -765,13 +752,8 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
     window.addEventListener('resize', place);
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null;
     if (ro) { if (watchRef.current) ro.observe(watchRef.current); if (bubbleRef.current) ro.observe(bubbleRef.current); }
-    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(place) : null;
-    if (mo) mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-    return () => {
-      window.removeEventListener('resize', place);
-      ro?.disconnect();
-      mo?.disconnect();
-    };
+    // hidden while a dialog or drawer is open: CSS in index.css (body:has(...) .coach-mark)
+    return () => { window.removeEventListener('resize', place); ro?.disconnect(); };
   }, [targetRef, watchRef]);
 
   return createPortal(

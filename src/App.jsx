@@ -13,6 +13,8 @@ import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { ResultCard } from './components/ResultCard.jsx';
+import { AccountOverlay } from './components/AccountOverlay.jsx';
+import { cloud, signInFromHash } from './cloud.js';
 import { decodeShare, shareFromHash, shareUrl } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
@@ -139,6 +141,14 @@ function App() {
   const [bestSnapshot, setBestSnapshot] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  // Optional account (cloud.js): who is signed in, and which saved circuit the board came from
+  // (Save overwrites that one; loading anything else forgets it)
+  const [account, setAccount] = useState(null);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [cloudCurrent, setCloudCurrent] = useState(() => { try { return JSON.parse(localStorage.getItem('pcb_cloud_current')) || null; } catch { return null; } });
+  useEffect(() => {
+    try { if (cloudCurrent) localStorage.setItem('pcb_cloud_current', JSON.stringify(cloudCurrent)); else localStorage.removeItem('pcb_cloud_current'); } catch { /* private mode */ }
+  }, [cloudCurrent]);
   // Summary card after a finished Wire/Compact run; shown only while the board is unchanged
   // since (its tick matches the board's), so any edit, undo or new run hides it.
   const [resultCard, setResultCard] = useState(null);
@@ -266,6 +276,7 @@ function App() {
   const handleLoadTemplate = useCallback(() => {
     setWorkflowStep(0);
     setExampleTitle(null);
+    setCloudCurrent(null);
     setJsonInput(JSON.stringify(TEMPLATE, null, 2));
     const defs = processTemplate(TEMPLATE);
     engine.initializeBoard(defs);
@@ -506,14 +517,18 @@ function App() {
     saveHistory(); 
   }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode]);
 
-  const handleExportState = useCallback(() => {
+  // the project file: board plus the pictures of its parts (also what an account saves)
+  const boardData = useCallback(() => {
     const pictures = Object.fromEntries(board.components.filter(c => partImages[c.id]).map(c => [c.id, partImages[c.id]]));
-    const state = { components: board.components, wires: board.wires, cols: board.cols, rows: board.rows, ...(Object.keys(pictures).length ? { partImages: pictures } : {}) };
+    return { components: board.components, wires: board.wires, cols: board.cols, rows: board.rows, ...(Object.keys(pictures).length ? { partImages: pictures } : {}) };
+  }, [board, partImages]);
+  const handleExportState = useCallback(() => {
+    const state = boardData();
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'pcb_circuit.json'; a.click();
     URL.revokeObjectURL(url);
-  }, [board, partImages]);
+  }, [boardData]);
 
   const handleImportState = useCallback(() => {
     const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
@@ -528,6 +543,7 @@ function App() {
             const rows = parsed.rows || board.rows;
             engine.setState({ components: parsed.components, wires: parsed.wires || [], cols, rows });
             if (parsed.partImages) setPartImages(prev => ({ ...prev, ...parsed.partImages }));
+            setCloudCurrent(null);
             saveHistory();
           }
         } catch (err) { console.error(err); }
@@ -614,6 +630,7 @@ function App() {
     setExamplesOpen(null);
     setNotice(null);
     setExampleTitle(ex.title);
+    setCloudCurrent(null);
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
@@ -636,11 +653,14 @@ function App() {
   // Share link (#b=..., see engine/share.js): takes precedence over the saved board, ?example=
   // and the first-visit picker. Loaded like an example, so Undo returns to the previous board.
   const [shareValue] = useState(() => shareFromHash(window.location.hash));
-  const [shareState, setShareState] = useState(shareValue ? 'pending' : 'none'); // none | pending | done | failed
+  // a circuit shared from an account: /?c=<slug>
+  const [sharedSlug] = useState(() => new URLSearchParams(window.location.search).get('c'));
+  const [shareState, setShareState] = useState(shareValue || sharedSlug ? 'pending' : 'none'); // none | pending | done | failed
   const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
     engine.setState({ components, wires });
     setNotice(null);
     setExampleTitle(null);
+    setCloudCurrent(null);
     setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
     setShareState('done');
     window.goatcounter?.count?.({ path: 'share-open', title: `${components.length} parts`, event: true });
@@ -651,12 +671,45 @@ function App() {
   }).finally(() => {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }), [engine, saveHistory]);
+  // a saved circuit (from the account dialog or a /?c= link) onto the board
+  const applySaved = useCallback((data) => {
+    engine.setState({ components: data.components, wires: data.wires || [], ...(data.cols ? { cols: data.cols, rows: data.rows } : {}) });
+    if (data.partImages) setPartImages(prev => ({ ...prev, ...data.partImages }));
+    setNotice(null);
+    setExampleTitle(null);
+    setWorkflowStep((data.wires || []).length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
+  }, [engine, saveHistory]);
   const shareStarted = useRef(false);
   useEffect(() => {
-    if (!shareValue || shareStarted.current) return;
+    if (shareStarted.current) return;
+    if (shareValue) { shareStarted.current = true; loadShare(shareValue); return; }
+    if (!sharedSlug) return;
     shareStarted.current = true;
-    loadShare(shareValue);
-  }, [shareValue, loadShare]);
+    cloud.shared(sharedSlug).then(({ data }) => {
+      applySaved(data);
+      setCloudCurrent(null);
+      setShareState('done');
+      window.goatcounter?.count?.({ path: 'shared-open', title: `${data.components.length} parts`, event: true });
+    }).catch(err => {
+      setNotice({ kind: 'error', title: 'This shared circuit could not be opened', text: err.code === 'NOT_FOUND' ? 'Its owner stopped sharing it or deleted it.' : err.message });
+      setShareState('failed');
+    }).finally(() => window.history.replaceState(null, '', window.location.pathname + window.location.hash));
+  }, [shareValue, loadShare, sharedSlug, applySaved]);
+
+  // Account: who is signed in; a sign-in link (#signin=<token>) from the mail signs in here
+  useEffect(() => {
+    const signIn = () => {
+      const t = signInFromHash(window.location.hash);
+      if (!t) return false;
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      cloud.verify(t).then(r => { setAccount(r); setIsAccountOpen(true); })
+        .catch(err => setNotice({ kind: 'error', title: 'Sign-in failed', text: err.message }));
+      return true;
+    };
+    if (!signIn()) cloud.me().then(setAccount).catch(() => { /* no API (local dev without the server) */ });
+    window.addEventListener('hashchange', signIn);
+    return () => window.removeEventListener('hashchange', signIn);
+  }, []);
   // A link pasted into a tab that already shows boardroute only changes the fragment (no reload).
   useEffect(() => {
     const onHash = () => { const v = shareFromHash(window.location.hash); if (v) loadShare(v); };
@@ -704,6 +757,7 @@ function App() {
         workflowStep={workflowStep} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
         onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
         onShareLink={handleShareLink} hasLayout={board.components.length > 0}
+        account={account} onAccount={() => setIsAccountOpen(true)}
         hasWires={board.wires.length > 0} isProcessing={status.isProcessing}
       />
       <div id="layout">
@@ -816,6 +870,9 @@ function App() {
         message={confirmData.type === 'pin' ? `Are you sure you want to disconnect ${confirmData.targetId}?` : confirmData.type === 'comp' ? `Are you sure you want to delete ${confirmData.targetId}?` : confirmData.type === 'net' ? `Are you sure you want to clear wires for net ${confirmData.targetId}?` : confirmData.type === 'reset' ? 'Clear all components and wires?' : 'Proceed?'}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmData({ isOpen: false, type: null, targetId: null })}
       />
+      <AccountOverlay isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} account={account} setAccount={setAccount}
+        current={cloudCurrent} setCurrent={setCloudCurrent} hasBoard={board.components.length > 0} getBoardData={boardData}
+        onOpenCircuit={(c) => { applySaved(c.data); setCloudCurrent({ id: c.id, name: c.name }); }} />
       <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} setBoardView={setBoardView}
         onSaveProject={handleExportState} onShareLink={handleShareLink} />
       <style dangerouslySetInnerHTML={{

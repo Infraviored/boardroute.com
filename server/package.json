@@ -1,0 +1,16 @@
+{
+  "name": "boardroute-api",
+  "private": true,
+  "type": "module",
+  "description": "Optional accounts for boardroute.com: sign in by mailed link, save circuits, share them",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  }
+}

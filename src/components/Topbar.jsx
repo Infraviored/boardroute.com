@@ -13,7 +13,8 @@ import {
   FileJson,
   BookOpen,
   Share2,
-  MoreVertical
+  MoreVertical,
+  Cloud
 } from 'lucide-react';
 
 export function Topbar({
@@ -26,6 +27,8 @@ export function Topbar({
   onExportSVG,
   onRouteOnly,
   onShareLink,
+  onAccount,
+  account,
   hasLayout,
   isProcessing
 }) {
@@ -125,7 +128,12 @@ export function Topbar({
 
         <div className="spc" style={{ flex: 1 }}></div>
 
-        <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout, nothing is uploaded)">
+        <button className={`tbtn account-btn ${account ? 'signed-in' : ''}`} onClick={onAccount} title={account ? `My circuits (${account.email})` : 'Save circuits online and share them (optional account)'}>
+          <Cloud size={16} />
+          <span className="docs-link-label">{account ? 'My circuits' : 'Sign in'}</span>
+        </button>
+
+        <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout inside the link, nothing is uploaded)">
           <Share2 size={16} />
           <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
         </button>
@@ -164,6 +172,10 @@ export function Topbar({
               </button>
             </div>
             <div className="mas-grid">
+              <button className={`mas-btn account-btn ${account ? 'signed-in' : ''}`} onClick={() => { onAccount(); setMobileMenuOpen(false); }}>
+                <Cloud size={18} />
+                <span>{account ? 'My circuits' : 'Sign in'}</span>
+              </button>
               <button className={`mas-btn share-btn ${shareState || ''}`} onClick={() => { share(); setMobileMenuOpen(false); }} disabled={!hasLayout || isProcessing}>
                 <Share2 size={18} />
                 <span>{shareState === 'copied' ? 'Link copied' : 'Share link'}</span>

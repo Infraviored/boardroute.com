@@ -33,3 +33,6 @@ bench/results/
 
 # OCR engine copied from node_modules (scripts/copy-ocr-assets.js)
 public/ocr/
+
+# account API database (server/)
+server/data/

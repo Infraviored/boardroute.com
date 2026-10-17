@@ -322,7 +322,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         }
         if (t('data-m')) { setDrag({ ...start, m: t('data-m') }); return; }
         if (t('data-pin') && !measure) { setDrag({ ...start, pin: t('data-pin').split(',').map(Number) }); return; }
-        if (measure?.kind === 'grid') { setDrag({ ...start, grid: true, x: p.x, y: p.y, g: grid }); return; }
+        if (measure?.kind === 'grid') { setDrag({ ...start, grid: true, g: grid, v: view2, z: z2 }); return; }
         setDrag({ ...start, pan: true, v: view2 });
     };
     const onPointerMove = (e) => {
@@ -379,8 +379,12 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             return;
         }
         if (drag.grid) {
+            // the photo follows the finger, pins and outline stay where they are on screen: the
+            // grid moves the other way on the photo and the view with it
+            const dx = (e.clientX - drag.sx) / drag.z, dy = (e.clientY - drag.sy) / drag.z;
             setDrag({ ...drag, moved: true });
-            setGrid({ ...drag.g, phaseX: drag.g.phaseX + p.x - drag.x, phaseY: drag.g.phaseY + p.y - drag.y });
+            setGrid({ ...drag.g, phaseX: drag.g.phaseX - dx, phaseY: drag.g.phaseY - dy });
+            setZv([drag.v[0] - dx, drag.v[1] - dy, drag.v[2], drag.v[3]]);
         }
     };
     const onPointerCancel = (e) => {
@@ -518,7 +522,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         snap();
         const res = findSimilar(pixRef.current, grid, pins, frameHoles(grid, state.framePx));
         setPins(res.pins);
-        setFound(res.added ? `Added ${res.added} pin${res.added === 1 ? '' : 's'} that look like the marked ones.` : 'Nothing else looks like the marked pins.');
+        setFound(res.added ? `Added ${res.added} pin${res.added === 1 ? '' : 's'} that look like the marked ones.` : res.unlike ? 'The marked pins don\'t look alike, so there is nothing to search for. Tap the others by hand.' : 'Nothing else looks like the marked pins.');
     };
 
     const ready = state.status === 'ready';
@@ -654,7 +658,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         )}
 
                         {ready && measure && (measure.kind === 'scale' || measure.kind === 'row') && !measure.b && <div className="pf-banner">{measure.a ? 'Now tap the last pin of that row' : 'Tap the first pin of a row'}</div>}
-                        {ready && measure?.kind === 'grid' && <div className="pf-banner">Drag the grid onto the pins</div>}
+                        {ready && measure?.kind === 'grid' && <div className="pf-banner">Drag the photo</div>}
                         {ready && (
                             <div className="pf-zoom">
                                 <button onClick={() => zoomBy(1.6)} aria-label="Zoom in" title="Zoom in (or pinch, or mouse wheel)"><ZoomIn size={16} /></button>
@@ -769,7 +773,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                         : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'row' })} title="Mark a row: tap its first and last pin"><Rows3 size={14} /> Row</button>}
                                     {measure?.kind === 'grid'
                                         ? <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
-                                        : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'grid' })} title="Move the whole grid onto the pins"><Move size={14} /> Grid</button>}
+                                        : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'grid' })} title="Move the photo under the pins"><Move size={14} /> Move photo</button>}
                                 </div>
                                 {found && <p className="ce-hint pf-note">{found}</p>}
                             </section>
@@ -837,8 +841,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-count { display: flex; align-items: center; gap: 6px; min-width: 0; }
                 .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }
                 .pf-count .primary { margin-left: auto; }
-                .pf-tools { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; }
-                .pf-tools .ce-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 8px; min-width: 0; }
+                .pf-tools { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; }
+                .pf-tools .ce-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 8px; min-width: 0; white-space: nowrap; }
                 .pf-zoom { position: absolute; right: 18px; bottom: 18px; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
                 .pf-zoom button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); border: 1px solid var(--border2); background: rgba(13,17,23,.85); color: var(--txt0); cursor: pointer; }
                 .pf-zoom button:hover:not(:disabled) { background: var(--ui-neutral-hover); }
@@ -926,6 +930,17 @@ function findSimilar(pix, g, pins, candidates, examples = pins) {
     const tn = Math.sqrt(T.reduce((s, x) => s + x * x, 0)) || 1;
     const score = (p) => { let s = 0; for (let i = 0; i < T.length; i++) s += p[i] * T[i]; return s / tn; };
     const own = ps.map(score).sort((a, b) => a - b);
+    // pins that don't look like each other (scored against the others only) give no look to
+    // search for: anything would match by chance. Real header pins score ~0.6, a row of
+    // mixed board spots ~0.2.
+    if (ps.length >= 3) {
+        const loo = ps.map(p => {
+            let s = 0, n = 0;
+            for (let i = 0; i < T.length; i++) { const t = T[i] - p[i]; s += p[i] * t; n += t * t; }
+            return s / (Math.sqrt(n) || 1);
+        }).sort((a, b) => a - b);
+        if (loo[Math.floor(loo.length / 2)] < 0.45) return { pins, added: 0, unlike: true };
+    }
     const bar = Math.max(0.5, own[Math.floor(own.length / 4)] - 0.15);
     const have = new Set(pins.map(p => p.join()));
     const add = [];

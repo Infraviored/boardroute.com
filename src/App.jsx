@@ -211,7 +211,7 @@ function App() {
   // The restored board is the first history entry, so Undo can always get back to it
   // (e.g. after loading an example over it).
   const [history, setHistory] = useState(() => board.components.length
-    ? [JSON.stringify({ components: board.components, wires: board.wires, cols: board.cols, rows: board.rows })] : []);
+    ? [JSON.stringify({ components: board.components, wires: board.wires, cols: board.cols, rows: board.rows, cloudCurrent })] : []);
   const [historyIndex, setHistoryIndex] = useState(() => (board.components.length ? 0 : -1));
 
   // Resizing
@@ -264,14 +264,14 @@ function App() {
     };
   }, [isResizingL, isResizingR, handlePointerMove, handlePointerUp]);
 
-  const saveHistory = useCallback(() => {
-    const snap = JSON.stringify({ components: engine.components, wires: engine.wires, cols: engine.cols, rows: engine.rows });
+  const saveHistory = useCallback((current = cloudCurrent) => {
+    const snap = JSON.stringify({ components: engine.components, wires: engine.wires, cols: engine.cols, rows: engine.rows, cloudCurrent: current });
     const next = history.slice(0, historyIndex + 1);
     next.push(snap);
     if (next.length > 30) next.shift();
     setHistory(next);
     setHistoryIndex(next.length - 1);
-  }, [engine, history, historyIndex]);
+  }, [engine, history, historyIndex, cloudCurrent]);
 
   const handleLoadTemplate = useCallback(() => {
     setWorkflowStep(0);
@@ -280,7 +280,7 @@ function App() {
     setJsonInput(JSON.stringify(TEMPLATE, null, 2));
     const defs = processTemplate(TEMPLATE);
     engine.initializeBoard(defs);
-    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory(null);
   }, [engine, saveHistory]);
 
   // Parse the circuit JSON; problems become a visible notice instead of a silent no-op.
@@ -387,14 +387,18 @@ function App() {
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const prev = JSON.parse(history[historyIndex - 1]);
-      engine.setState(prev); setHistoryIndex(historyIndex - 1);
+      engine.setState(prev);
+      setCloudCurrent(prev.cloudCurrent || null);
+      setHistoryIndex(historyIndex - 1);
     }
   }, [history, historyIndex, engine]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const next = JSON.parse(history[historyIndex + 1]);
-      engine.setState(next); setHistoryIndex(historyIndex + 1);
+      engine.setState(next);
+      setCloudCurrent(next.cloudCurrent || null);
+      setHistoryIndex(historyIndex + 1);
     }
   }, [history, historyIndex, engine]);
 
@@ -544,7 +548,7 @@ function App() {
             engine.setState({ components: parsed.components, wires: parsed.wires || [], cols, rows });
             if (parsed.partImages) setPartImages(prev => ({ ...prev, ...parsed.partImages }));
             setCloudCurrent(null);
-            saveHistory();
+            saveHistory(null);
           }
         } catch (err) { console.error(err); }
       };
@@ -633,7 +637,7 @@ function App() {
     setCloudCurrent(null);
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
-    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
+    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory(null);
     window.goatcounter?.count?.({ path: `example-${ex.id}`, title: ex.title, event: true });
   }, [engine, saveHistory]);
 
@@ -661,7 +665,7 @@ function App() {
     setNotice(null);
     setExampleTitle(null);
     setCloudCurrent(null);
-    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
+    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory(null);
     setShareState('done');
     window.goatcounter?.count?.({ path: 'share-open', title: `${components.length} parts`, event: true });
   }).catch(err => {
@@ -672,12 +676,17 @@ function App() {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }), [engine, saveHistory]);
   // a saved circuit (from the account dialog or a /?c= link) onto the board
-  const applySaved = useCallback((data) => {
+  const applySaved = useCallback((data, current = null) => {
     engine.setState({ components: data.components, wires: data.wires || [], ...(data.cols ? { cols: data.cols, rows: data.rows } : {}) });
-    if (data.partImages) setPartImages(prev => ({ ...prev, ...data.partImages }));
+    setPartImages(prev => {
+      const next = { ...prev };
+      for (const c of data.components) delete next[c.id];
+      return { ...next, ...(data.partImages || {}) };
+    });
     setNotice(null);
     setExampleTitle(null);
-    setWorkflowStep((data.wires || []).length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory();
+    setCloudCurrent(current);
+    setWorkflowStep((data.wires || []).length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory(current);
   }, [engine, saveHistory]);
   const shareStarted = useRef(false);
   useEffect(() => {
@@ -686,8 +695,7 @@ function App() {
     if (!sharedSlug) return;
     shareStarted.current = true;
     cloud.shared(sharedSlug).then(({ data }) => {
-      applySaved(data);
-      setCloudCurrent(null);
+      applySaved(data, null);
       setShareState('done');
       window.goatcounter?.count?.({ path: 'shared-open', title: `${data.components.length} parts`, event: true });
     }).catch(err => {
@@ -872,7 +880,7 @@ function App() {
       />
       <AccountOverlay isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} account={account} setAccount={setAccount}
         current={cloudCurrent} setCurrent={setCloudCurrent} hasBoard={board.components.length > 0} getBoardData={boardData}
-        onOpenCircuit={(c) => { applySaved(c.data); setCloudCurrent({ id: c.id, name: c.name }); }} />
+        onOpenCircuit={(c) => applySaved(c.data, { id: c.id, name: c.name })} />
       <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} setBoardView={setBoardView}
         onSaveProject={handleExportState} onShareLink={handleShareLink} />
       <style dangerouslySetInnerHTML={{

@@ -1,3 +1,5 @@
+<img src="public/boardroute-icon.png" alt="" width="64" height="64">
+
 # boardroute.com: Intelligent Perfboard AutoRouter
 
 boardroute.com is a sophisticated web-based EDA tool specifically designed for prototyping on discrete perforated boards (perfboards/stripboards). It combines a modern React-based frontend with a powerful, heuristic-driven routing and placement engine.

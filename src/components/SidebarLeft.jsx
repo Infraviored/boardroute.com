@@ -452,7 +452,8 @@ export function SidebarLeft({
             z-index: 20;
             border-bottom: 1px solid var(--border);
           }
-          .mobile-sheet-handle {
+          .mobile-sheet-handle { display: none !important; }
+          .mobile-sheet-handle-unused {
             position: absolute;
             top: 6px;
             left: 50%;

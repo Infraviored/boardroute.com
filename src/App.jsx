@@ -19,7 +19,7 @@ import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
 import { useBoardView } from './hooks/useBoardView.js';
-import { Layers, Cpu, Activity } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function App() {
   // --- ENGINE ---
@@ -144,6 +144,32 @@ function App() {
   const [resultCard, setResultCard] = useState(null);
   const [boardView, setBoardView] = useBoardView();
   const [mobileDrawer, setMobileDrawer] = useState(null); // null | 'parts' | 'inspector'
+  // phone: a swipe in from a screen edge opens that side's panel; swiping it back closes it
+  useEffect(() => {
+    if (!window.matchMedia?.('(max-width: 768px)').matches) return;
+    let start = null;
+    const down = (e) => {
+      const t = e.touches[0], w = window.innerWidth;
+      if (document.querySelector('.overlay-bg')) { start = null; return; }
+      start = { x: t.clientX, y: t.clientY, edge: t.clientX < 24 ? 'left' : t.clientX > w - 24 ? 'right' : null };
+    };
+    const up = (e) => {
+      if (!start) return;
+      const t = e.changedTouches[0], dx = t.clientX - start.x, dy = t.clientY - start.y, s0 = start;
+      start = null;
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+      setMobileDrawer(d => {
+        if (!d && s0.edge === 'left' && dx > 0) return 'parts';
+        if (!d && s0.edge === 'right' && dx < 0) return 'inspector';
+        if (d === 'parts' && dx < 0) return null;
+        if (d === 'inspector' && dx > 0) return null;
+        return d;
+      });
+    };
+    window.addEventListener('touchstart', down, { passive: true });
+    window.addEventListener('touchend', up, { passive: true });
+    return () => { window.removeEventListener('touchstart', down); window.removeEventListener('touchend', up); };
+  }, []);
 
   // Modal states
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -771,35 +797,13 @@ function App() {
         />
         <div className={`mobile-drawer-backdrop ${mobileDrawer ? 'active' : ''}`} onClick={() => setMobileDrawer(null)} />
       </div>
-      <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
-        <button
-          className={`mbn-tab ${!mobileDrawer ? 'active' : ''}`}
-          onClick={() => setMobileDrawer(null)}
-          aria-label="View Board"
-        >
-          <Layers size={18} />
-          <span>Board</span>
-        </button>
-        <button
-          className={`mbn-tab ${mobileDrawer === 'parts' ? 'active' : ''}`}
-          onClick={() => setMobileDrawer(d => d === 'parts' ? null : 'parts')}
-          aria-label="View Parts and Circuit"
-        >
-          <div className="mbn-badge-wrap">
-            <Cpu size={18} />
-            {board.components.length > 0 && <span className="mbn-badge">{board.components.length}</span>}
-          </div>
-          <span>Parts</span>
-        </button>
-        <button
-          className={`mbn-tab ${mobileDrawer === 'inspector' ? 'active' : ''}`}
-          onClick={() => setMobileDrawer(d => d === 'inspector' ? null : 'inspector')}
-          aria-label="View Inspector and Stats"
-        >
-          <Activity size={18} />
-          <span>Inspector</span>
-        </button>
-      </nav>
+      {/* phone: Parts slides in from the left, Inspector from the right (edge handle or swipe) */}
+      <button className={`mobile-edge left ${mobileDrawer ? 'hide' : ''}`} onClick={() => setMobileDrawer('parts')} aria-label="Open parts">
+        <ChevronRight size={14} /><span>Parts{board.components.length ? ` · ${board.components.length}` : ''}</span>
+      </button>
+      <button className={`mobile-edge right ${mobileDrawer ? 'hide' : ''}`} onClick={() => setMobileDrawer('inspector')} aria-label="Open inspector">
+        <span>Inspector</span><ChevronLeft size={14} />
+      </button>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
       <FastTooltips />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(c) => handleAddFromLibrary(c)}
@@ -838,8 +842,7 @@ function App() {
         .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
         .notice-close:hover { opacity: 1; }
 
-        .mobile-bottom-nav { display: none; }
-        .mobile-drawer-backdrop { display: none; }
+        .mobile-drawer-backdrop, .mobile-edge { display: none; }
 
         @media (max-width: 768px) {
           .app-main {
@@ -854,7 +857,6 @@ function App() {
             position: relative;
             flex: 1;
             min-height: 0;
-            padding-bottom: var(--bottom-nav-height, 54px);
           }
           #ca-col {
             flex: 1;
@@ -870,80 +872,21 @@ function App() {
           }
           .resizer { display: none !important; }
 
-          /* Bottom Navigation */
-          .mobile-bottom-nav {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: var(--bottom-nav-height, 54px);
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-top: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            z-index: 160;
-            padding-bottom: env(safe-area-inset-bottom, 0px);
+          /* Edge handles for the side panels */
+          .mobile-edge {
+            position: fixed; top: 50%; z-index: 130;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+            height: 96px; width: 24px; padding: 0;
+            background: var(--bg2); border: 1px solid var(--border2); color: var(--txt1);
+            font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+            writing-mode: vertical-rl; cursor: pointer;
+            transform: translateY(-50%); transition: opacity .2s;
+            box-shadow: 0 4px 16px rgba(0,0,0,.45);
           }
-          .mbn-tab {
-            flex: 1;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            background: none;
-            border: none;
-            color: var(--txt1);
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: color 0.15s;
-            position: relative;
-            min-height: 44px;
-          }
-          .mbn-tab:active {
-            color: var(--txt0);
-          }
-          .mbn-tab.active {
-            color: var(--blu-bright);
-          }
-          .mbn-tab.active::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 20%;
-            right: 20%;
-            height: 2px;
-            background: var(--blu-bright);
-            box-shadow: 0 0 8px var(--blu-bright);
-          }
-          .mbn-badge-wrap {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .mbn-badge {
-            position: absolute;
-            top: -5px;
-            right: -10px;
-            min-width: 16px;
-            height: 16px;
-            padding: 0 4px;
-            border-radius: 999px;
-            background: var(--blu-bright);
-            color: #000;
-            font-size: 10px;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
+          .mobile-edge.left { left: 0; border-left: 0; border-radius: 0 10px 10px 0; }
+          .mobile-edge.right { right: 0; border-right: 0; border-radius: 10px 0 0 10px; }
+          .mobile-edge.left span { transform: rotate(180deg); }
+          .mobile-edge.hide { opacity: 0; pointer-events: none; }
 
           /* Backdrop */
           .mobile-drawer-backdrop {
@@ -962,27 +905,25 @@ function App() {
             pointer-events: auto;
           }
 
-          /* Sidebars as Bottom Drawers */
+          /* Sidebars as side panels */
           #lsb, #rsb {
             position: fixed !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: var(--bottom-nav-height, 54px) !important;
-            height: 75dvh !important;
-            max-height: 75dvh !important;
-            width: 100vw !important;
-            border-radius: 16px 16px 0 0 !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            height: 100dvh !important;
+            max-height: none !important;
+            width: min(86vw, 360px) !important;
             border: 1px solid var(--border2) !important;
-            border-bottom: none !important;
             background: var(--bg2) !important;
-            box-shadow: 0 -8px 36px rgba(0,0,0,0.6) !important;
+            box-shadow: 0 0 36px rgba(0,0,0,0.6) !important;
             z-index: 150 !important;
-            transform: translateY(calc(100% + var(--bottom-nav-height, 54px) + 20px)) !important;
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
             pointer-events: none;
             overflow-y: auto !important;
             overscroll-behavior: contain;
           }
+          #lsb { left: 0 !important; right: auto !important; border-left: 0 !important; border-radius: 0 14px 14px 0 !important; transform: translateX(-105%) !important; }
+          #rsb { right: 0 !important; left: auto !important; border-right: 0 !important; border-radius: 14px 0 0 14px !important; transform: translateX(105%) !important; }
           #lsb.mobile-open, #rsb.mobile-open {
             transform: translateY(0) !important;
             pointer-events: auto !important;

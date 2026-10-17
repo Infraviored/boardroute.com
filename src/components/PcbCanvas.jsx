@@ -839,20 +839,20 @@ export function PcbCanvas({
                     right: 12px;
                     bottom: calc(12px + var(--bottom-nav-height, 54px));
                     display: grid;
-                    grid-template-columns: repeat(2, 44px);
+                    grid-template-columns: repeat(2, 40px);
                     gap: 6px;
                   }
                   .canvas-container.pb-active .canvas-controls {
                     bottom: calc(12px + var(--bottom-nav-height, 54px) + 140px);
                   }
                   .cbtn {
-                    width: 44px;
-                    height: 44px;
+                    width: 40px;
+                    height: 40px;
                     border-radius: var(--radius-md);
                   }
                   .cbtn svg {
-                    width: 20px;
-                    height: 20px;
+                    width: 18px;
+                    height: 18px;
                   }
                 }
             `}} />

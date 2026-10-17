@@ -618,59 +618,39 @@ export function Topbar({
         }
 
         @media (max-width: 768px) {
+          /* phone: logo and menu on the first row, the step track full width below (same
+             interlocking steps as on desktop) */
           #topbar {
-            height: var(--topbar-mobile-height, 50px);
-            min-height: var(--topbar-mobile-height, 50px);
-            flex-direction: row !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            padding: 0 8px !important;
+            display: grid !important;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: 40px 40px;
+            align-items: center;
+            column-gap: 8px;
+            row-gap: 6px;
+            height: auto !important;
+            min-height: 0 !important;
+            padding: 6px 10px 8px !important;
             overflow: visible;
           }
           #topbar > .sep { display: none !important; }
-          .topbar-row-1 {
-            height: 100% !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-            padding: 0 !important;
-            border-bottom: none !important;
-            flex: 1;
-            min-width: 0;
-            gap: 6px;
-          }
+          .topbar-row-1 { display: contents !important; }
           .logo {
+            grid-column: 1; grid-row: 1;
             width: auto !important;
-            padding: 0 2px !important;
-            font-size: 1.15rem !important;
             flex-basis: auto !important;
+            padding: 0 2px !important;
           }
-          .logo em { display: none !important; }
           .logo-sep { display: none !important; }
           #topbar .workflow-track {
+            grid-column: 1 / -1; grid-row: 2;
             margin: 0 !important;
-            flex: 1;
-            max-width: 250px;
+            width: 100%;
             min-width: 0;
-            display: flex;
-            border-radius: 8px;
-            padding: 2px;
           }
-          .flow-btn {
-            flex: 1 !important;
-            min-width: 0 !important;
-            padding: 6px 4px !important;
-            margin: 0 !important;
-            font-size: 0.74rem !important;
-            gap: 3px !important;
-            justify-content: center !important;
-            clip-path: none !important;
-            border-radius: 6px !important;
-          }
-          .flow-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
-          .flow-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          #topbar .workflow-track .flow-btn { flex: 1 1 0; min-width: 0; justify-content: center; }
           .topbar-actions { display: none !important; }
           .mobile-more-btn {
+            grid-column: 2; grid-row: 1;
             display: flex !important;
             align-items: center;
             justify-content: center;

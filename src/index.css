@@ -25,7 +25,7 @@
   /* Layout */
   --topbar-height: 52px;
   --topbar-mobile-height: 50px;
-  --bottom-nav-height: 54px;
+  --bottom-nav-height: env(safe-area-inset-bottom, 0px); /* no bottom bar any more; keeps clear of the home indicator */
   --statusbar-height: 26px;
   --lsb-width: 280px;
   --rsb-width: 240px;

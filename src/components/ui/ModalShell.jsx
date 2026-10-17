@@ -16,6 +16,7 @@ export function ModalShell({
   ...rest
 }) {
   const modalRef = useRef(null);
+  const pointerDownTarget = useRef(null);
 
   // Escape key handler
   useEffect(() => {
@@ -32,8 +33,17 @@ export function ModalShell({
 
   if (!isOpen) return null;
 
+  const handlePointerDown = (e) => {
+    pointerDownTarget.current = e.target;
+  };
+
   const handleBackdropClick = (e) => {
-    if (closeOnOutsideClick && onClose && e.target === e.currentTarget) {
+    if (
+      closeOnOutsideClick &&
+      onClose &&
+      e.target === e.currentTarget &&
+      pointerDownTarget.current === e.currentTarget
+    ) {
       onClose();
     }
   };
@@ -41,6 +51,7 @@ export function ModalShell({
   return (
     <div
       className="ui-modal-overlay overlay-bg"
+      onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}
       role="presentation"
     >

@@ -982,7 +982,7 @@ function App() {
           #lsb { left: 0 !important; right: auto !important; border-left: 0 !important; border-radius: 0 14px 14px 0 !important; transform: translateX(-105%) !important; }
           #rsb { right: 0 !important; left: auto !important; border-right: 0 !important; border-radius: 14px 0 0 14px !important; transform: translateX(105%) !important; }
           #lsb.mobile-open, #rsb.mobile-open {
-            transform: translateY(0) !important;
+            transform: translateX(0) !important;
             pointer-events: auto !important;
           }
         }

@@ -298,7 +298,16 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             // a second finger: zoom and pan; whatever the first finger started is dropped
             const [a, b] = [...ptrs.current.values()];
             pinch.current = { v: view2, d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
-            if (drag?.pin && drag.moved || drag?.m && drag.moved) undo();
+            if (drag?.m && drag.moved) {
+                if (drag.origMeasure) setMeasure(drag.origMeasure);
+                if (drag.origGrid) setGrid(drag.origGrid);
+                if (drag.origPins) setPins(drag.origPins);
+                setHist(h => h.slice(0, -1));
+            } else if (drag?.pin && drag.moved) {
+                if (drag.origPins) setPins(drag.origPins);
+                if (drag.origLabels) setLabels(drag.origLabels);
+                setHist(h => h.slice(0, -1));
+            }
             setDrag(null);
             return;
         }
@@ -320,8 +329,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             setDrag({ edge: t('data-edge') });
             return;
         }
-        if (t('data-m')) { setDrag({ ...start, m: t('data-m') }); return; }
-        if (t('data-pin') && !measure) { setDrag({ ...start, pin: t('data-pin').split(',').map(Number) }); return; }
+        if (t('data-m')) { setDrag({ ...start, m: t('data-m'), origMeasure: measure, origGrid: grid, origPins: pins }); return; }
+        if (t('data-pin') && !measure) { setDrag({ ...start, pin: t('data-pin').split(',').map(Number), origPins: pins, origLabels: labels }); return; }
         if (measure?.kind === 'grid') { setDrag({ ...start, grid: true, g: grid, v: view2, z: z2 }); return; }
         setDrag({ ...start, pan: true, v: view2 });
     };
@@ -390,6 +399,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const onPointerCancel = (e) => {
         ptrs.current.delete(e.pointerId);
         if (ptrs.current.size < 2) pinch.current = null;
+        if (ptrs.current.size === 0) swallow.current = false;
         setDrag(null);
     };
     const onPointerUp = (e) => {

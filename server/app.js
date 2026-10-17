@@ -7,7 +7,7 @@
 // POST does). An account is created on its first sign-in.
 //
 // CSRF: the session cookie is SameSite=Lax (not sent on cross-site POST/PUT/DELETE), and
-// requests that change something must carry this site's Origin when they carry one at all.
+// requests that change something must carry this site's Origin.
 import { createHash, randomBytes } from 'node:crypto';
 
 const MIN = 60e3, DAY = 24 * 60 * MIN;
@@ -30,16 +30,53 @@ class HttpError extends Error {
 }
 
 // a few requests per key and window, in memory (a restart forgets it, that's fine)
-function limiter(max, windowMs, now) {
+export function limiter(max, windowMs, now, cap = 10000) {
     const hits = new Map();
+    const prune = (t) => {
+        const cutoff = t - windowMs;
+        for (const [k, v] of hits) {
+            const active = v.filter(x => x > cutoff);
+            if (active.length === 0) hits.delete(k);
+            else hits.set(k, active);
+        }
+    };
     return (key) => {
-        const t = now(), list = (hits.get(key) || []).filter(x => x > t - windowMs);
+        const t = now(), cutoff = t - windowMs;
+        let list = (hits.get(key) || []).filter(x => x > cutoff);
         if (list.length >= max) return false;
+        if (!hits.has(key) && hits.size >= cap) {
+            prune(t);
+            if (hits.size >= cap) return false;
+        }
         list.push(t);
         hits.set(key, list);
-        if (hits.size > 10000) hits.clear();
         return true;
     };
+}
+
+export function isPrivateIp(ip) {
+    if (!ip) return false;
+    const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+    if (v4 === '::1' || ip === '::1') return true;
+    const parts = v4.split('.').map(Number);
+    if (parts.length === 4 && parts.every(p => !isNaN(p) && p >= 0 && p <= 255)) {
+        const [a, b] = parts;
+        if (a === 127) return true;                       // 127.0.0.0/8
+        if (a === 10) return true;                        // 10.0.0.0/8
+        if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+        if (a === 192 && b === 168) return true;          // 192.168.0.0/16
+    }
+    return false;
+}
+
+export function clientIp(req) {
+    const peer = req.socket?.remoteAddress || '';
+    if (isPrivateIp(peer) && req.headers['x-real-ip']) {
+        const xReal = req.headers['x-real-ip'];
+        const ip = typeof xReal === 'string' ? xReal.split(',')[0].trim() : '';
+        if (ip) return ip;
+    }
+    return peer;
 }
 
 export function createApp({ db, send, signInMail, now = Date.now, origin = 'https://boardroute.com', secure = true }) {
@@ -76,7 +113,10 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         const out = {};
         for (const part of (req.headers.cookie || '').split(';')) {
             const i = part.indexOf('=');
-            if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+            if (i > 0) {
+                const k = part.slice(0, i).trim(), val = part.slice(i + 1).trim();
+                try { out[k] = decodeURIComponent(val); } catch { /* skip malformed cookie */ }
+            }
         }
         return out;
     }
@@ -93,20 +133,42 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         return u;
     }
 
-    function body(req) {
+    function body(req, res) {
         return new Promise((resolve, reject) => {
             if (!/^application\/json\b/.test(req.headers['content-type'] || '')) return reject(new HttpError(415, 'JSON_ONLY'));
             const chunks = [];
-            let n = 0;
+            let n = 0, tooLarge = false;
             req.on('data', (c) => {
+                if (tooLarge) return;
                 n += c.length;
-                if (n > LIMITS.bodyBytes) { reject(new HttpError(413, 'TOO_LARGE')); req.destroy(); return; }
+                if (n > LIMITS.bodyBytes) {
+                    tooLarge = true;
+                    if (res && !res.headersSent) {
+                        res.setHeader('Connection', 'close');
+                        res.on('finish', () => req.destroy());
+                    }
+                    req.resume();
+                    reject(new HttpError(413, 'TOO_LARGE'));
+                    return;
+                }
                 chunks.push(c);
             });
             req.on('end', () => {
-                try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(new HttpError(400, 'BAD_JSON')); }
+                if (tooLarge) return;
+                try {
+                    const raw = Buffer.concat(chunks).toString('utf8').trim() || '{}';
+                    const val = JSON.parse(raw);
+                    if (!val || typeof val !== 'object' || Array.isArray(val)) {
+                        return reject(new HttpError(400, 'BAD_JSON'));
+                    }
+                    resolve(val);
+                } catch {
+                    reject(new HttpError(400, 'BAD_JSON'));
+                }
             });
-            req.on('error', reject);
+            req.on('error', (err) => {
+                if (!tooLarge) reject(err);
+            });
         });
     }
 
@@ -129,10 +191,10 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         let p;
 
         if (m === 'POST' && path === '/api/auth/request') {
-            const { email: raw } = await body(req);
+            const { email: raw } = await body(req, res);
             const email = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
             if (email.length > 254 || !EMAIL.test(email)) throw new HttpError(400, 'BAD_EMAIL');
-            const ip = req.headers['x-real-ip'] || req.socket.remoteAddress;
+            const ip = clientIp(req);
             if (!perIp(ip) || !perEmail(email)) throw new HttpError(429, 'SLOW_DOWN');
             const t = token(32);
             q.addToken.run(sha(t), email, now() + LIMITS.linkMs);
@@ -146,7 +208,7 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         }
 
         if (m === 'POST' && path === '/api/auth/verify') {
-            const { token: t } = await body(req);
+            const { token: t } = await body(req, res);
             const row = typeof t === 'string' && t.length < 100 ? q.takeToken.get(sha(t)) : null;
             if (!row || row.expires <= now()) throw new HttpError(400, 'LINK_INVALID');
             let u = q.userByEmail.get(row.email);
@@ -181,7 +243,7 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
             const u = needUser(req);
             if (m === 'GET') return { circuits: q.list.all(u.id).map(summary) };
             if (m === 'POST') {
-                const b = await body(req), { json, size } = cleanData(b.data);
+                const b = await body(req, res), { json, size } = cleanData(b.data);
                 roomFor(u, size);
                 const id = token(9), t = now();
                 q.add.run(id, u.id, cleanName(b.name), json, size, t, t);
@@ -194,7 +256,7 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
             if (!c) throw new HttpError(404, 'NOT_FOUND');
             if (m === 'GET') return { ...summary(c), data: JSON.parse(c.data) };
             if (m === 'PUT') {
-                const b = await body(req);
+                const b = await body(req, res);
                 let json = c.data, size = c.size;
                 if (b.data !== undefined) ({ json, size } = cleanData(b.data));
                 roomFor(u, size, c.size);
@@ -228,7 +290,7 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         res.setHeader('Cache-Control', 'no-store');
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         try {
-            if (req.method !== 'GET' && req.headers.origin && req.headers.origin !== origin) throw new HttpError(403, 'WRONG_ORIGIN');
+            if (req.method !== 'GET' && req.headers.origin !== origin) throw new HttpError(403, 'WRONG_ORIGIN');
             const out = await route(req, res, path);
             res.end(JSON.stringify(out));
         } catch (err) {

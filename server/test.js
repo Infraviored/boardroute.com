@@ -1,9 +1,8 @@
-// node --test test.js: the whole API against an in-memory database and a mail stub.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { openDb } from './db.js';
-import { createApp, LIMITS } from './app.js';
+import { createApp, LIMITS, limiter, isPrivateIp, clientIp } from './app.js';
 import { signInMail } from './mail.js';
 
 const ORIGIN = 'https://boardroute.com';
@@ -17,9 +16,18 @@ async function setup() {
     const base = `http://127.0.0.1:${srv.address().port}`;
     let cookie = '';
     const call = async (method, path, body, headers = {}) => {
+        const h = {
+            ...(method !== 'GET' ? { Origin: ORIGIN } : {}),
+            ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+            ...(cookie ? { Cookie: cookie } : {}),
+            ...headers,
+        };
+        for (const k of Object.keys(h)) {
+            if (h[k] === undefined) delete h[k];
+        }
         const res = await fetch(base + path, {
             method,
-            headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { Cookie: cookie } : {}), ...headers },
+            headers: h,
             body: body !== undefined ? JSON.stringify(body) : undefined,
         });
         const set = res.headers.get('set-cookie');
@@ -110,13 +118,75 @@ test('share: public read by link, unshare ends it', async () => {
     s.close();
 });
 
-test('CSRF: foreign origin and non-JSON bodies are refused', async () => {
+test('CSRF: foreign or missing origin and non-JSON bodies are refused', async () => {
     const s = await setup();
     await s.signIn('one@x.de');
     assert.equal((await s.call('POST', '/api/circuits', { data: circuit }, { Origin: 'https://evil.example' })).status, 403);
+    assert.equal((await s.call('POST', '/api/circuits', { data: circuit }, { Origin: undefined })).status, 403);
     assert.equal((await s.call('POST', '/api/circuits', { data: circuit }, { Origin: ORIGIN })).status, 200);
     assert.equal((await s.call('POST', '/api/circuits', { data: circuit }, { 'Content-Type': 'text/plain' })).status, 415);
     s.close();
+});
+
+test('cookies: malformed percent-encoding is skipped rather than throwing', async () => {
+    const s = await setup();
+    await s.signIn('one@x.de');
+    const validCookie = s.getCookie();
+    const r = await s.call('GET', '/api/me', undefined, { Cookie: `malformed=%ZZ; ${validCookie}` });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.email, 'one@x.de');
+    s.close();
+});
+
+test('body: non-object JSON bodies return 400 BAD_JSON', async () => {
+    const s = await setup();
+    for (const badBody of [null, [1, 2], 'just a string', 42, true]) {
+        const r = await s.call('POST', '/api/auth/request', badBody);
+        assert.equal(r.status, 400);
+        assert.equal(r.json.error, 'BAD_JSON');
+    }
+    s.close();
+});
+
+test('body: oversized body returns 413 TOO_LARGE cleanly', async () => {
+    const s = await setup();
+    await s.signIn('one@x.de');
+    const huge = { components: [], pad: 'x'.repeat(LIMITS.bodyBytes + 1024) };
+    const r = await s.call('POST', '/api/circuits', huge);
+    assert.equal(r.status, 413);
+    assert.equal(r.json.error, 'TOO_LARGE');
+    s.close();
+});
+
+test('limiter: prunes expired keys and refuses new keys at cap without clearing existing keys', () => {
+    let now = 1000;
+    const l = limiter(2, 500, () => now, 2);
+    assert.ok(l('key1'));
+    assert.ok(l('key2'));
+    assert.equal(l('key3'), false);
+    assert.ok(l('key1'));
+    assert.equal(l('key1'), false);
+    now += 600;
+    assert.ok(l('key3'));
+});
+
+test('clientIp: only trusts X-Real-IP from private/docker/loopback peers', () => {
+    assert.ok(isPrivateIp('127.0.0.1'));
+    assert.ok(isPrivateIp('::1'));
+    assert.ok(isPrivateIp('::ffff:127.0.0.1'));
+    assert.ok(isPrivateIp('10.1.2.3'));
+    assert.ok(isPrivateIp('172.17.0.2'));
+    assert.ok(isPrivateIp('172.31.255.1'));
+    assert.ok(isPrivateIp('192.168.1.100'));
+    assert.ok(!isPrivateIp('172.32.0.1'));
+    assert.ok(!isPrivateIp('8.8.8.8'));
+    assert.ok(!isPrivateIp('203.0.113.195'));
+
+    const trustedReq = { socket: { remoteAddress: '172.17.0.2' }, headers: { 'x-real-ip': '203.0.113.50' } };
+    assert.equal(clientIp(trustedReq), '203.0.113.50');
+
+    const untrustedReq = { socket: { remoteAddress: '203.0.113.195' }, headers: { 'x-real-ip': '1.2.3.4' } };
+    assert.equal(clientIp(untrustedReq), '203.0.113.195');
 });
 
 test('logout and account deletion', async () => {
@@ -143,3 +213,4 @@ test('size limits', async () => {
     assert.equal((await s.call('POST', '/api/circuits', { data: big })).status, 413);
     s.close();
 });
+

@@ -82,7 +82,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
               </div>
               {status.detail && <div className="pb-detail">{status.detail}</div>}
               <button className="pb-btn-glass" onClick={onGoodEnough} disabled={status.isProcessing && !bestSnapshot}>
-                Apply Current Best
+                Apply current best
               </button>
             </>
           )}
@@ -225,10 +225,10 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           min-width: 140px;
           height: 38px;
           padding: 0 24px;
-          background: rgba(35, 134, 54, 0.15);
-          border: 1px solid var(--grn-bright);
-          color: var(--grn-bright);
-          border-radius: 10px;
+          background: rgba(35, 134, 54, 0.18);
+          border: 1px solid var(--ui-primary-border);
+          color: var(--ui-primary-hover);
+          border-radius: var(--radius-md);
           font-family: 'Outfit', sans-serif;
           font-weight: 700;
           font-size: 0.9rem;
@@ -242,13 +242,14 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .pb-btn-glass:hover {
-          background: rgba(35, 134, 54, 0.3);
+          background: var(--ui-primary);
           color: #fff;
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(63, 185, 80, 0.2);
+          box-shadow: 0 6px 20px rgba(35, 134, 54, 0.3);
         }
         .pb-btn-glass:active {
           transform: translateY(0);
+          background: var(--ui-primary-active);
         }
         .pb-esc {
           font-size: 0.7rem;

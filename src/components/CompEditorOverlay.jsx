@@ -201,8 +201,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     };
 
     return (
-        <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`}>
+        <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget && !photoSession?.open) onClose(); }}>
+            <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`} style={photoSession?.open ? { display: 'none' } : undefined}>
                 <header className="ce-head">
                     <Edit3 size={16} className="icon-accent" />
                     <h3>{mode === 'add' ? 'Add part' : 'Edit part'}</h3>
@@ -335,18 +335,20 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-photo-row .ce-photo { flex: 1 1 40%; white-space: nowrap; }
                 .ce-photo-row .ce-photo.primary { flex-basis: 100%; order: -1; }
                 .ce-photo { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-                .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
+                .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }
                 .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
                 .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }
-                .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: 6px; }
+                .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: var(--radius-md); }
                 .ce-size { font-size: var(--fs-xs); color: var(--txt2); font-family: ui-monospace, Consolas, monospace; }
                 .ce-head-actions { margin-left: auto; display: flex; gap: 6px; }
-                .ce-btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
-                .ce-btn:hover { border-color: var(--txt2); }
+                .ce-btn { height: 30px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+                .ce-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
+                .ce-btn:active { background: var(--ui-neutral-active); }
                 .ce-btn:disabled { opacity: .45; cursor: default; }
                 .ce-undo { display: inline-flex; align-items: center; gap: 5px; }
-                .ce-btn.primary { background: var(--grn); border-color: var(--grn-bright); color: #fff; }
-                .ce-btn.primary:hover { background: #2a9a40; }
+                .ce-btn.primary { background: var(--ui-primary); border-color: var(--ui-primary-border); color: #fff; }
+                .ce-btn.primary:hover { background: var(--ui-primary-hover); }
+                .ce-btn.primary:active { background: var(--ui-primary-active); }
                 .ce-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
                 .ce-canvas { position: relative; min-width: 0; min-height: 0; background: #080a0c; }
                 .ce-canvas > svg { position: absolute; inset: 16px 16px 34px; width: calc(100% - 32px); height: calc(100% - 50px); touch-action: none; user-select: none; }
@@ -354,15 +356,15 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-side { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--bg2); }
                 .ce-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
                 .ce-side label { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); min-width: 0; }
-                .ce-side input:not([type=color]) { height: 28px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 6px; color: var(--txt0); font-family: inherit; font-size: 13px; font-weight: 500; min-width: 0; width: 100%; }
-                .ce-side input:focus { outline: none; border-color: var(--blu-bright); }
+                .ce-side input:not([type=color]) { height: 28px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font-family: inherit; font-size: 13px; font-weight: 500; min-width: 0; width: 100%; }
+                .ce-side input:focus { outline: none; border-color: var(--ui-accent-hover); }
                 .ce-row3 { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; }
-                .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+                .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: none; cursor: pointer; }
                 .ce-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
                 .ce-label span { color: var(--txt1); }
-                .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
-                .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: 5px; cursor: pointer; }
-                .ce-seg button.active { background: var(--blu); color: #fff; }
+                .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
+                .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
+                .ce-seg button.active { background: var(--ui-accent); color: #fff; }
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
                 .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }

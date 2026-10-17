@@ -372,9 +372,12 @@ export function PcbCanvas({
         if (viewport.width === 0) return; // Prevent infinity zoom on initial load
 
         // Normalize: Match updatePhysics behavior by using full height for consistent centering
+        const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
+        const targetCoverageX = isMobilePortrait ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE;
+        const targetCoverageY = isMobilePortrait ? 0.70 : CAMERA_CONFIG.TARGET_COVERAGE;
         const fitZoom = Math.min(
-            (viewport.width * CAMERA_CONFIG.TARGET_COVERAGE) / bbW,
-            (viewport.height * CAMERA_CONFIG.TARGET_COVERAGE) / bbH,
+            (viewport.width * targetCoverageX) / bbW,
+            (viewport.height * targetCoverageY) / bbH,
             CAMERA_CONFIG.MAX_ZOOM_FIT
         );
 
@@ -465,9 +468,12 @@ export function PcbCanvas({
                 const bbW = (b.maxCol - b.minCol + 1) * SP;
                 const bbH = (b.maxRow - b.minRow + 1) * SP;
                 // Normalize: Always use full viewport height for camera math to keep LOAD/ROUTE identical
+                const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
+                const targetCoverageX = isMobilePortrait ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE;
+                const targetCoverageY = isMobilePortrait ? 0.70 : CAMERA_CONFIG.TARGET_COVERAGE;
                 fitZoom = Math.min(
-                    (viewport.width * CAMERA_CONFIG.TARGET_COVERAGE) / bbW,
-                    (viewport.height * CAMERA_CONFIG.TARGET_COVERAGE) / bbH,
+                    (viewport.width * targetCoverageX) / bbW,
+                    (viewport.height * targetCoverageY) / bbH,
                     CAMERA_CONFIG.MAX_ZOOM_FIT
                 );
             } else {
@@ -514,7 +520,10 @@ export function PcbCanvas({
                 const deadzoneX = viewport.width * CAMERA_CONFIG.PAN_DEADZONE_X;
                 const deadzoneY = targetAvailableHeight * CAMERA_CONFIG.PAN_DEADZONE_Y;
 
-                const isZoomViolated = currentCoverage > CAMERA_CONFIG.ZOOM_OUT_THRESHOLD || currentCoverage < CAMERA_CONFIG.ZOOM_IN_THRESHOLD;
+                const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
+                const zoomOutThresh = isMobilePortrait ? 0.95 : CAMERA_CONFIG.ZOOM_OUT_THRESHOLD;
+                const zoomInThresh = isMobilePortrait ? 0.65 : CAMERA_CONFIG.ZOOM_IN_THRESHOLD;
+                const isZoomViolated = currentCoverage > zoomOutThresh || currentCoverage < zoomInThresh;
                 const isPanViolated = Math.abs(errorX) > deadzoneX || Math.abs(errorY) > deadzoneY;
 
                 const updateKey = `zV:${isZoomViolated}-pV:${isPanViolated}-b:${b.minCol},${b.minRow}`;
@@ -755,7 +764,7 @@ export function PcbCanvas({
                     simZoom.current = nextZ;
                     /* eslint-enable react-hooks/immutability */
                     applyCamera({ ...simPan.current, z: nextZ });
-                }} title="Zoom In">
+                }} title="Zoom in">
                     <Plus size={18} />
                 </button>
                 <button className="cbtn" onClick={() => {
@@ -773,17 +782,17 @@ export function PcbCanvas({
                     simZoom.current = nextZ;
                     /* eslint-enable react-hooks/immutability */
                     applyCamera({ ...simPan.current, z: nextZ });
-                }} title="Zoom Out">
+                }} title="Zoom out">
                     <Minus size={18} />
                 </button>
-                <button className="cbtn" onClick={() => setTrackingMode(TRACKING_MODES.SNAP)} title="Center Board">
+                <button className="cbtn" onClick={() => setTrackingMode(TRACKING_MODES.SNAP)} title="Center board">
                     <Maximize size={18} />
                 </button>
                 <button className="cbtn" onClick={() => {
                     const next = !isAutoTracking;
                     setIsAutoTracking(next);
                     if (!next) setTrackingMode(TRACKING_MODES.NONE);
-                }} title={isAutoTracking ? "Disable Auto-Tracking" : "Enable Auto-Tracking"} style={{ color: isAutoTracking ? 'var(--grn-bright)' : 'inherit' }}>
+                }} title={isAutoTracking ? "Disable auto-tracking" : "Enable auto-tracking"} style={{ color: isAutoTracking ? 'var(--grn-bright)' : 'inherit' }}>
                     <Crosshair size={18} />
                 </button>
             </div>
@@ -795,33 +804,33 @@ export function PcbCanvas({
                 .vignette-layer { position: absolute; inset: 0; pointer-events: none; }
                 .canvas-controls { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 .canvas-container.pb-active .canvas-controls { bottom: calc(20px + var(--pb-height)); }
-                .cbtn.coords-btn.on { color: var(--blu-bright); border-color: rgba(88,166,255,.6); }
+                .cbtn.coords-btn.on { color: var(--ui-accent-hover); border-color: rgba(88,166,255,.6); }
                 .cbtn.side-btn.on { color: var(--org); border-color: rgba(210,153,34,.6); }
-                .side-badge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 6px 14px; border-radius: 999px; background: rgba(13,17,23,.85); border: 1px solid rgba(210,153,34,.5); color: var(--org); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
+                .side-badge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 6px 14px; border-radius: var(--radius-full); background: rgba(13,17,23,.85); border: 1px solid rgba(210,153,34,.5); color: var(--org); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
                 .conflict-cell { animation: conflict-pulse 0.9s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
                 @keyframes conflict-pulse { from { opacity: .45; transform: scale(.8); } to { opacity: 1; transform: scale(1.05); } }
                 .cbtn { 
                   width: 38px; 
                   height: 38px; 
                   background: var(--glass-bg); 
-                  backdrop-filter: blur(8px);
+                  backdrop-filter: blur(8px); 
                   border: 1px solid var(--border); 
-                  border-radius: 10px; 
+                  border-radius: var(--radius-md); 
                   color: var(--txt1); 
                   cursor: pointer; 
                   display: flex; 
                   align-items: center; 
                   justify-content: center; 
-                  transition: all 0.2s; 
+                  transition: all 0.15s ease; 
                   box-shadow: var(--shadow-premium);
                 }
                 .cbtn:hover { 
-                  background: var(--bg4); 
+                  background: var(--ui-neutral-hover); 
                   color: var(--txt0);
                   transform: scale(1.05);
                   border-color: var(--border2);
                 }
-                .cbtn:active { transform: scale(0.95); }
+                .cbtn:active { transform: scale(0.95); background: var(--ui-neutral-active); }
                 .pcb-comp { transition: filter 0.2s ease; }
                 .pcb-comp:hover { filter: brightness(1.2); }
 
@@ -839,7 +848,7 @@ export function PcbCanvas({
                   .cbtn {
                     width: 44px;
                     height: 44px;
-                    border-radius: 10px;
+                    border-radius: var(--radius-md);
                   }
                   .cbtn svg {
                     width: 20px;

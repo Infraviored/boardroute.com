@@ -330,19 +330,19 @@ export function Topbar({
         }
         .btn-group .tbtn:first-child {
           margin-left: 0;
-          border-radius: 8px 0 0 8px;
+          border-radius: var(--radius-md) 0 0 var(--radius-md);
         }
         .btn-group .tbtn:last-child {
-          border-radius: 0 8px 8px 0;
+          border-radius: 0 var(--radius-md) var(--radius-md) 0;
         }
 
         .tbtn {
-          background: var(--bg4);
+          background: var(--ui-neutral);
           border: 1px solid var(--border);
           color: var(--txt1);
           padding: 6px 12px;
           height: 34px;
-          border-radius: 8px;
+          border-radius: var(--radius-md);
           cursor: pointer;
           font-size: .82em;
           font-weight: 500;
@@ -354,12 +354,16 @@ export function Topbar({
           position: relative;
         }
         .tbtn:hover:not(:disabled) {
-          background: var(--bg3);
+          background: var(--ui-neutral-hover);
           border-color: var(--border2);
           color: var(--txt0);
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           z-index: 10;
+        }
+        .tbtn:active:not(:disabled) {
+          transform: translateY(0);
+          background: var(--ui-neutral-active);
         }
 
         .docs-link { text-decoration: none; }
@@ -512,14 +516,15 @@ export function Topbar({
         }
 
         .reset-btn {
-          color: var(--err-bright);
-          background: rgba(248, 81, 73, 0.08);
-          border: 1px solid rgba(248, 81, 73, 0.2);
+          color: var(--ui-danger-subtle-text);
+          background: var(--ui-danger-subtle-bg);
+          border: 1px solid var(--ui-danger-subtle-border);
+          border-radius: var(--radius-md);
         }
         .reset-btn:hover:not(:disabled) {
-          background: var(--err-bright);
+          background: var(--ui-danger);
           color: #fff;
-          border-color: var(--err-bright);
+          border-color: var(--ui-danger);
         }
 
         .mobile-more-btn { display: none; }
@@ -538,7 +543,7 @@ export function Topbar({
         .mobile-action-sheet {
           background: var(--bg2);
           border-top: 1px solid var(--border2);
-          border-radius: 16px 16px 0 0;
+          border-radius: var(--radius-xl) var(--radius-xl) 0 0;
           padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
           box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
           animation: sheet-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -567,9 +572,10 @@ export function Topbar({
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 8px;
+          border-radius: var(--radius-sm);
           cursor: pointer;
         }
+        .mas-close:hover { background: var(--ui-ghost-hover); color: var(--txt0); }
         .mas-close:active { background: var(--bg4); color: var(--txt0); }
         .mas-grid {
           display: grid;
@@ -582,9 +588,9 @@ export function Topbar({
           gap: 10px;
           padding: 12px 14px;
           min-height: 44px;
-          background: var(--bg3);
+          background: var(--ui-neutral);
           border: 1px solid var(--border);
-          border-radius: 10px;
+          border-radius: var(--radius-md);
           color: var(--txt0);
           font-family: 'Outfit', sans-serif;
           font-size: 0.88rem;
@@ -593,16 +599,22 @@ export function Topbar({
           text-decoration: none;
           transition: background 0.15s, border-color 0.15s;
         }
-        .mas-btn:active { background: var(--bg4); border-color: var(--border2); }
+        .mas-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
+        .mas-btn:active { background: var(--ui-neutral-active); border-color: var(--border2); }
         .mas-btn:disabled { opacity: 0.45; cursor: default; }
         .mas-btn.danger-btn {
-          color: var(--err-bright);
-          background: rgba(248, 81, 73, 0.08);
-          border-color: rgba(248, 81, 73, 0.25);
+          color: var(--ui-danger-subtle-text);
+          background: var(--ui-danger-subtle-bg);
+          border-color: var(--ui-danger-subtle-border);
+        }
+        .mas-btn.danger-btn:hover,
+        .mas-btn.danger-btn:active {
+          background: var(--ui-danger);
+          color: #fff;
         }
         .mas-btn.share-btn.copied {
-          color: var(--grn-bright);
-          border-color: rgba(63, 185, 80, 0.5);
+          color: var(--ui-primary-hover);
+          border-color: var(--ui-primary);
         }
 
         @media (max-width: 768px) {
@@ -723,9 +735,22 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
   const bubbleRef = React.useRef(null);
 
   React.useLayoutEffect(() => {
+    const isModalOrDrawerActive = () => {
+      const activeModal = document.querySelector(
+        '.overlay-bg, .mobile-sheet-head, .json-drawer:not(.closed), .eo-overlay, .lib-modal, .export-modal, .share-modal, .confirm-modal-shell, .prompt-modal-shell, .ce-modal, .pf-modal'
+      );
+      if (!activeModal) return false;
+      const s = window.getComputedStyle(activeModal);
+      return s.display !== 'none' && s.visibility !== 'hidden';
+    };
+
     const place = () => {
       const t = targetRef.current, b = bubbleRef.current;
       if (!t || !b) return;
+      if (isModalOrDrawerActive()) {
+        b.style.visibility = 'hidden';
+        return;
+      }
       const r = t.getBoundingClientRect();
       const vw = document.documentElement.clientWidth;
       const w = b.offsetWidth;
@@ -740,7 +765,13 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
     window.addEventListener('resize', place);
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null;
     if (ro) { if (watchRef.current) ro.observe(watchRef.current); if (bubbleRef.current) ro.observe(bubbleRef.current); }
-    return () => { window.removeEventListener('resize', place); ro?.disconnect(); };
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(place) : null;
+    if (mo) mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    return () => {
+      window.removeEventListener('resize', place);
+      ro?.disconnect();
+      mo?.disconnect();
+    };
   }, [targetRef, watchRef]);
 
   return createPortal(

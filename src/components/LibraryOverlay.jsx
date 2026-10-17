@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, X } from 'lucide-react';
 import { compColor } from '../engine/render-utils.js';
 
 const CURATED = 'Curated';
@@ -97,13 +97,13 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
         <div className="overlay-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="modal lib-modal">
                 <div className="modal-header">
-                    <h3>Component Library</h3>
+                    <h3>Component library</h3>
                     {onPhoto && (
                         <button className="lib-photo" onClick={onPhoto} title="Photo, pasted image or URL of the part: pins and size are read from it">
                             <Camera size={14} /> From a photo
                         </button>
                     )}
-                    <button className="close-btn" onClick={onClose}>✕</button>
+                    <button className="close-btn" onClick={onClose} aria-label="Close library"><X size={18} /></button>
                 </div>
                 <input
                     type="text"
@@ -159,17 +159,20 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
 
             <style dangerouslySetInnerHTML={{
                 __html: `
-        .lib-modal { max-width: 640px; max-height: 86vh; }
-        .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--blu); color: var(--blu-bright); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; background: none; font-family: inherit; }
-        .lib-photo:hover { background: rgba(31,111,235,.12); }
+        .lib-modal { max-width: 640px; max-height: 86vh; border-radius: var(--radius-xl); }
+        .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--ui-accent); color: var(--ui-accent-hover); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; background: none; font-family: inherit; transition: all 0.15s ease; }
+        .lib-photo:hover { background: rgba(31,111,235,.15); }
+        .lib-photo:active { background: rgba(31,111,235,.25); }
         .lib-cats { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
         .lib-cat {
-          font-size: .7em; padding: 3px 8px; border-radius: 10px; cursor: pointer;
-          background: var(--bg3); border: 1px solid var(--border2); color: var(--txt1);
+          font-size: .7em; padding: 3px 8px; border-radius: var(--radius-full); cursor: pointer;
+          background: var(--ui-neutral); border: 1px solid var(--border); color: var(--txt1);
+          transition: all 0.12s ease;
         }
         .lib-cat span { color: var(--txt2); }
-        .lib-cat.active { border-color: var(--blu-bright); color: var(--blu-bright); }
-        .lib-cat.active span { color: var(--blu-bright); opacity: .7; }
+        .lib-cat:hover { background: var(--ui-neutral-hover); color: var(--txt0); }
+        .lib-cat.active { border-color: var(--ui-accent-hover); color: var(--ui-accent-hover); background: rgba(31,111,235,.12); }
+        .lib-cat.active span { color: var(--ui-accent-hover); opacity: .8; }
         .lib-count { font-size: .7em; color: var(--txt1); margin-top: -6px; }
         .lib-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
         .lib-item {
@@ -177,16 +180,17 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
           align-items: center;
           gap: 12px;
           padding: 8px 10px;
-          background: var(--bg3);
-          border: 1px solid var(--border2);
-          border-radius: 6px;
+          background: var(--ui-neutral);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
           cursor: pointer;
           transition: .12s;
           flex-shrink: 0;
         }
-        .lib-item:hover { background: var(--bg4); border-color: var(--blu); }
-        .lib-swatch { width: 32px; height: 32px; border-radius: 4px; flex-shrink: 0; }
-        .lib-thumb { width: 52px; height: 40px; flex-shrink: 0; background: #0a0f0c; border-radius: 6px; padding: 3px; }
+        .lib-item:hover { background: var(--ui-neutral-hover); border-color: var(--ui-accent); }
+        .lib-item:active { background: var(--ui-neutral-active); }
+        .lib-swatch { width: 32px; height: 32px; border-radius: var(--radius-sm); flex-shrink: 0; }
+        .lib-thumb { width: 52px; height: 40px; flex-shrink: 0; background: #0a0f0c; border-radius: var(--radius-md); padding: 3px; }
         .lib-info { min-width: 0; }
         .lib-name { font-size: .85em; font-weight: 700; color: var(--txt0); overflow-wrap: anywhere; }
         .lib-val { font-size: .7em; color: var(--txt2); margin-top: 2px; }

@@ -215,7 +215,7 @@ export function SidebarLeft({
                     <button
                       className="edit-mini-btn"
                       onClick={(e) => { e.stopPropagation(); onEditComponent(c.id); }}
-                      title="Edit Component"
+                      title="Edit component"
                     >
                       <Pencil size={11} />
                     </button>
@@ -559,19 +559,20 @@ export function SidebarLeft({
           padding: 1px 8px;
         }
         .tplbtn {
-          padding: 6px 10px;
-          border-radius: 8px;
+          height: 28px;
+          padding: 0 10px;
+          border-radius: var(--radius-md);
           cursor: pointer;
           font-size: var(--fs-xs);
           font-weight: 600;
-          background: var(--bg3);
+          background: var(--ui-neutral);
           border: 1px solid var(--border);
-          color: var(--txt1);
+          color: var(--txt0);
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
-          transition: 0.2s;
+          transition: 0.15s;
           flex: 1;
           min-width: 80px;
           white-space: nowrap;
@@ -579,9 +580,23 @@ export function SidebarLeft({
           text-overflow: ellipsis;
         }
         .tplbtn:hover {
-          background: var(--bg4);
-          border-color: var(--blu-bright);
+          background: var(--ui-neutral-hover);
+          border-color: var(--border2);
           color: var(--txt0);
+        }
+        .tplbtn:active {
+          background: var(--ui-neutral-active);
+        }
+        .tplbtn.grn-bg {
+          background: var(--ui-primary);
+          border-color: var(--ui-primary-border);
+          color: var(--ui-primary-text);
+        }
+        .tplbtn.grn-bg:hover {
+          background: var(--ui-primary-hover);
+        }
+        .tplbtn.grn-bg:active {
+          background: var(--ui-primary-active);
         }
 
         .comp-list {

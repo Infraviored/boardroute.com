@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { Copy, Check } from 'lucide-react';
+import { ModalShell, Button } from './ui';
 
 export function PromptOverlay({ isOpen, onClose }) {
-    const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-    const promptText = `Act as an expert Electronic Design Automation (EDA) engineer. I need you to generate a circuit specification in a specific JSON format for my custom autorouting tool.
+  const promptText = `Act as an expert Electronic Design Automation (EDA) engineer. I need you to generate a circuit specification in a specific JSON format for my custom autorouting tool.
 
 ### CONCEPTUAL ARCHITECTURE
 The system operates on a unit-grid (holes on a board). Your task is to define components by their physical pin layout and then "wire" them together using Net names.
@@ -55,135 +57,136 @@ To connect two or more pins, assign them the EXACT same string in their "net" fi
 
 REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(promptText);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+  const handleCopy = () => {
+    navigator.clipboard.writeText(promptText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-    return (
-        <div className="overlay-bg">
-            <div className="modal prompt-modal">
-                <div className="modal-header">
-                    <h3>AI Prompt Guide</h3>
-                    <button className="close-btn" onClick={onClose}>✕</button>
-                </div>
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth="600px"
+      ariaLabel="AI prompt guide"
+      className="prompt-modal-shell"
+    >
+      <ModalShell.Header
+        title="AI prompt guide"
+        onClose={onClose}
+      />
 
-                <div className="modal-body">
-                    <p style={{ fontSize: '0.9em', color: 'var(--txt1)', lineHeight: '1.4' }}>
-                        This application uses a specific <strong>JSON format</strong> to define circuits.
-                        Modern AI models (like Claude, GPT-4, or Gemini) are excellent at generating this format.
-                    </p>
+      <ModalShell.Body className="prompt-modal-body">
+        <p className="prompt-intro-text">
+          This application uses a specific <strong>JSON format</strong> to define circuits.
+          Modern AI models (like Claude, GPT-4, or Gemini) are excellent at generating this format.
+        </p>
 
-                    <div className="prompt-box-label">
-                        <span>Recommended Prompt</span>
-                        <button className={`copy-btn ${copied ? 'copied' : ''}`} onClick={handleCopy}>
-                            {copied ? '✓ Copied' : '📋 Copy Prompt'}
-                        </button>
-                    </div>
-
-                    <div className="prompt-scroll-container">
-                        <pre className="prompt-pre">{promptText}</pre>
-                    </div>
-
-                    <div style={{ marginTop: '10px', fontSize: '0.8em', color: 'var(--txt2)' }}>
-                        Simply copy the prompt above, paste it into your favorite AI, describe your circuit, and then paste the resulting JSON back into the Circuit Definition box.
-                    </div>
-                </div>
-
-                <div className="modal-footer">
-                    <button className="btn blu" onClick={onClose} style={{ width: 'auto', padding: '8px 20px' }}>Got it!</button>
-                </div>
-            </div>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .prompt-modal { max-width: 600px; width: 95%; }
-                .modal-body { display: flex; flex-direction: column; gap: 12px; }
-                .prompt-box-label { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: center; 
-                    font-size: 0.75em; 
-                    font-weight: 700; 
-                    text-transform: uppercase; 
-                    color: var(--txt2);
-                    margin-top: 10px;
-                }
-                .copy-btn {
-                    background: var(--bg4);
-                    border: 1px solid var(--border2);
-                    color: var(--txt1);
-                    padding: 4px 10px;
-                    border-radius: 4px;
-                    font-size: 0.9em;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                .copy-btn:hover { background: var(--bg3); color: var(--txt0); }
-                .copy-btn.copied { background: var(--grn); color: #000; border-color: var(--grn); }
-
-                .prompt-scroll-container {
-                    background: #050505;
-                    border: 1px solid var(--border);
-                    border-radius: 6px;
-                    padding: 12px;
-                    max-height: 250px;
-                    overflow-y: auto;
-                }
-                .prompt-pre {
-                    margin: 0;
-                    white-space: pre-wrap;
-                    word-break: break-all;
-                    font-family: 'Consolas', monospace;
-                    font-size: 0.82em;
-                    color: var(--grn);
-                    line-height: 1.5;
-                }
-
-                @media (max-width: 768px) {
-                  .prompt-modal {
-                    width: 100vw;
-                    max-width: 100vw;
-                    height: 100dvh;
-                    max-height: 100dvh;
-                    border-radius: 0;
-                    padding: 16px;
-                    margin: 0;
-                    display: flex;
-                    flex-direction: column;
-                  }
-                  .prompt-modal .close-btn {
-                    width: 40px;
-                    height: 40px;
-                    min-width: 40px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                  }
-                  .modal-body {
-                    flex: 1;
-                    min-height: 0;
-                  }
-                  .prompt-scroll-container {
-                    max-height: none;
-                    flex: 1;
-                  }
-                  .copy-btn {
-                    min-height: 38px;
-                    padding: 6px 14px;
-                    font-size: 0.85rem;
-                  }
-                  .modal-footer .btn {
-                    min-height: 44px;
-                    width: 100% !important;
-                    font-size: 1rem;
-                  }
-                }
-                `
-            }} />
+        <div className="prompt-box-label">
+          <span>Recommended prompt</span>
+          <Button
+            size="sm"
+            variant={copied ? 'primary' : 'secondary'}
+            icon={copied ? <Check size={13} /> : <Copy size={13} />}
+            onClick={handleCopy}
+            className="prompt-copy-btn"
+          >
+            {copied ? 'Copied to clipboard' : 'Copy prompt'}
+          </Button>
         </div>
-    );
+
+        <div className="prompt-scroll-container">
+          <pre className="prompt-pre">{promptText}</pre>
+        </div>
+
+        <div className="prompt-hint-text">
+          Simply copy the prompt above, paste it into your favorite AI, describe your circuit, and then paste the resulting JSON back into the Circuit Definition box.
+        </div>
+      </ModalShell.Body>
+
+      <ModalShell.Footer>
+        <Button variant="accent" onClick={onClose}>
+          Close
+        </Button>
+      </ModalShell.Footer>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .prompt-modal-body {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .prompt-intro-text {
+          font-size: 0.9em;
+          color: var(--txt1);
+          line-height: 1.45;
+          margin: 0;
+        }
+        .prompt-intro-text strong {
+          color: var(--txt0);
+        }
+        .prompt-box-label { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          font-size: var(--fs-xs); 
+          font-weight: 700; 
+          letter-spacing: 0.08em;
+          text-transform: uppercase; 
+          color: var(--txt1);
+          margin-top: 6px;
+        }
+        .prompt-copy-btn {
+          border-radius: var(--radius-md);
+        }
+        .prompt-scroll-container {
+          background: #050505;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          padding: 12px;
+          max-height: 250px;
+          overflow-y: auto;
+        }
+        .prompt-pre {
+          margin: 0;
+          white-space: pre-wrap;
+          word-break: break-all;
+          font-family: 'Consolas', monospace;
+          font-size: 0.82em;
+          color: var(--grn-bright);
+          line-height: 1.5;
+        }
+        .prompt-hint-text {
+          font-size: var(--fs-xs);
+          color: var(--txt1);
+          line-height: 1.4;
+        }
+        @media (max-width: 768px) {
+          .prompt-modal-shell {
+            width: 100vw;
+            max-width: 100vw;
+            height: 100dvh;
+            max-height: 100dvh;
+            border-radius: 0;
+          }
+          .prompt-modal-body {
+            flex: 1;
+            min-height: 0;
+          }
+          .prompt-scroll-container {
+            max-height: none;
+            flex: 1;
+          }
+          .prompt-modal-shell .ui-modal-footer .ui-btn {
+            width: 100%;
+            min-height: 44px;
+          }
+        }
+        `
+      }} />
+    </ModalShell>
+  );
 }

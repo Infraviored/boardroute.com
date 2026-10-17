@@ -140,16 +140,16 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
             <BoardSettingsStyles />
             <style dangerouslySetInnerHTML={{
                 __html: `
-        .export-modal { max-width: 1200px; width: calc(100% - 32px); height: calc(100vh - 32px); max-height: 900px; padding: 0; gap: 0; flex-direction: row; overflow: hidden; }
+        .export-modal { max-width: 1200px; width: calc(100% - 32px); height: calc(100vh - 32px); max-height: 900px; padding: 0; gap: 0; flex-direction: row; overflow: hidden; border-radius: var(--radius-xl); }
         .ex-preview { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: repeating-conic-gradient(#0b0e12 0% 25%, #080a0d 0% 50%) 50% / 24px 24px; }
         .ex-preview img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 30px rgba(0,0,0,.6)); }
         .ex-empty { color: var(--txt2); font-size: var(--fs-sm); }
         .ex-side { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px; border-left: 1px solid var(--border); overflow-y: auto; background: var(--bg2); }
         .ex-group { display: flex; flex-direction: column; gap: 8px; }
-        .ex-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
-        .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
-        .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: 6px; cursor: pointer; }
-        .ex-seg button.active { background: var(--blu); color: #fff; }
+        .ex-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt1); }
+        .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
+        .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s ease; }
+        .ex-seg button.active { background: var(--ui-accent); color: #fff; }
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
         .ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
@@ -157,8 +157,12 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-more { display: flex; gap: 8px; }
         .ex-more .ex-btn { font-size: var(--fs-sm); padding: 8px; }
         .ex-actions { display: flex; gap: 8px; margin-top: auto; padding: 12px 0 0; position: sticky; bottom: -20px; background: var(--bg2); padding-bottom: 4px; }
-        .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; }
-        .ex-btn.primary { background: var(--blu); border-color: var(--blu-bright); }
+        .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+        .ex-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
+        .ex-btn:active { background: var(--ui-neutral-active); }
+        .ex-btn.primary { background: var(--ui-accent); border-color: rgba(240, 246, 252, 0.1); color: var(--ui-accent-text); }
+        .ex-btn.primary:hover { background: var(--ui-accent-hover); }
+        .ex-btn.primary:active { background: var(--ui-accent-active); }
         .ex-btn:disabled { opacity: .5; cursor: default; }
         @media (max-width: 768px) {
           .export-modal {

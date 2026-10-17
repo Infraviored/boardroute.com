@@ -702,7 +702,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .pf-bg { z-index: 1100; }
-                .pf-modal { max-width: 1120px; width: calc(100% - 32px); height: min(760px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
+                .pf-modal { max-width: 1120px; width: calc(100% - 32px); height: min(760px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }
                 .pf-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
                 .pf-view { position: relative; min-width: 0; min-height: 0; background: #080a0c; display: grid; place-items: center; }
                 .pf-view > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); touch-action: none; user-select: none; }
@@ -714,17 +714,17 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
                 .pf-row .ce-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; }
                 .pf-modal .ce-head-actions .ce-btn { display: inline-flex; align-items: center; gap: 5px; }
-                .pf-view.over { outline: 2px dashed var(--blu-bright); outline-offset: -8px; }
+                .pf-view.over { outline: 2px dashed var(--ui-accent-hover); outline-offset: -8px; }
                 .pf-pick { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 440px; padding: 24px; text-align: center; color: var(--txt1); font-size: var(--fs-sm); }
                 .pf-pick > svg { color: var(--txt2); }
                 .pf-pick b { color: var(--txt0); font-size: var(--fs-md); }
                 .pf-center { justify-content: center; }
                 .pf-file { display: inline-flex; align-items: center; gap: 6px; line-height: 30px; cursor: pointer; }
                 .pf-url { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--txt2); }
-                .pf-url input, .pf-mm { flex: 1; min-width: 0; height: 30px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; }
+                .pf-url input, .pf-mm { flex: 1; min-width: 0; height: 30px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font: inherit; font-size: 13px; }
                 .pf-mm { flex: 0 0 58px; text-align: center; }
-                .pf-range { width: 100%; accent-color: var(--blu-bright, #58a6ff); }
-                .pf-select { height: 28px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font: inherit; font-size: 13px; padding: 0 6px; }
+                .pf-range { width: 100%; accent-color: var(--ui-accent-hover, #58a6ff); }
+                .pf-select { height: 28px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font: inherit; font-size: 13px; padding: 0 6px; }
                 .pf-banner svg { vertical-align: -2px; }
                 .pf-count { display: flex; align-items: center; gap: 6px; min-width: 0; }
                 .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }

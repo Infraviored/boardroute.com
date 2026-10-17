@@ -65,7 +65,7 @@ export function SidebarRight({
     <aside id="rsb" className={mobileOpen ? 'mobile-open' : ''}>
       <div className="mobile-sheet-head">
         <div className="mobile-sheet-handle" />
-        <div className="mobile-sheet-title">Inspector &amp; Stats</div>
+        <div className="mobile-sheet-title">Inspector &amp; stats</div>
         <button type="button" className="mobile-sheet-close" onClick={onCloseDrawer} aria-label="Close drawer"><X size={18} /></button>
       </div>
       {/* Board stats: always visible, one compact block */}
@@ -449,19 +449,19 @@ export function SidebarRight({
           gap: 10px;
           border: 1px solid var(--border);
           border-left: 3px solid var(--net-color);
-          background: var(--bg3);
-          border-radius: 6px;
-          transition: all 0.2s;
+          background: var(--ui-neutral);
+          border-radius: var(--radius-md);
+          transition: all 0.15s ease;
           cursor: pointer;
           user-select: none;
         }
         .net-row:hover { 
-          background: var(--bg4); 
+          background: var(--ui-neutral-hover); 
           border-color: var(--border2);
           border-left-color: var(--net-color);
         }
         .net-row.sel {
-           background: var(--bg4);
+           background: var(--ui-neutral-hover);
            border-color: var(--net-color);
            box-shadow: 0 0 0 1px var(--net-color), 0 0 12px color-mix(in srgb, var(--net-color), transparent 60%);
         }
@@ -482,7 +482,7 @@ export function SidebarRight({
           color: var(--txt2); 
           background: var(--bg2);
           padding: 1px 5px;
-          border-radius: 4px;
+          border-radius: var(--radius-xs);
           border: 1px solid var(--border);
           flex-shrink: 0;
         }

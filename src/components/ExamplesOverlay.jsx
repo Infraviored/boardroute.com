@@ -82,6 +82,7 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
         .example-meta { color: var(--txt2); font-size: var(--fs-xs); font-family: ui-monospace, Consolas, monospace; }
         .examples-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         .examples-foot .tplbtn { width: auto; padding: 8px 14px; font-size: var(--fs-sm); border-radius: var(--radius-md); }
+        .examples-learn { color: var(--blu-bright); font-size: var(--fs-sm); text-decoration: none; }
         @media (max-width: 768px) {
           .examples-modal {
             max-width: 100vw;

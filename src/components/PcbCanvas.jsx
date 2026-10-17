@@ -277,6 +277,23 @@ export function PcbCanvas({
         }
     };
 
+    const handlePointerCancel = (e) => {
+        activePointers.current.delete(e.pointerId);
+        if (activePointers.current.size < 2) {
+            pinchRef.current = null;
+        }
+        if (activePointers.current.size === 1) {
+            const remaining = Array.from(activePointers.current.values())[0];
+            lastPos.current = remaining;
+        }
+        setDraggingId(null);
+        setIsPanning(false);
+        const target = e.currentTarget;
+        if (target && target.hasPointerCapture && target.hasPointerCapture(e.pointerId)) {
+            target.releasePointerCapture(e.pointerId);
+        }
+    };
+
     // Keyboard ESC to cancel routing
     useEffect(() => {
         const handleEsc = (e) => {
@@ -669,7 +686,7 @@ export function PcbCanvas({
 
 
     return (
-        <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
+        <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
             <div ref={holesRef} className="holes-layer" />
             <div ref={vignetteRef} className="vignette-layer" />
             <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block', position: 'relative', textRendering: 'geometricPrecision' }}>

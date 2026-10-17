@@ -10,9 +10,8 @@ This work delivers mobile responsiveness for boardroute.com on viewports `<= 768
 
 ### 1. Viewport & Navigation Strategy
 - **Root Container**: Constrained to `100dvh` / `100vh` to avoid mobile browser navigation bar bounce and viewport clipping.
-- **Mobile Bottom Navigation Bar**: Fixed bottom bar featuring `Board`, `Parts` (with dynamic component count badge), and `Inspector` tabs.
-- **Bottom-Sheet Sidebars**: Both left sidebar (`#lsb`, Parts & Circuit) and right sidebar (`#rsb`, Inspector & Stats) transform into slide-up modal sheets with drag handle pills, header close actions, and backdrop tap dismissal.
-- **Canvas View**: The PCB canvas occupies the full viewport behind the topbar and bottom nav, preventing awkward nested-scroll traps.
+- **Side Panel Drawers**: Both left sidebar (`#lsb`, Parts & Circuit) and right sidebar (`#rsb`, Inspector & Stats) transform into slide-in side panels with vertical edge handles (`Parts`, `Inspector`), smooth horizontal slide transitions, header close actions, and backdrop tap dismissal. No bottom navigation bar is used, keeping the full canvas height clear down to the home indicator.
+- **Canvas View**: The PCB canvas occupies the full viewport behind the topbar, with edge handles and floating canvas tool buttons.
 
 ### 2. Topbar & Action Sheet
 - **Streamlined Workflow Track**: Compact logo (`board`) and simplified step pills (`Load`, `Wire`, `Compact`) fit in a single 50px mobile row.
@@ -22,13 +21,13 @@ This work delivers mobile responsiveness for boardroute.com on viewports `<= 768
 ### 3. Touch & Gestures in PCB Canvas
 - **Pinch-to-Zoom**: Two-pointer touch tracking handles fluid zoom in and out around the focal midpoint without triggering browser zoom gestures.
 - **Two-Finger Pan**: Natural two-pointer drag pans the board.
-- **Floating Touch Controls**: Canvas tool buttons are reformatted into an accessible 2-column floating grid (`44x44px` touch targets) situated above the bottom navigation bar.
+- **Floating Touch Controls**: Canvas tool buttons are reformatted into an accessible 2-column floating grid (`40x40px` touch targets) situated in the bottom right corner, clearing safe-area insets.
 
 ### 4. Overlays & Dialogs
 - **Library Modal**: Responsive modal with horizontal category scrolling pills, grid component layout, and >=44px touch targets.
 - **Component Editor & Photo Overlay**: Adaptive layouts with touch-friendly pin lists and clear action footers.
 - **Export & Prompt Modals**: Full-screen modal containers on mobile viewports ensuring inputs and action buttons remain fully within reach.
-- **Result Card & Processing Bar**: Repositioned above the mobile bottom navigation bar with full-width primary action buttons.
+- **Result Card & Processing Bar**: Repositioned at the bottom of the viewport with full-width primary action buttons, clearing safe-area insets.
 
 ### 5. Static Hub & Articles
 - Clean wrapping for navigation bars, readable article typography, and accessible touch targets across `/how-it-works/` and technical articles.

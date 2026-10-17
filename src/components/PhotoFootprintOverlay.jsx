@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Minus, Plus, FlipHorizontal2, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2, ScanText, Crop, RotateCcw, RotateCw, ArrowRight, Sparkles } from 'lucide-react';
+import { Camera, Minus, Plus, FlipHorizontal2, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2, ScanText, Crop, RotateCcw, RotateCw, ArrowRight, Sparkles, ZoomIn, ZoomOut, Maximize2, Move } from 'lucide-react';
 import { readLabels } from './ocr-labels.js';
 
 const MAX_SIDE = 2400; // photos are scaled down to this (enough for pins and printed labels)
@@ -153,6 +153,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const framePx = { x0: -frame.w / 2 - u0, y0: -frame.h / 2 - v0, x1: frame.w / 2 - u0, y1: frame.h / 2 - v0 };
         const same = state.usedFrame && JSON.stringify(state.usedFrame) === JSON.stringify(frame);
         if (!same) { setGrid(null); setPins([]); setBox(null); setLabels({}); setOcr(null); setHist([]); setFound(null); setMeasure({ kind: 'scale' }); }
+        setZv(null);
         setState(s => ({ ...s, status: 'ready', usedFrame: frame, url: out.toDataURL('image/jpeg', 0.92), W: OW, H: OH, framePx }));
     };
     const backToFrame = () => { setMeasure(null); setDrag(null); setState(s => ({ ...s, status: 'crop' })); };
@@ -176,7 +177,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
     // --- step 1: the frame ---------------------------------------------------------------------
     const cropping = state.status === 'crop' && frame;
-    // The view follows the frame: after every change it glides so the frame fills about 60 % of
+    // The view follows the frame: after every change it glides so the frame fills about 80 % of
     // it (zooms in on a small part, out when the frame is dragged larger), so the frame can be
     // placed precisely and its handles never pile up, also with fingers on a phone.
     const [cropView, setCropView] = useState(null); // [x, y, w, h] in photo px
@@ -184,7 +185,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const viewAnim = useRef(null);
     useEffect(() => {
         const svg = svgRef.current;
-        if (state.status !== 'crop' || !svg) return;
+        if ((state.status !== 'crop' && state.status !== 'ready') || !svg) return;
         const measure = () => { const r = svg.getBoundingClientRect(); setSvgSize({ w: r.width || 1, h: r.height || 1 }); };
         measure();
         const ro = new ResizeObserver(measure);
@@ -197,7 +198,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const x0 = Math.min(...cs.map(c => c[0])), x1 = Math.max(...cs.map(c => c[0]));
         const y0 = Math.min(...cs.map(c => c[1])), y1 = Math.max(...cs.map(c => c[1]));
         const aspect = svgSize.w / svgSize.h, big = Math.max(state.PW, state.PH) * 1.3;
-        let w = Math.max((x1 - x0) / 0.6, 80), h = Math.max((y1 - y0) / 0.6, 80);
+        let w = Math.max((x1 - x0) / 0.82, 40), h = Math.max((y1 - y0) / 0.82, 40);
         if (w / h < aspect) w = h * aspect; else h = w / aspect;
         if (w > big * aspect && h > big) { const k = Math.max(big / h, big * aspect / w); w *= k; h *= k; }
         return [(x0 + x1) / 2 - w / 2, (y0 + y1) / 2 - h / 2, w, h];
@@ -254,38 +255,90 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const deg = frame ? Math.round(((frame.a * 180 / Math.PI) % 360 + 540) % 360 - 180) : 0;
 
     // --- step 2: scale and pins ----------------------------------------------------------------
+    // The photo can be zoomed (two fingers, mouse wheel, the +/− buttons) for precise work on
+    // small pins. One finger or the mouse on the photo pans it; on a pin or a measuring point it
+    // moves that; a tap adds or removes a pin.
+    const [zv, setZv] = useState(null);  // zoomed view [x, y, w, h] in photo px; null = whole frame
+    const ptrs = useRef(new Map());      // pointers down: id -> [clientX, clientY]
+    const pinch = useRef(null);          // { v, d, m } at the start of a two-finger gesture
+    const swallow = useRef(false);       // after a pinch: the last finger lifting is no tap
+    const wheelRef = useRef(null);
+    // view v scaled by k (clamped between the whole frame and 10× in), the photo point under
+    // client point `from` moved to client point `to`
+    const viewFor = (v, k, from, to) => {
+        const r = svgRef.current.getBoundingClientRect(), base = view;
+        const z = Math.min(r.width / v[2], r.height / v[3]);
+        const ox = r.left + (r.width - v[2] * z) / 2, oy = r.top + (r.height - v[3] * z) / 2;
+        const px = v[0] + (from[0] - ox) / z, py = v[1] + (from[1] - oy) / z;
+        const w = Math.min(base[2], Math.max(base[2] / 10, v[2] / k)), h = w * v[3] / v[2], z2 = z * v[2] / w;
+        let x = px - (to[0] - ox) / z2, y = py - (to[1] - oy) / z2;
+        if (w >= base[2] * 0.999) return null;
+        // the centre stays on the frame's view
+        x = Math.min(base[0] + base[2] - w / 2, Math.max(base[0] - w / 2, x));
+        y = Math.min(base[1] + base[3] - h / 2, Math.max(base[1] - h / 2, y));
+        return [x, y, w, h];
+    };
+    const zoomBy = (k) => {
+        const r = svgRef.current?.getBoundingClientRect();
+        if (r) { const c = [r.left + r.width / 2, r.top + r.height / 2]; setZv(viewFor(view2, k, c, c)); }
+    };
+    wheelRef.current = (e) => { const c = [e.clientX, e.clientY]; setZv(viewFor(view2, Math.exp(-e.deltaY * 0.002), c, c)); };
+    useEffect(() => {
+        const svg = svgRef.current;
+        if (state.status !== 'ready' || !svg) return;
+        const onWheel = (e) => { e.preventDefault(); wheelRef.current?.(e); };
+        svg.addEventListener('wheel', onWheel, { passive: false });
+        return () => svg.removeEventListener('wheel', onWheel);
+    }, [state.status]);
+
     const onPointerDown = (e) => {
+        ptrs.current.set(e.pointerId, [e.clientX, e.clientY]);
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        if (ptrs.current.size === 2) {
+            // a second finger: zoom and pan; whatever the first finger started is dropped
+            const [a, b] = [...ptrs.current.values()];
+            pinch.current = { v: view2, d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
+            if (drag?.pin && drag.moved || drag?.m && drag.moved) undo();
+            setDrag(null);
+            return;
+        }
+        if (ptrs.current.size > 2) return;
         const p = toImage(e);
         if (!p) return;
+        const start = { sx: e.clientX, sy: e.clientY, moved: false };
         if (measure?.kind === 'ocr') {
             // drawing the box over a row of labels
-            e.currentTarget.setPointerCapture?.(e.pointerId);
             setMeasure({ kind: 'ocr', a: [p.x, p.y], b: [p.x, p.y] });
             setDrag({ ocr: true });
             return;
         }
-        const edge = e.target.getAttribute?.('data-edge');
-        if (edge && grid) {
+        const t = e.target.getAttribute?.bind(e.target) || (() => null);
+        if (t('data-edge') && grid) {
             // a handle of the outline: drag that edge
-            e.currentTarget.setPointerCapture?.(e.pointerId);
             snap();
             setBox({ x0: body.x, y0: body.y, x1: body.x + body.w - 1, y1: body.y + body.h - 1 });
-            setDrag({ edge });
+            setDrag({ edge: t('data-edge') });
             return;
         }
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-        setDrag({ x: p.x, y: p.y, sx: e.clientX, sy: e.clientY, g: grid, moved: false });
+        if (t('data-m')) { setDrag({ ...start, m: t('data-m') }); return; }
+        if (t('data-pin') && !measure) { setDrag({ ...start, pin: t('data-pin').split(',').map(Number) }); return; }
+        if (measure?.kind === 'grid') { setDrag({ ...start, grid: true, x: p.x, y: p.y, g: grid }); return; }
+        setDrag({ ...start, pan: true, v: view2 });
     };
     const onPointerMove = (e) => {
-        if (!drag) return;
-        if (drag.ocr) {
-            const p = toImage(e);
-            if (p) setMeasure(m => ({ ...m, b: [p.x, p.y] }));
+        if (!ptrs.current.has(e.pointerId)) return;
+        ptrs.current.set(e.pointerId, [e.clientX, e.clientY]);
+        if (pinch.current) {
+            if (ptrs.current.size < 2) return;
+            const [a, b] = [...ptrs.current.values()], pc = pinch.current;
+            setZv(viewFor(pc.v, Math.hypot(a[0] - b[0], a[1] - b[1]) / pc.d, pc.m, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]));
             return;
         }
+        if (!drag) return;
+        const p = toImage(e);
+        if (!p) return;
+        if (drag.ocr) { setMeasure(m => ({ ...m, b: [p.x, p.y] })); return; }
         if (drag.edge) {
-            const p = toImage(e);
-            if (!p) return;
             const [u, v] = gridOf(grid, p.x, p.y);
             // edges sit between holes; the outline never gets smaller than the pins
             const pc = pins.map(q => q[0]), pr = pins.map(q => q[1]);
@@ -299,39 +352,77 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             });
             return;
         }
-        if (!grid || measure) return; // the grid can only be moved once there is one
-        const moved = drag.moved || Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 4;
-        if (!moved) return;
-        const p = toImage(e);
-        if (!p) return;
-        if (!drag.moved) snap();
-        setDrag({ ...drag, moved: true });
-        setGrid({ ...drag.g, phaseX: drag.g.phaseX + p.x - drag.x, phaseY: drag.g.phaseY + p.y - drag.y });
+        if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) <= 4) return;
+        const first = !drag.moved;
+        if (drag.pan) { setZv(viewFor(drag.v, 1, [drag.sx, drag.sy], [e.clientX, e.clientY])); if (first) setDrag({ ...drag, moved: true }); return; }
+        if (first && !drag.pan) snap();
+        if (drag.m) {
+            // a measuring point: the scale follows it
+            const m = { ...measure, [drag.m]: [p.x, p.y] };
+            setMeasure(m);
+            if (m.a && m.b) applyMeasure(m.a, m.b, m.n, false);
+            if (first) setDrag({ ...drag, moved: true });
+            return;
+        }
+        if (drag.pin) {
+            // a pin: to the hole under the finger (not onto another pin)
+            const to = holeOf(grid, p.x, p.y), from = drag.cur || drag.pin;
+            if (to[0] !== from[0] || to[1] !== from[1]) {
+                if (!pins.some(q => q[0] === to[0] && q[1] === to[1])) {
+                    setPins(prev => prev.map(q => (q[0] === from[0] && q[1] === from[1] ? to : q)));
+                    setLabels(l => { const k0 = from.join(), k1 = to.join(); if (!(k0 in l)) return l; const n = { ...l, [k1]: l[k0] }; delete n[k0]; return n; });
+                    setDrag({ ...drag, moved: true, cur: to });
+                    return;
+                }
+            }
+            if (first) setDrag({ ...drag, moved: true });
+            return;
+        }
+        if (drag.grid) {
+            setDrag({ ...drag, moved: true });
+            setGrid({ ...drag.g, phaseX: drag.g.phaseX + p.x - drag.x, phaseY: drag.g.phaseY + p.y - drag.y });
+        }
+    };
+    const onPointerCancel = (e) => {
+        ptrs.current.delete(e.pointerId);
+        if (ptrs.current.size < 2) pinch.current = null;
+        setDrag(null);
     };
     const onPointerUp = (e) => {
-        if (!drag) return;
-        if (drag.edge) { setDrag(null); return; }
-        if (drag.ocr) { setDrag(null); runOcr(measure.a, measure.b); return; }
-        if (!drag.moved) {
-            const p = toImage(e);
-            if (p && measure && !measure.b) {
-                if (!measure.a) setMeasure({ ...measure, a: [p.x, p.y] });
-                else if (Math.hypot(p.x - measure.a[0], p.y - measure.a[1]) < 4) { /* too close to the first pin: keep waiting */ }
-                else if (measure.kind === 'row') { snap(); addRow(measure.a, [p.x, p.y]); setMeasure(null); }
-                else {
-                    snap();
-                    const b = [p.x, p.y];
-                    const n = guessCount(pixRef.current, measure.a, b);
-                    setMeasure({ ...measure, b, n });
-                    applyMeasure(measure.a, b, n, true);
-                }
-            } else if (p && !measure && grid) {
-                const [c, r] = holeOf(grid, p.x, p.y);
-                snap();
-                setPins(prev => prev.some(([a, b]) => a === c && b === r) ? prev.filter(([a, b]) => a !== c || b !== r) : [...prev, [c, r]]);
-            }
+        ptrs.current.delete(e.pointerId);
+        if (pinch.current) {
+            if (ptrs.current.size < 2) { pinch.current = null; swallow.current = ptrs.current.size > 0; }
+            return;
         }
+        if (swallow.current) { swallow.current = ptrs.current.size > 0; return; }
+        if (!drag) return;
         setDrag(null);
+        if (drag.edge) return;
+        if (drag.ocr) { runOcr(measure.a, measure.b); return; }
+        if (drag.moved) {
+            if (drag.m && measure.a && measure.b) applyMeasure(measure.a, measure.b, measure.n, true);
+            return;
+        }
+        // a tap
+        const p = toImage(e);
+        if (p && measure && !measure.b && measure.kind !== 'grid') {
+            if (!measure.a) setMeasure({ ...measure, a: [p.x, p.y] });
+            else if (Math.hypot(p.x - measure.a[0], p.y - measure.a[1]) < 4) { /* too close to the first pin: keep waiting */ }
+            else if (measure.kind === 'row') { snap(); addRow(measure.a, [p.x, p.y]); setMeasure(null); }
+            else {
+                snap();
+                const b = [p.x, p.y];
+                const fp = state.framePx, F = Math.max(fp.x1 - fp.x0, fp.y1 - fp.y0);
+                // at most 40 holes across the frame
+                const n = guessCount(pixRef.current, measure.a, b, Math.floor(Math.hypot(b[0] - measure.a[0], b[1] - measure.a[1]) / (F / 40)) + 1);
+                setMeasure({ ...measure, b, n });
+                applyMeasure(measure.a, b, n, true);
+            }
+        } else if (p && !measure && grid) {
+            const [c, r] = holeOf(grid, p.x, p.y);
+            snap();
+            setPins(prev => prev.some(([a, b]) => a === c && b === r) ? prev.filter(([a, b]) => a !== c || b !== r) : [...prev, [c, r]]);
+        }
     };
 
     // Another row on the current grid: both clicks snap to holes, every hole on the straight
@@ -484,6 +575,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const x0 = Math.max(0, fp.x0 - m), y0 = Math.max(0, fp.y0 - m);
         return [x0, y0, Math.min(state.W, fp.x1 + m) - x0, Math.min(state.H, fp.y1 + m) - y0];
     })() : null;
+    const view2 = ready ? (zv || view) : null;
+    const z2 = view2 ? Math.min(svgSize.w / view2[2], svgSize.h / view2[3]) : 1; // screen px per photo px
 
     // frame drawing (step 1)
     const fc = cropping ? [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => fromFrame(frame, u * frame.w / 2, v * frame.h / 2)) : null;
@@ -560,30 +653,41 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                             </svg>
                         )}
 
-                        {ready && measure && measure.kind !== 'ocr' && !measure.b && <div className="pf-banner">{measure.a ? 'Now click the last pin of that row' : 'Click the first pin of a row'}</div>}
+                        {ready && measure && (measure.kind === 'scale' || measure.kind === 'row') && !measure.b && <div className="pf-banner">{measure.a ? 'Now tap the last pin of that row' : 'Tap the first pin of a row'}</div>}
+                        {ready && measure?.kind === 'grid' && <div className="pf-banner">Drag the grid onto the pins</div>}
+                        {ready && (
+                            <div className="pf-zoom">
+                                <button onClick={() => zoomBy(1.6)} aria-label="Zoom in" title="Zoom in (or pinch, or mouse wheel)"><ZoomIn size={16} /></button>
+                                <button onClick={() => zoomBy(1 / 1.6)} disabled={!zv} aria-label="Zoom out" title="Zoom out"><ZoomOut size={16} /></button>
+                                <button onClick={() => setZv(null)} disabled={!zv} aria-label="Whole part" title="Whole part"><Maximize2 size={15} /></button>
+                            </div>
+                        )}
                         {ready && measure?.kind === 'ocr' && !drag && <div className="pf-banner">Drag a box over the labels next to one row of pins</div>}
                         {ocr && 'total' in ocr && <div className="pf-banner"><Loader2 size={13} className="spin" /> Reading labels… {ocr.done}/{ocr.total}</div>}
                         {ready && (
-                            <svg ref={svgRef} viewBox={view.join(' ')} preserveAspectRatio="xMidYMid meet"
-                                onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
+                            <svg ref={svgRef} viewBox={view2.join(' ')} preserveAspectRatio="xMidYMid meet"
+                                onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
                                 style={{ cursor: drag?.moved ? 'grabbing' : 'crosshair' }}>
                                 <image href={state.url} x="0" y="0" width={state.W} height={state.H} />
                                 {/* outside the frame dimmed: still there for a scale, but not the part */}
                                 <path fillRule="evenodd" fill="rgba(0,0,0,.45)" style={{ pointerEvents: 'none' }}
                                     d={`M0 0H${state.W}V${state.H}H0Z M${state.framePx.x0} ${state.framePx.y0}H${state.framePx.x1}V${state.framePx.y1}H${state.framePx.x0}Z`} />
                                 {scaled && <polygon points={outline.map(p => p.join(',')).join(' ')}
-                                    fill="none" stroke="#58a6ff" strokeWidth={Math.max(2, unit / 18)} strokeDasharray={`${unit / 4} ${unit / 6}`} />}
+                                    fill="none" stroke="#58a6ff" strokeWidth={2 / z2} strokeDasharray={`${unit / 4} ${unit / 6}`} />}
                                 {scaled && holes.map(([c, r, x, y]) => (
                                     <circle key={c + ',' + r} cx={x} cy={y} r={unit * 0.07}
                                         fill="rgba(255,255,255,.55)" stroke="rgba(0,0,0,.5)" strokeWidth={unit / 40} />
                                 ))}
-                                {scaled && pins.map(([c, r]) => { const [x, y] = holeAt(grid, c, r); return (
-                                    <circle key={'p' + c + ',' + r} cx={x} cy={y} r={unit * 0.36}
-                                        fill="rgba(63,185,80,.18)" stroke="#3fb950" strokeWidth={Math.max(2, unit / 14)} />
+                                {scaled && pins.map(([c, r]) => { const [x, y] = holeAt(grid, c, r); const on = drag?.cur?.[0] === c && drag.cur[1] === r; return (
+                                    <g key={'p' + c + ',' + r}>
+                                        <circle cx={x} cy={y} r={unit * 0.36} fill={on ? 'rgba(63,185,80,.4)' : 'rgba(63,185,80,.18)'} stroke="#3fb950" strokeWidth={2.5 / z2} style={{ pointerEvents: 'none' }} />
+                                        {/* the grab area: a little larger than the ring, still clear of the neighbours */}
+                                        <circle data-pin={c + ',' + r} cx={x} cy={y} r={unit * 0.46} fill="transparent" style={{ cursor: measure ? 'crosshair' : 'move' }} />
+                                    </g>
                                 ); })}
                                 {scaled && !measure && handles.map(([e, x, y]) => (
                                     <rect key={e} data-edge={e} x={x - unit * 0.22} y={y - unit * 0.22} width={unit * 0.44} height={unit * 0.44} rx={unit * 0.08}
-                                        fill="#fff" stroke="#58a6ff" strokeWidth={Math.max(2, unit / 16)} style={{ cursor: e === 'l' || e === 'r' ? 'ew-resize' : 'ns-resize' }}>
+                                        fill="#fff" stroke="#58a6ff" strokeWidth={2 / z2} style={{ cursor: e === 'l' || e === 'r' ? 'ew-resize' : 'ns-resize' }}>
                                         <title>Drag to change the part's outline</title>
                                     </rect>
                                 ))}
@@ -595,11 +699,15 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                     <rect x={Math.min(measure.a[0], measure.b[0])} y={Math.min(measure.a[1], measure.b[1])} width={Math.abs(measure.b[0] - measure.a[0])} height={Math.abs(measure.b[1] - measure.a[1])}
                                         fill="rgba(255,211,61,.15)" stroke="#ffd33d" strokeWidth={Math.max(2, unit / 16)} strokeDasharray={`${unit / 5} ${unit / 8}`} />
                                 )}
-                                {measure?.kind !== 'ocr' && measure?.a && <circle cx={measure.a[0]} cy={measure.a[1]} r={Math.max(4, unit * 0.18)} fill="#f0883e" stroke="#fff" strokeWidth={unit / 30} />}
-                                {measure?.kind !== 'ocr' && measure?.b && <>
-                                    <line x1={measure.a[0]} y1={measure.a[1]} x2={measure.b[0]} y2={measure.b[1]} stroke="#f0883e" strokeWidth={Math.max(2, unit / 16)} />
-                                    <circle cx={measure.b[0]} cy={measure.b[1]} r={Math.max(4, unit * 0.18)} fill="#f0883e" stroke="#fff" strokeWidth={unit / 30} />
-                                </>}
+                                {measure?.a && measure?.b && measure.kind !== 'ocr' && <line x1={measure.a[0]} y1={measure.a[1]} x2={measure.b[0]} y2={measure.b[1]} stroke="#f0883e" strokeWidth={2 / z2} style={{ pointerEvents: 'none' }} />}
+                                {(measure?.kind === 'scale' || measure?.kind === 'row') && ['a', 'b'].map(k => measure[k] && (
+                                    <g key={k}>
+                                        {/* a cross hair, so the point can be put exactly on a pin's centre */}
+                                        <circle cx={measure[k][0]} cy={measure[k][1]} r={7 / z2} fill="none" stroke="#f0883e" strokeWidth={2.5 / z2} style={{ pointerEvents: 'none' }} />
+                                        <path d={`M${measure[k][0] - 12 / z2} ${measure[k][1]}h${24 / z2}M${measure[k][0]} ${measure[k][1] - 12 / z2}v${24 / z2}`} stroke="#fff" strokeWidth={1.2 / z2} style={{ pointerEvents: 'none' }} />
+                                        {measure.kind === 'scale' && <circle data-m={k} cx={measure[k][0]} cy={measure[k][1]} r={(touch ? 22 : 12) / z2} fill="transparent" style={{ cursor: 'move' }}><title>Drag to put it exactly on the pin</title></circle>}
+                                    </g>
+                                ))}
                             </svg>
                         )}
                     </div>
@@ -608,7 +716,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         {cropping && <>
                             <section>
                                 <div className="ce-label">1 · Frame the part</div>
-                                <p className="ce-hint">Put the blue frame on the part's outline: <b>drag</b> inside it to move it, the <b>white squares</b> to size it, the <b>round handle</b> to turn it. The top of the frame becomes the top of the part.</p>
+                                <p className="ce-hint">Drag the frame onto the part; squares size it, the round handle turns it. Its top becomes the part's top.</p>
                                 <div className="pf-row">
                                     <button className="ce-btn" onClick={() => turnFrame(-1)} title="Turn the frame 90° left"><RotateCcw size={13} /> 90°</button>
                                     <button className="ce-btn" onClick={() => turnFrame(1)} title="Turn the frame 90° right"><RotateCw size={13} /> 90°</button>
@@ -628,52 +736,53 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         {ready && <>
                             <section>
                                 <div className="ce-label">2 · Scale</div>
-                                {measure?.kind !== 'scale' && <button className="ce-btn pf-wide" disabled={!!measure} onClick={() => setMeasure({ kind: 'scale' })}><Ruler size={14} /> Click first and last pin of a row</button>}
-                                {measure?.kind === 'scale' && !measure.b && <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel</button>}
-                                {measure?.kind === 'scale' && measure.b && (
-                                    <>
-                                        <span className="pf-lbl">How many pins are in that row?</span>
-                                        <div className="pf-count">
-                                            <button className="ce-btn" onClick={() => setCount(measure.n - 1)} aria-label="One pin less"><Minus size={14} /></button>
-                                            <input className="pf-n" type="text" inputMode="numeric" value={measure.text ?? String(measure.n)} aria-label="Pins in that row"
-                                                onChange={e => typeCount(e.target.value.replace(/\D/g, '').slice(0, 2))} onBlur={() => setMeasure(m => m && ({ ...m, text: null }))}
-                                                onKeyDown={e => { if (e.key === 'ArrowUp') { e.preventDefault(); setCount(measure.n + 1); } if (e.key === 'ArrowDown') { e.preventDefault(); setCount(measure.n - 1); } }} />
-                                            <button className="ce-btn" onClick={() => setCount(measure.n + 1)} aria-label="One pin more"><Plus size={14} /></button>
-                                            <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
-                                        </div>
-                                    </>
+                                {measure?.kind === 'scale' && measure.b ? (
+                                    <div className="pf-count">
+                                        <span className="pf-lbl">Pins in that row</span>
+                                        <button className="ce-btn" onClick={() => setCount(measure.n - 1)} aria-label="One pin less"><Minus size={14} /></button>
+                                        <input className="pf-n" type="text" inputMode="numeric" value={measure.text ?? String(measure.n)} aria-label="Pins in that row"
+                                            onChange={e => typeCount(e.target.value.replace(/\D/g, '').slice(0, 2))} onBlur={() => setMeasure(m => m && ({ ...m, text: null }))}
+                                            onKeyDown={e => { if (e.key === 'ArrowUp') { e.preventDefault(); setCount(measure.n + 1); } if (e.key === 'ArrowDown') { e.preventDefault(); setCount(measure.n - 1); } }} />
+                                        <button className="ce-btn" onClick={() => setCount(measure.n + 1)} aria-label="One pin more"><Plus size={14} /></button>
+                                        <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
+                                    </div>
+                                ) : measure?.kind === 'scale'
+                                    ? <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel measuring</button>
+                                    : <button className="ce-btn pf-wide" disabled={!!measure} onClick={() => setMeasure({ kind: 'scale' })}><Ruler size={14} /> {grid ? 'Measure again' : 'Tap first and last pin of a row'}</button>}
+                                {!(measure?.kind === 'scale' && measure.b) && (
+                                    <form className="pf-row" onSubmit={e => { e.preventDefault(); applyMm(); }}>
+                                        <span className="pf-lbl">or the part is</span>
+                                        <input className="pf-mm" value={mm} onChange={e => setMm(e.target.value)} inputMode="decimal" placeholder="17.5" aria-label="Width of the part in mm" />
+                                        <span className="pf-lbl">mm wide</span>
+                                        <button className="ce-btn" type="submit" disabled={!mm}>Set</button>
+                                    </form>
                                 )}
-                                <p className="ce-hint">Pins in a row are 2.54 mm apart, so two pins and their count set the scale. Any row works, also holes of a perfboard next to the part.</p>
-                                <form className="pf-row" onSubmit={e => { e.preventDefault(); applyMm(); }}>
-                                    <span className="pf-lbl">…or the part is</span>
-                                    <input className="pf-mm" value={mm} onChange={e => setMm(e.target.value)} inputMode="decimal" placeholder="17.5" aria-label="Width of the part in mm" />
-                                    <span className="pf-lbl">mm wide</span>
-                                    <button className="ce-btn" type="submit" disabled={!mm}>Set</button>
-                                </form>
+                                <p className="ce-hint">{measure?.kind === 'scale' && measure.b ? 'Drag the orange points onto the pin centres to fine-tune.' : 'Any row 2.54 mm apart works, also perfboard holes next to the part.'}</p>
                             </section>
                             <section>
-                                <div className="ce-label">3 · Pins</div>
-                                <p className="ce-hint">{scaled ? <><b>Click</b> a hole to add or remove a pin, <b>drag</b> to move the grid onto the pins.</> : 'Set the scale first.'}</p>
-                                <button className="ce-btn pf-wide" disabled={!scaled || !pins.length || !!measure} onClick={moreLikeThese}><Sparkles size={14} /> Find pins like the marked ones</button>
-                                {measure?.kind !== 'row'
-                                    ? <button className="ce-btn pf-wide" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'row' })}><Rows3 size={14} /> Mark a row (first and last pin)</button>
-                                    : <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel</button>}
+                                <div className="ce-label">3 · Pins {scaled && <span>{pins.length}</span>}</div>
+                                <p className="ce-hint">{scaled ? 'Tap a hole: pin on/off · drag a pin to move it · pinch or scroll to zoom.' : 'Set the scale first.'}</p>
+                                <div className="pf-tools">
+                                    <button className="ce-btn" disabled={!scaled || !pins.length || !!measure} onClick={moreLikeThese} title="Find pins like the marked ones"><Sparkles size={14} /> Find similar</button>
+                                    {measure?.kind === 'row'
+                                        ? <button className="ce-btn" onClick={() => setMeasure(null)}>Cancel</button>
+                                        : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'row' })} title="Mark a row: tap its first and last pin"><Rows3 size={14} /> Row</button>}
+                                    {measure?.kind === 'grid'
+                                        ? <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
+                                        : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'grid' })} title="Move the whole grid onto the pins"><Move size={14} /> Grid</button>}
+                                </div>
                                 {found && <p className="ce-hint pf-note">{found}</p>}
                             </section>
                             <section>
-                                <div className="ce-label">4 · Outline</div>
-                                <p className="ce-hint">The frame, in holes. Drag the white handles of the dashed outline to change it.</p>
-                                <label className="pf-check"><input type="checkbox" checked={keepPhoto} onChange={e => setKeepPhoto(e.target.checked)} /> Use the photo as the part's picture</label>
-                            </section>
-                            <section>
-                                <div className="ce-label">5 · Pin names (optional)</div>
-                                {measure?.kind !== 'ocr'
-                                    ? <button className="ce-btn pf-wide" disabled={!scaled || !pins.length || !!measure || (ocr && 'total' in ocr)} onClick={() => setMeasure({ kind: 'ocr' })}><ScanText size={14} /> Read labels next to a row</button>
-                                    : <button className="ce-btn pf-wide" onClick={() => setMeasure(null)}>Cancel</button>}
+                                <div className="ce-label">4 · Outline and names</div>
+                                <label className="pf-check"><input type="checkbox" checked={keepPhoto} onChange={e => setKeepPhoto(e.target.checked)} /> Photo as the part's picture</label>
+                                <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
                                 <div className="pf-row">
-                                    <span className="pf-lbl">Text runs</span>
-                                    <select className="pf-select" value={String(textDir)} onChange={e => setTextDir(e.target.value === 'auto' ? 'auto' : +e.target.value)}>
-                                        <option value="auto">find out</option>
+                                    {measure?.kind !== 'ocr'
+                                        ? <button className="ce-btn" disabled={!scaled || !pins.length || !!measure || (ocr && 'total' in ocr)} onClick={() => setMeasure({ kind: 'ocr' })}><ScanText size={14} /> Read pin names</button>
+                                        : <button className="ce-btn" onClick={() => setMeasure(null)}>Cancel</button>}
+                                    <select className="pf-select" value={String(textDir)} onChange={e => setTextDir(e.target.value === 'auto' ? 'auto' : +e.target.value)} aria-label="Text direction">
+                                        <option value="auto">text: auto</option>
                                         <option value="0">left to right</option>
                                         <option value="3">bottom to top</option>
                                         <option value="1">top to bottom</option>
@@ -682,11 +791,10 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                     {Object.keys(labels).length > 0 && <button className="ce-btn" onClick={() => { snap(); setLabels({}); setOcr(null); }}>Clear names</button>}
                                 </div>
                                 <p className="ce-hint">{ocr && 'read' in ocr
-                                    ? (ocr.error || `Read ${ocr.read} of ${ocr.of} labels. Wrong ones can be fixed in the editor; or draw the box again, tighter around the text.`)
-                                    : 'Draw a box over the printed names beside a header; each pin gets the text next to it.'}</p>
+                                    ? (ocr.error || `Read ${ocr.read} of ${ocr.of} labels. Fix wrong ones in the editor, or draw the box tighter.`)
+                                    : 'Drag the outline\'s white handles to resize it. Names: draw a box over the printed labels beside a row.'}</p>
                             </section>
                             <section>
-                                <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
                                 <div className="pf-row">
                                     <button className="ce-btn" disabled={!hist.length} onClick={undo} title="Ctrl+Z"><Undo2 size={13} /> Undo</button>
                                     <button className="ce-btn" disabled={!pins.length} onClick={() => { snap(); setPins([]); setFound(null); }}>Clear pins</button>
@@ -729,6 +837,12 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-count { display: flex; align-items: center; gap: 6px; min-width: 0; }
                 .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }
                 .pf-count .primary { margin-left: auto; }
+                .pf-tools { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; }
+                .pf-tools .ce-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 8px; min-width: 0; }
+                .pf-zoom { position: absolute; right: 18px; bottom: 18px; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
+                .pf-zoom button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); border: 1px solid var(--border2); background: rgba(13,17,23,.85); color: var(--txt0); cursor: pointer; }
+                .pf-zoom button:hover:not(:disabled) { background: var(--ui-neutral-hover); }
+                .pf-zoom button:disabled { opacity: .4; cursor: default; }
                 .pf-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1; background: #f0883e; color: #111; font-weight: 700; font-size: var(--fs-sm); padding: 6px 12px; border-radius: 8px; pointer-events: none; }
                 .pf-wide { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); }
@@ -745,12 +859,21 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 @media (max-width: 768px) {
                     .pf-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
                     .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
-                    .pf-view { flex: none; height: 55dvh; position: sticky; top: 0; z-index: 2; }
+                    .pf-view { flex: none; height: 58dvh; position: sticky; top: 0; z-index: 2; }
+                    .pf-view > svg { inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
+                    .pf-zoom { right: 10px; bottom: 10px; }
+                    .pf-zoom button { width: 42px; height: 42px; }
                     .pf-side { border-left: 0; overflow: visible; }
+                    .pf-side section { padding: 10px 12px; gap: 8px; }
                     .pf-side .ce-btn { min-height: 40px; }
+                    .pf-count .pf-n, .pf-mm, .pf-select { height: 40px; }
+                    .pf-tips { display: none !important; }
                     .ce-size { display: none; }
-                    .pf-modal .ce-head h3 { font-size: var(--fs-sm); }
-                    .pf-modal .ce-head .ce-btn { min-height: 36px; }
+                    .pf-modal .ce-head { padding: 8px 10px; gap: 8px; }
+                    .pf-modal .ce-head > svg { display: none; }
+                    .pf-modal .ce-head h3 { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+                    .pf-modal .ce-head-actions { flex: none; }
+                    .pf-modal .ce-head .ce-btn { min-height: 36px; padding: 0 12px; }
                 }
             ` }} />
         </div>
@@ -816,11 +939,91 @@ function findSimilar(pix, g, pins, candidates, examples = pins) {
     return { pins: [...pins, ...add], added: add.length };
 }
 
-// How many pins between two clicked pins: the profile along the line repeats every pitch. For
-// each count, the profile's autocorrelation at one, two, three pitches (pins over pins); a wrong
-// count lands pins on gaps. Whole multiples of the pitch match too, so a count with a third
-// or half the pitch wins when it is nearly as good.
-function guessCount(pix, a, b) {
+// How many pins between two clicked pins. First by look: for each count the in-between
+// positions must look like the two clicked pins (patch correlation, as findSimilar). A count
+// with half the true pitch puts every other position on a gap and loses; one with double the
+// pitch matches just as well, so the largest count that is nearly as good as the best wins.
+// maxN keeps the pitch plausible for the frame (a part is not 100 holes wide). When nothing
+// in between looks like a pin (a module with pads only at the corners), the profile decides.
+function guessCount(pix, a, b, maxN = 80) {
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (!pix || d < 8) return 2;
+    const top = Math.max(3, Math.min(80, maxN, Math.floor(d / 6) + 1));
+    const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    const scores = [];
+    for (let n = 3; n <= top; n++) {
+        const g = { pitch: d / (n - 1), angle, phaseX: a[0], phaseY: a[1] };
+        const p0 = patch(pix, g, 0, 0), p1 = patch(pix, g, n - 1, 0);
+        if (!p0 || !p1) continue;
+        const T = p0.map((v, i) => v + p1[i]), tn = Math.sqrt(T.reduce((s, x) => s + x * x, 0)) || 1;
+        let s = 0, m = 0;
+        for (let i = 1; i < n - 1; i++) {
+            const p = patch(pix, g, i, 0);
+            if (!p) continue;
+            let c = 0;
+            for (let k = 0; k < T.length; k++) c += p[k] * T[k];
+            s += c / tn; m++;
+        }
+        if (m) scores.push([n, s / m]);
+    }
+    const best = Math.max(0, ...scores.map(q => q[1]));
+    if (best >= 0.45) {
+        let n = 2;
+        for (const [k, s] of scores) if (s >= best * 0.85) n = Math.max(n, k);
+        return n;
+    }
+    // a perfboard or header in the photo repeats at the pitch everywhere
+    const P = backgroundPitch(pix, angle, d / (top - 1), d / 2);
+    if (P) return Math.max(2, Math.min(top, Math.round(d / P) + 1));
+    return Math.min(top, profileCount(pix, a, b));
+}
+
+// The pitch of whatever repeats along this direction across the whole photo (perfboard holes,
+// a pin header): mean autocorrelation of many parallel lines, the shortest lag that peaks
+// nearly as high as the strongest peak (whole multiples peak too). null if nothing repeats.
+function backgroundPitch(pix, angle, minLag, maxLag) {
+    const { data, width: W, height: H } = pix;
+    const ux = Math.cos(angle), uy = Math.sin(angle), S = Math.min(W, H), L = Math.floor(S * 0.9);
+    const lo = Math.max(4, Math.floor(minLag)), hi = Math.min(Math.floor(maxLag), Math.floor(L / 3));
+    if (hi <= lo + 2) return null;
+    const ac = new Float64Array(hi + 2);
+    let v0 = 0;
+    const prof = new Float32Array(L);
+    for (let k = 0; k < 40; k++) {
+        const off = (k / 39 - 0.5) * 0.9 * S;
+        const x0 = W / 2 - ux * L / 2 - uy * off, y0 = H / 2 - uy * L / 2 + ux * off;
+        let mean = 0;
+        for (let i = 0; i < L; i++) {
+            const x = Math.round(x0 + ux * i), y = Math.round(y0 + uy * i);
+            const q = (Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))) * 4;
+            prof[i] = 0.299 * data[q] + 0.587 * data[q + 1] + 0.114 * data[q + 2];
+            mean += prof[i];
+        }
+        mean /= L;
+        for (let i = 0; i < L; i++) { prof[i] -= mean; v0 += prof[i] * prof[i] / L; }
+        for (let lag = lo - 1; lag <= hi + 1; lag++) {
+            let s = 0;
+            for (let i = 0; i + lag < L; i++) s += prof[i] * prof[i + lag];
+            ac[lag] += s / (L - lag);
+        }
+    }
+    if (!v0) return null;
+    const peaks = [];
+    for (let lag = lo; lag <= hi; lag++) {
+        const v = ac[lag] / v0;
+        if (v > 0.2 && ac[lag] >= ac[lag - 1] && ac[lag] >= ac[lag + 1]) peaks.push([lag, v]);
+    }
+    if (!peaks.length) return null;
+    const top = Math.max(...peaks.map(q => q[1]));
+    const [lag] = peaks.find(q => q[1] >= top * 0.75);
+    // refine to sub-pixel with a parabola through the peak
+    const y0 = ac[lag - 1], y1 = ac[lag], y2 = ac[lag + 1], den = y0 - 2 * y1 + y2;
+    return lag + (den ? 0.5 * (y0 - y2) / den : 0);
+}
+
+// The profile along the line repeats every pitch: for each count, its autocorrelation at one,
+// two, three pitches (pins over pins); a wrong count lands pins on gaps.
+function profileCount(pix, a, b) {
     const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (!pix || d < 8) return 2;
     const { data, width: W, height: H } = pix;
@@ -857,13 +1060,6 @@ function guessCount(pix, a, b) {
     }
     let best = 2, bestScore = 0.05;
     for (const [n, s] of score) if (s > bestScore) { bestScore = s; best = n; }
-    if (best > 2) {
-        const orig = best;
-        for (const k of [3, 2]) {
-            const m = (orig - 1) * k + 1;
-            if (score.has(m) && score.get(m) >= bestScore * 0.8) { best = m; break; }
-        }
-    }
     return best;
 }
 

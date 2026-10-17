@@ -209,7 +209,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     <span className="ce-id" style={{ borderColor: mainColor, color: mainColor }}>{data.id || '?'}</span>
                     <span className="ce-size">{foot.w} × {foot.h} holes · {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
                     <div className="ce-head-actions">
-                        <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /> Undo</button>
+                        <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /><span className="ce-btn-txt"> Undo</span></button>
                         <button className="ce-btn" onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</button>
                         <button className="ce-btn primary" onClick={save}>{mode === 'add' ? 'Add to circuit' : 'Save'}</button>
                     </div>
@@ -288,13 +288,13 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                             <label>Name<input value={data.name} onChange={e => handleUpdate('name', e.target.value)} /></label>
                         </section>
 
-                        <section>
+                        <section className="ce-bodysec">
                             <div className="ce-label">Body</div>
                             <div className="ce-seg">
                                 <button className={!data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: null }))}>Spans the pins</button>
                                 <button className={data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger housing</button>
                             </div>
-                            <p className="ce-hint">{data.body
+                            <p className="ce-hint ce-hint-long">{data.body
                                 ? 'Drag the outline to the housing size. Other parts and jumpers stay out; wires still pass underneath.'
                                 : 'Move a pin outward and the part grows with it.'}</p>
                         </section>
@@ -377,17 +377,30 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-icon:hover { color: var(--red); background: rgba(248,81,73,.1); }
                 @media (max-width: 768px) {
                     .ce-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
-                    .ce-size { display: none; }
+                    .ce-size, .ce-canvas-hint, .ce-hint-long, .ce-head > svg, .ce-btn-txt { display: none; }
+                    .ce-head { padding: 8px 10px; gap: 8px; }
+                    .ce-head h3 { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+                    .ce-id { flex: none; }
+                    .ce-head-actions { flex: none; }
+                    .ce-head .ce-btn { padding: 0 12px; }
+                    .ce-undo { width: 38px; padding: 0 !important; justify-content: center; }
                     .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
-                    .ce-canvas { flex: none; height: 32dvh; position: sticky; top: 0; z-index: 2; }
+                    .ce-canvas { flex: none; height: 30dvh; position: sticky; top: 0; z-index: 2; }
+                    .ce-canvas > svg { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
                     .ce-side { border-left: 0; }
+                    .ce-side section { padding: 10px 12px; gap: 8px; }
+                    .ce-row3 { grid-template-columns: 1fr 1.4fr 44px; }
+                    .ce-side section.ce-bodysec { flex-direction: row; align-items: center; gap: 12px; }
+                    .ce-bodysec .ce-seg { flex: 1; }
                     .ce-pins { flex: none; }
-                    .ce-pin-list { overflow: visible; }
-                    .ce-pin { grid-template-columns: 12px 60px 1fr 38px; gap: 8px; padding: 4px 6px; }
-                    .ce-pin input { height: 36px !important; font-size: 14px; }
-                    .ce-icon { width: 38px; height: 38px; }
-                    .ce-side input:not([type=color]) { height: 36px; font-size: 14px; }
-                    .ce-color input { height: 36px; }
+                    .ce-pin-list { overflow: visible; margin: 0; padding: 0; gap: 6px; }
+                    .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; border: 0; }
+                    .ce-pin.sel { background: none; }
+                    .ce-pin.sel input { border-color: rgba(88,166,255,.5); }
+                    .ce-pin input { height: 40px !important; font-size: 14px; }
+                    .ce-icon { width: 40px; height: 40px; }
+                    .ce-side input:not([type=color]) { height: 40px; font-size: 14px; }
+                    .ce-color input { width: 44px; height: 40px; }
                     .ce-seg button { padding: 8px 6px; font-size: var(--fs-sm); }
                     .ce-add { height: 32px; padding: 0 12px; }
                     .ce-head .ce-btn { min-height: 36px; }

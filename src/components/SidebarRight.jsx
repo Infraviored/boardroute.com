@@ -24,16 +24,20 @@ function BoardSizeRow({ view, setView, components, wires }) {
   const frame = sized && components.length ? computeBoardFrame(components, wires, v) : null;
   return (
     <div className="rs-board" title="The perfboard you have: Wire and Compact make the layout fit on it. Leave a side empty for any length.">
-      <span className="rs-board-l">Board</span>
-      <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board columns" value={v.boardCols ?? ''} onChange={e => set({ boardCols: e.target.value })} />
-      <span className="rs-board-x">×</span>
-      <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board rows" value={v.boardRows ?? ''} onChange={e => set({ boardRows: e.target.value })} />
-      {sized && <>
-        <span className="rs-board-l" title="Free holes between the layout and the board edge">margin</span>
-        <input type="number" min="0" max="50" inputMode="numeric" aria-label="Margin in holes" value={v.margin} onChange={e => set({ margin: e.target.value === '' ? 0 : e.target.value })} />
-        <button type="button" className="rs-board-clear" onClick={() => set({ boardCols: null, boardRows: null })} aria-label="Any board size" title="Any board size"><X size={12} /></button>
-      </>}
-      {frame && <span className={`rs-board-fit ${frame.fits ? 'ok' : 'bad'}`}>{frame.fits ? 'fits' : `needs ${frame.need.cols} × ${frame.need.rows}`}</span>}
+      <div className="rs-board-row">
+        <span className="rs-board-l">Board</span>
+        <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board columns" value={v.boardCols ?? ''} onChange={e => set({ boardCols: e.target.value })} />
+        <span className="rs-board-x">×</span>
+        <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board rows" value={v.boardRows ?? ''} onChange={e => set({ boardRows: e.target.value })} />
+        {sized && <button type="button" className="rs-board-clear" onClick={() => set({ boardCols: null, boardRows: null })} aria-label="Any board size" title="Any board size"><X size={12} /></button>}
+      </div>
+      {sized && (
+        <div className="rs-board-row">
+          <span className="rs-board-l" title="Free holes between the layout and the board edge">Margin</span>
+          <input type="number" min="0" max="50" inputMode="numeric" aria-label="Margin in holes" value={v.margin} onChange={e => set({ margin: e.target.value === '' ? 0 : e.target.value })} />
+          {frame && <span className={`rs-board-fit ${frame.fits ? 'ok' : 'bad'}`}>{frame.fits ? 'fits' : `needs ${frame.need.cols} × ${frame.need.rows}`}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -345,15 +349,15 @@ export function SidebarRight({
         .rs-jumpers { color: var(--blu-bright); }
         .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--org); }
         .rs-lonely svg { flex: none; margin-top: 1px; }
-        .rs-board { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--txt2); }
-        .rs-board-l { font-weight: 600; margin-right: 2px; }
-        .rs-board-l + input, .rs-board input { width: 46px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: 12px; -moz-appearance: textfield; }
+        .rs-board { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--txt2); }
+        .rs-board-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
+        .rs-board-l { font-weight: 600; width: 44px; flex: none; }
+        .rs-board input { width: 42px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: 12px; -moz-appearance: textfield; flex: none; }
         .rs-board input::-webkit-outer-spin-button, .rs-board input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .rs-board input:focus { outline: none; border-color: var(--ui-accent-hover); }
-        .rs-board-l:not(:first-child) { margin-left: 6px; }
-        .rs-board-x { color: var(--txt2); }
-        .rs-board-clear { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
-        .rs-board-fit { flex-basis: 100%; font-weight: 600; }
+        .rs-board-x, .rs-board-u { color: var(--txt2); }
+        .rs-board-clear { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; margin-left: auto; background: none; border: 0; color: var(--txt2); cursor: pointer; }
+        .rs-board-fit { margin-left: 4px; font-weight: 600; white-space: nowrap; }
         .rs-board-fit.ok { color: var(--grn-bright); }
         .rs-board-fit.bad { color: var(--org); }
         .net-count.lonely { color: var(--org); }

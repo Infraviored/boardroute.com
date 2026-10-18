@@ -10,6 +10,9 @@ import { anneal, moveComp, rotateComp90InPlace } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
 import { analyzeTopology } from './topology.js';
 import { solveBox } from './solver/boxsolver.js';
+import { buildModel, toEngine } from './solver/model.js';
+import { BoxRouter } from './solver/boxrouter.js';
+import { processTemplate, generateJSONFromState } from './templates.js';
 
 /**
  * AutorouterEngine - A "Headless" wrapper for the PCB autorouting logic.
@@ -49,6 +52,25 @@ function turnBoard90(components, wires) {
         moveComp(c, nx, ny);
     }
     for (const w of wires) for (const pt of w.path || []) { const col = -pt.row; pt.row = pt.col; pt.col = col; }
+}
+
+// Wire a board without moving anything, with the solver's negotiating router (much stronger in
+// tight spots than the classic one). Returns the wires, or null if the parts overlap or some net
+// can't be connected.
+function routeFixed(components) {
+    if (!components.length) return null;
+    // placement is fixed: no cable-side rule (it counts as overlap in the solver's router)
+    const model = buildModel(processTemplate(generateJSONFromState(components)).map(d => ({ ...d, edge: -1 })));
+    const minC = Math.min(...components.map(c => c.ox)) - 1, minR = Math.min(...components.map(c => c.oy)) - 1;
+    const W = Math.max(...components.map(c => c.ox + c.w)) - minC + 1, H = Math.max(...components.map(c => c.oy + c.h)) - minR + 1;
+    const pl = { ox: Int32Array.from(components.map(c => c.ox - minC)), oy: Int32Array.from(components.map(c => c.oy - minR)), rot: new Int32Array(components.length) };
+    const router = new BoxRouter(model, W, H);
+    router.jumpCost = 0;
+    if (router.setPlacement(pl) > 0) return null;
+    let r = null;
+    for (let k = 0; k < 4 && !(r && r.miss === 0 && r.overuse === 0); k++) r = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
+    if (r.miss > 0 || r.overuse > 0) return null;
+    return toEngine(model, pl, r, W, minC, minR).wires;
 }
 
 export class AutorouterEngine {
@@ -402,6 +424,39 @@ export class AutorouterEngine {
         this.wires = testWires;
         this.notify();
         return scoreState(this.components, testWires);
+    }
+
+    // After a part's footprint was edited (e.g. a resistor made one hole longer): keep the board
+    // and make it whole again. First just route what broke; if the part now overlaps another one or
+    // its nets don't connect, try it one or two holes off and turned, nearest first, and keep the
+    // first spot where everything is wired. Returns true if the board is fully wired again.
+    async repairPart(id) {
+        const comp = this.components.find(c => c.id === id);
+        if (!comp) return false;
+        const complete = () => { const nc = netCompletion(this.components, this.wires); return nc.done === nc.total; };
+        const overlaps = () => this.components.some(o => o !== comp && comp.ox < o.ox + o.w && o.ox < comp.ox + comp.w && comp.oy < o.oy + o.h && o.oy < comp.oy + comp.h);
+        const start = { ox: comp.ox, oy: comp.oy, pins: comp.pins.map(p => ({ ...p })), w: comp.w, h: comp.h, edge: comp.edge };
+        const startWires = this.wires;
+        const restore = () => { Object.assign(comp, { ox: start.ox, oy: start.oy, w: start.w, h: start.h, pins: start.pins.map(p => ({ ...p })) }); if (start.edge !== undefined) comp.edge = start.edge; this.wires = startWires; };
+        const shifts = [];
+        for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) shifts.push([dx, dy]);
+        shifts.sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]));
+        for (const turns of [0, 2, 1, 3]) {
+            for (const [dx, dy] of shifts) {
+                restore();
+                for (let t = 0; t < turns; t++) rotateComp90InPlace(comp);
+                // turning keeps the part's centre
+                const cx = start.ox + Math.floor((start.w - comp.w) / 2), cy = start.oy + Math.floor((start.h - comp.h) / 2);
+                moveComp(comp, cx + dx, cy + dy);
+                if (overlaps()) continue;
+                const w = routeFixed(this.components);
+                if (w) this.wires = w;
+                if (w && complete()) { this.components = [...this.components]; this.tick++; this.notify(); return true; }
+            }
+        }
+        restore();
+        await this.routeOnly();
+        return complete();
     }
 
     async route() {

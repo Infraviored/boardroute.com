@@ -528,9 +528,12 @@ function App() {
     const defs = processTemplate(newJson);
     if (defs) {
         engine.mergeBoard(defs);
-        // Automatically attempt to fix broken wires
+        // Keep the board whole: re-wire, and if the changed part no longer fits where it was,
+        // nudge or turn it a little (engine.repairPart)
         setStatus(prev => ({ ...prev, isProcessing: true }));
-        try { await engine.routeOnly(); } finally { setStatus(prev => ({ ...prev, isProcessing: false })); }
+        let whole = true;
+        try { whole = await engine.repairPart(updated.id); } finally { setStatus(prev => ({ ...prev, isProcessing: false })); }
+        if (!whole && engine.wires.length) setNotice({ kind: 'warn', title: `${updated.id} no longer fits where it was`, text: 'Some connections broke. Press Compact to rearrange the board around the changed part.' });
     }
     
     setIsEditorOpen(false); 

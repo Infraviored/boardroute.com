@@ -412,10 +412,11 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
 
   const half = sw / 2;
   // Body: Inset by half the stroke width so it doesn't overlap the inner stroke half
-  out += `<rect x="${bx + half}" y="${by + half}" width="${bw - sw}" height="${bh - sw}" rx="3" fill="#080808" fill-opacity="0.8"/>`;
-  // a photo of the real part, between the dark body and the rim/pins
+  // only a faint shade: the wires under the part (solder side) must stay clearly visible
+  out += `<rect x="${bx + half}" y="${by + half}" width="${bw - sw}" height="${bh - sw}" rx="3" fill="#080808" fill-opacity="0.2"/>`;
+  // a photo of the real part, between the body and the rim/pins; faint for the same reason
   const pic = photo ? photoSVG(c, photo) : '';
-  out += pic;
+  if (pic) out += `<g opacity="0.3">${pic}</g>`;
   // Rim: Drawn with fill="none" to ensure uniform wire visibility through the stroke
   out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)

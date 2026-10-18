@@ -60,6 +60,8 @@ export function SidebarRight({
 
   const netCount = Object.keys(nets).length;
   const done = stats.completion >= 100;
+  // a net with a single pin connects nothing (typically left over after a part was changed)
+  const lonely = Object.entries(nets).filter(([, pins]) => pins.length === 1).map(([name]) => name);
 
   return (
     <aside id="rsb" className={mobileOpen ? 'mobile-open' : ''}>
@@ -83,6 +85,11 @@ export function SidebarRight({
           <span>{stats.completion !== null ? (done ? 'All connections wired' : `${stats.completion}% wired`) : 'Not wired yet'}</span>
           {stats.jumpers > 0 && <span className="rs-jumpers">{stats.jumpers} jumper{stats.jumpers === 1 ? '' : 's'}</span>}
         </div>
+        {lonely.length > 0 && (
+          <div className="rs-lonely" title="Give another pin the same net name, or remove the net from that pin">
+            <AlertTriangle size={13} /> <span>{lonely.join(', ')} {lonely.length === 1 ? 'has' : 'have'} only one pin, connected to nothing</span>
+          </div>
+        )}
       </div>
 
       {/* Selected component */}
@@ -163,7 +170,7 @@ export function SidebarRight({
                 >
                   <div className="net-dot" style={{ background: netColor(name) }}></div>
                   <span className="net-name">{name}</span>
-                  <span className="net-count">{pins.length}P</span>
+                  <span className={`net-count ${pins.length === 1 ? 'lonely' : ''}`} title={pins.length === 1 ? 'Only one pin: connected to nothing' : undefined}>{pins.length}P</span>
                 </div>
               );
             })}
@@ -309,6 +316,9 @@ export function SidebarRight({
           font-weight: 600;
         }
         .rs-jumpers { color: var(--blu-bright); }
+        .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--org); }
+        .rs-lonely svg { flex: none; margin-top: 1px; }
+        .net-count.lonely { color: var(--org); }
 
         /* --- Accordion sections --- */
         .rs-sec { border-bottom: 1px solid var(--border); flex-shrink: 0; }

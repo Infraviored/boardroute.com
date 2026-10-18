@@ -21,6 +21,8 @@
 // The circuit JSON in the Circuit Definition box is derived from the placed components (their
 // pins in the current rotation, body = w x h box), so the components carry the circuit too.
 
+import { swapGroups } from './templates.js';
+
 const VERSION = '1';
 const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
 const MAX_PARTS = 500, MAX_PINS = 400, MAX_WIRES = 5000, MAX_STEPS = 20000, MAX_COORD = 2000000;
@@ -92,7 +94,8 @@ export function packBoard(components, wires) {
     const extra = {};
     if (comp.routeUnder === false) extra.u = 0;
     if (comp.color) extra.k = comp.color;
-    if (comp.swap?.length) extra.s = comp.swap;
+    const swap = swapGroups(comp);
+    if (swap?.length) extra.s = swap;
     if (comp.edge >= 0) extra.e = comp.edge;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
@@ -160,6 +163,8 @@ export function unpackBoard(data) {
       if (!isStr(lbl, 40)) throw new ShareError(`bad pin label on ${id}`);
       comp.pins.push({ dCol, dRow, col: ox + dCol, row: oy + dRow, net: netName(n), lbl });
     }
+    const s = swapGroups(comp);
+    if (s) comp.swap = s; else delete comp.swap;
     return comp;
   });
 

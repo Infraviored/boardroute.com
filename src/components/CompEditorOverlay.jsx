@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Edit3, Camera, Undo2 } from 'lucide-react';
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect } from '../engine/render-utils.js';
+import { swapGroups } from '../engine/templates.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 
 // Footprint editor.
@@ -16,7 +17,7 @@ function fromComponent(component) {
     // a body larger than the pins' box is a custom body
     const w = c.w || pb.w, h = c.h || pb.h;
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
-    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap: c.swap?.length ? c.swap : null, edge: c.edge >= 0 ? c.edge : -1, pins,
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap: swapGroups(c), edge: c.edge >= 0 ? c.edge : -1, pins,
         body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
 }
 

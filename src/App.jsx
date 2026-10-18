@@ -16,7 +16,7 @@ import { ResultCard } from './components/ResultCard.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
 import { decodeShare, shareFromHash, shareUrl } from './engine/share.js';
-import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, EDGE_SIDES } from './engine/templates.js';
+import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
@@ -48,8 +48,15 @@ function App() {
         if (localStorage.getItem('pcb_model_version') !== '2') {
           (parsed.components || []).forEach(c => { c.routeUnder = true; });
         }
+        const rawComps = parsed.components || [];
+        const components = rawComps.map(c => {
+          const next = { ...c };
+          const s = swapGroups(c);
+          if (s) next.swap = s; else delete next.swap;
+          return next;
+        });
         return {
-          components: parsed.components || [],
+          components,
           wires: parsed.wires || [],
           cols: parsed.cols || 30,
           rows: parsed.rows || 20,
@@ -474,7 +481,8 @@ function App() {
       cx = Math.max(...board.components.map(c => c.ox + c.w)) + 1;
       cy = Math.min(...board.components.map(c => c.oy));
     }
-    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, ...(def.swap ? { swap: def.swap } : {}), ...(def.edge >= 0 ? { edge: def.edge } : {}), w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
+    const s = swapGroups(compDef) || swapGroups(def);
+    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, ...(s ? { swap: s } : {}), ...(def.edge >= 0 ? { edge: def.edge } : {}), w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     // Show it big in the editor first (pins, nets, body can be adjusted); "Add to circuit" adds it.
     setIsLibraryOpen(false);
     setEditorPhoto(photo);
@@ -547,7 +555,13 @@ function App() {
           if (parsed.components) {
             const cols = parsed.cols || board.cols;
             const rows = parsed.rows || board.rows;
-            engine.setState({ components: parsed.components, wires: parsed.wires || [], cols, rows });
+            const components = parsed.components.map(c => {
+              const next = { ...c };
+              const s = swapGroups(c);
+              if (s) next.swap = s; else delete next.swap;
+              return next;
+            });
+            engine.setState({ components, wires: parsed.wires || [], cols, rows });
             if (parsed.partImages) setPartImages(prev => ({ ...prev, ...parsed.partImages }));
             setCloudCurrent(null);
             saveHistory(null);
@@ -679,7 +693,13 @@ function App() {
   }), [engine, saveHistory]);
   // a saved circuit (from the account dialog or a /?c= link) onto the board
   const applySaved = useCallback((data, current = null) => {
-    engine.setState({ components: data.components, wires: data.wires || [], ...(data.cols ? { cols: data.cols, rows: data.rows } : {}) });
+    const components = (data.components || []).map(c => {
+      const next = { ...c };
+      const s = swapGroups(c);
+      if (s) next.swap = s; else delete next.swap;
+      return next;
+    });
+    engine.setState({ components, wires: data.wires || [], ...(data.cols ? { cols: data.cols, rows: data.rows } : {}) });
     setPartImages(prev => {
       const next = { ...prev };
       for (const c of data.components) delete next[c.id];

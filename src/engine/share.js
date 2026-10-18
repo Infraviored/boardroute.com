@@ -216,7 +216,21 @@ export async function encodeShare(components, wires, { compress = true } = {}) {
 }
 
 /** Fragment value -> { components, wires }. Throws ShareError with a readable message. */
+// Chat apps and autolinkers drop trailing '_' / '-' from a URL (they look like punctuation),
+// which cuts the end off the compressed data. Such a link is retried with them put back.
 export async function decodeShare(value) {
+  try {
+    return await decodeShareExact(value);
+  } catch (err) {
+    if (!(err instanceof ShareError) || typeof value !== 'string' || value[1] !== 'd') throw err;
+    for (const tail of ['_', '-', '__', '_-', '-_', '--']) {
+      try { return await decodeShareExact(value + tail); } catch { /* try the next */ }
+    }
+    throw err;
+  }
+}
+
+async function decodeShareExact(value) {
   if (typeof value !== 'string' || value.length < 3) throw new ShareError('the link is empty or cut off');
   if (value.length > MAX_PAYLOAD) throw new ShareError('the link is too long');
   if (value[0] !== VERSION) throw new ShareError('the link was made by a newer version of boardroute');

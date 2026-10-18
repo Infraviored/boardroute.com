@@ -346,7 +346,8 @@ function App() {
       // a board size set in the sidebar / board settings is the target
       const bv = normalizeBoardView(boardView);
       const target = bv.boardCols || bv.boardRows ? { cols: bv.boardCols, rows: bv.boardRows } : null;
-      res = await engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true, target });
+      // Wire only connects; the board limit applies to Compact
+      res = await engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true });
     } finally {
       setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
       setBestSnapshot(null);
@@ -355,6 +356,8 @@ function App() {
     const jumperText = (n) => `${n} jumper wire${n === 1 ? '' : 's'}`;
     if (res && !res.found && engine.gCancelRequested) {
       setNotice({ kind: 'info', title: 'Stopped before a layout was found', text: 'Press Wire again and give it a little longer.' });
+    } else if (res && !res.found && refine && res.target) {
+      setNotice({ kind: 'warn', title: 'No layout fits the board', text: 'Compact found no fully wired layout within the board limit. The board stays as it was. Try Compact again, or make the board bigger.' });
     } else if (res && !res.found) {
       setNotice({
         kind: 'warn',
@@ -371,10 +374,6 @@ function App() {
           ? `This circuit cannot be built on one layer without crossings: parts ${cert.parts.join(', ')} and nets ${cert.nets.join(', ')} form a ${cert.type} structure. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`
           : `No layout without crossings turned up, most likely because some wires don't fit between closely spaced pins. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`,
       });
-    }
-    if (res?.found && res.fits === false) {
-      const bv = normalizeBoardView(boardView);
-      setNotice({ kind: 'warn', title: 'Doesn\'t fit the board yet', text: `The best layout is still larger than the ${bv.boardCols || 'any'} × ${bv.boardRows || 'any'} board. Press Compact to keep going, or make the board bigger in the board settings.` });
     }
     if (res?.found) {
       const s = scoreState(engine.components, engine.wires);

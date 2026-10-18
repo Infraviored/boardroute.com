@@ -631,6 +631,7 @@ export function computeBoardFrame(components, wires, view) {
     r0: b.minR - Math.max(0, Math.floor((rows - fh) / 2)),
     cols, rows,
     sized: sizedC || sizedR,
+    sizedC, sizedR,
     layout: b,
     footprint: { cols: fw, rows: fh },
     need,
@@ -726,12 +727,18 @@ export function generateCoordinatesSVG({
 
   let board = '';
   if (frame.sized) {
-    const stroke = frame.fits ? 'rgba(240,246,252,0.55)' : '#f85149';
+    // the board limit, kept subtle: a thin line and a faint shade outside. With only one side
+    // set it is a strip through the endless grid (open along the other axis).
+    const stroke = frame.fits ? 'rgba(240,246,252,0.35)' : 'rgba(248,81,73,0.7)';
+    const B = 50000;
+    const bx0 = frame.sizedC ? x0 - 3 : -B, bx1 = frame.sizedC ? x0 + w + 3 : B;
+    const by0 = frame.sizedR ? y0 - 3 : -B, by1 = frame.sizedR ? y0 + h + 3 : B;
     if (dimOutside) {
-      const B = 50000;
-      board += `<path d="M${x0 - B},${y0 - B}h${w + 2 * B}v${h + 2 * B}h${-(w + 2 * B)}Z M${x0 - 3},${y0 - 3}v${h + 6}h${w + 6}v${-(h + 6)}Z" fill="#050706" fill-opacity="0.6" fill-rule="evenodd" style="pointer-events:none"/>`;
+      board += `<path d="M${-B},${-B}H${B}V${B}H${-B}Z M${bx0},${by0}V${by1}H${bx1}V${by0}Z" fill="#050706" fill-opacity="0.22" fill-rule="evenodd" style="pointer-events:none"/>`;
     }
-    board += `<rect x="${x0 - 3}" y="${y0 - 3}" width="${w + 6}" height="${h + 6}" rx="6" fill="none" stroke="${stroke}" stroke-width="1.6" style="pointer-events:none"/>`;
+    if (frame.sizedC && frame.sizedR) board += `<rect x="${bx0}" y="${by0}" width="${bx1 - bx0}" height="${by1 - by0}" rx="6" fill="none" stroke="${stroke}" stroke-width="1.2" style="pointer-events:none"/>`;
+    else if (frame.sizedC) board += `<path d="M${bx0},${-B}V${B}M${bx1},${-B}V${B}" stroke="${stroke}" stroke-width="1.2" style="pointer-events:none"/>`;
+    else board += `<path d="M${-B},${by0}H${B}M${-B},${by1}H${B}" stroke="${stroke}" stroke-width="1.2" style="pointer-events:none"/>`;
   }
 
   if (!v.showCoords) return { board, labels: '' };

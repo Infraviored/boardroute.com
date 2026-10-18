@@ -127,11 +127,9 @@ export class AutorouterEngine {
     // target = { cols, rows } (either may be null): the board the layout has to fit on. The
     // search may wander outside it, but a layout that fits always wins, Wire runs until one
     // fits, and the result is turned 90° when it only fits that way round.
-    async layout(compDefs, { refine = false, firstOnly: firstOnlyAsked = false, target = null } = {}) {
+    async layout(compDefs, { refine = false, firstOnly = false, target: targetIn = null } = {}) {
         if (!compDefs?.length) return null;
-        // Wire with a board size: the first layout that fits is usually a long strip, so keep
-        // shrinking like Compact (best fitting layout kept) until it stalls
-        const firstOnly = firstOnlyAsked && !(target && (target.cols || target.rows));
+        const target = targetIn && (targetIn.cols || targetIn.rows) ? targetIn : null;
         this.gCancelRequested = false;
 
         const topo = await this.topology(compDefs);
@@ -176,6 +174,8 @@ export class AutorouterEngine {
         };
         const onBest = (components, wires, rawMetrics) => {
             const metrics = judge(rawMetrics);
+            // a board limit: a layout that breaks it is not a result (not shown, not kept)
+            if (target && !metrics.fits) return;
             if (best && (keyOf(metrics) > best.key || (keyOf(metrics) === best.key && metrics.wl >= best.metrics.wl))) return;
             place(components, wires);
             best = { components, wires, metrics, key: keyOf(metrics) };
@@ -196,7 +196,8 @@ export class AutorouterEngine {
         // Stop rule (same as the benchmark-calibrated single solver): no better layout for
         // stallMs, or for half the time it took to find the last one. Never before the first.
         const stalled = () => {
-            if (!best) return false;
+            // nothing that fits the board limit yet: give up after a while instead of the full budget
+            if (!best) return !!target && performance.now() - t0 > Math.max(2 * stallMs, 20000);
             if (best.metrics.optimal || (firstOnly && best.metrics.fits)) return true;
             return performance.now() - lastImprove > Math.max(stallMs, (lastImprove - t0) * 0.5);
         };
@@ -223,7 +224,9 @@ export class AutorouterEngine {
         // starting layout is the best to beat.
         if (initial && before.wires.length) {
             const nc = netCompletion(before.components, before.wires);
-            if (nc.total > 0 && nc.done === nc.total) {
+            const sc0 = scoreState(before.components, before.wires);
+            // with a board limit the starting board only counts if it fits
+            if (nc.total > 0 && nc.done === nc.total && !targetExcess(sc0.width, sc0.height, target).excess) {
                 place(before.components, before.wires);
                 const sc = scoreState(before.components, before.wires);
                 const metrics = judge({ area: sc.area, width: sc.width, height: sc.height, wl: sc.wl, jumpers: before.wires.filter(w => w.jumper && !w.failed).length });
@@ -298,7 +301,7 @@ export class AutorouterEngine {
         }
         if (best) show(best.components, best.wires);
         else show(before.components, before.wires);
-        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null, fits: best ? best.metrics.fits : null };
+        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null, fits: best ? best.metrics.fits : null, target };
     }
 
     // Planarity check (+ certificate) in a worker so a slow certificate can't freeze the UI.

@@ -136,7 +136,12 @@ export const EDGE_SIDES = ['top', 'right', 'bottom', 'left'];
 export const edgeSide = (e) => (Number.isInteger(e) && e >= 0 && e < 4 ? e : EDGE_SIDES.indexOf(String(e ?? '').toLowerCase()));
 
 // the JSON form: true when one group holds every pin, else the index groups
-export const swapJSON = (c) => !c.swap?.length ? undefined : (c.swap.length === 1 && c.swap[0].length === c.pins.length ? true : c.swap);
+export function swapJSON(c) {
+    const s = swapGroups(c);
+    if (!s) return undefined;
+    if (s.length === 1 && s[0].length === (c.pins?.length || 0)) return true;
+    return s;
+}
 
 export function generateJSONFromState(components) {
     const json = { components: [] };

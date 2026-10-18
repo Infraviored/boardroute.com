@@ -44,7 +44,7 @@ const toFrame = (f, x, y) => { const cs = Math.cos(f.a), sn = Math.sin(f.a), dx 
 const fromFrame = (f, u, v) => { const cs = Math.cos(f.a), sn = Math.sin(f.a); return [f.cx + u * cs - v * sn, f.cy + u * sn + v * cs]; };
 const startFrame = (W, H) => ({ cx: W / 2, cy: H / 2, w: W * 0.6, h: H * 0.6, a: 0 });
 
-export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden = false }) {
+export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden = false, partName = '' }) {
     const [src, setSrc] = useState(file); // the photo (Blob); null = ask for one
     // pick | loading | crop (frame the part on the whole photo) | ready (turned photo, pins) | error
     const [state, setState] = useState({ status: file ? 'loading' : 'pick' });
@@ -660,9 +660,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             <div className="modal pf-modal" role="dialog" aria-label="Footprint from a photo">
                 <header className="ce-head">
                     <Camera size={16} className="icon-accent" />
-                    <h3>Footprint from a photo</h3>
-                    {cropping && <span className="ce-size">Step 1 of 2 · frame the part</span>}
-                    {ready && !scaled && <span className="ce-size">Step 2 of 2 · scale</span>}
+                    <h3>{partName || 'Footprint from a photo'}</h3>
+                    {cropping && <span className="ce-size">{partName ? 'footprint from a photo · ' : ''}step 1 of 2 · frame the part</span>}
+                    {ready && !scaled && <span className="ce-size">{partName ? 'footprint from a photo · ' : ''}step 2 of 2 · scale</span>}
                     {scaled && <span className="ce-size">{pins.length} pins{rows ? ` in ${rows} row${rows === 1 ? '' : 's'}` : ''} · {body.w} × {body.h} holes · {(body.w * 2.54).toFixed(1)} × {(body.h * 2.54).toFixed(1)} mm</span>}
                     <div className="ce-head-actions">
                         <button className="ce-btn" onClick={onCancel}>Cancel</button>

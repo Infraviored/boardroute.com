@@ -96,7 +96,7 @@ export function SidebarRight({
       <section className={`rs-sec ${open.comp ? 'open' : ''}`}>
         <button type="button" className="rs-head" onClick={() => toggle('comp')} aria-expanded={!!open.comp}>
           <MousePointer2 size={15} />
-          <span className="rs-title">Component</span>
+          <span className="rs-title">{selectedComp?.name && selectedComp.name !== '?' ? selectedComp.name : 'Component'}</span>
           {selectedComp
             ? <span className="rs-chip">{selectedComp.id}</span>
             : <span className="rs-chip muted">none</span>}

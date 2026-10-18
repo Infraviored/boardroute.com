@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Edit3, Camera, Undo2 } from 'lucide-react';
+import { Plus, Trash2, Camera, Undo2, ArrowUp, ArrowRight, ArrowDown, ArrowLeft, Minus } from 'lucide-react';
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect } from '../engine/render-utils.js';
 import { swapGroups } from '../engine/templates.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
@@ -216,9 +216,11 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget && !photoSession?.open) onClose(); }}>
             <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`} style={photoSession?.open ? { display: 'none' } : undefined}>
                 <header className="ce-head">
-                    <Edit3 size={16} className="icon-accent" />
-                    <h3>{mode === 'add' ? 'Add part' : 'Edit part'}</h3>
+                    {/* the part's name is the title, edited in place; id and value beside it */}
                     <span className="ce-id" style={{ borderColor: mainColor, color: mainColor }}>{data.id || '?'}</span>
+                    <input className="ce-title" value={data.name} onChange={e => handleUpdate('name', e.target.value)} placeholder={mode === 'add' ? 'New part' : 'Part name'}
+                        aria-label="Part name" size={Math.max(6, Math.min(28, (data.name || '').length))} />
+                    {data.value && <span className="ce-kind">{data.value}</span>}
                     <span className="ce-size">{foot.w} × {foot.h} holes · {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
                     <div className="ce-head-actions">
                         <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /><span className="ce-btn-txt"> Undo</span></button>
@@ -252,6 +254,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 stroke={mainColor} strokeWidth={2.5}
                                 strokeDasharray={data.body ? '7 5' : undefined}
                             />
+                            {/* the side that faces out: a thick bar on that edge */}
+                            {data.edge >= 0 && (() => {
+                                const x0 = bodyBox.x * SP + 3, y0 = bodyBox.y * SP + 3, x1 = (bodyBox.x + bodyBox.w) * SP - 3, y1 = (bodyBox.y + bodyBox.h) * SP - 3;
+                                const [a, b, c, d] = [[x0, y0, x1, y0], [x1, y0, x1, y1], [x0, y1, x1, y1], [x0, y0, x0, y1]][data.edge];
+                                return <line x1={a} y1={b} x2={c} y2={d} stroke={mainColor} strokeWidth={6} strokeLinecap="round" style={{ pointerEvents: 'none' }} />;
+                            })()}
                             {data.image && (
                                 <g transform={`translate(${data.image.box.x * SP},${data.image.box.y * SP}) matrix(${turnMatrix(data.image.turn, data.image.base.w * SP, data.image.base.h * SP)})`} style={{ pointerEvents: 'none' }}>
                                     <image href={data.image.src} x="0" y="0" width={data.image.base.w * SP} height={data.image.base.h * SP} preserveAspectRatio="none" opacity="0.9" />
@@ -297,15 +305,14 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                     <input type="color" value={toHex(data.color || compColor(data))} onChange={e => handleUpdate('color', e.target.value)} />
                                 </label>
                             </div>
-                            <label>Name<input value={data.name} onChange={e => handleUpdate('name', e.target.value)} /></label>
-                            <label className="ce-check" title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
-                                <input type="checkbox" checked={!!data.swap} onChange={e => handleUpdate('swap', e.target.checked ? true : null)} /> Pins are interchangeable
-                            </label>
-                            <div className="ce-edge" title="This side must face outward, on the board's edge (e.g. where the wires enter a screw terminal). Which way it ends up pointing is up to the router.">
-                                <span>Cable side</span>
-                                <div className="ce-seg">
-                                    {['none', 'top', 'right', 'bottom', 'left'].map((lbl, k) => (
-                                        <button key={lbl} className={(data.edge ?? -1) === k - 1 ? 'active' : ''} onClick={() => handleUpdate('edge', k - 1)}>{lbl}</button>
+                            <div className="ce-opts">
+                                <label className="ce-check" title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
+                                    <input type="checkbox" checked={!!data.swap} onChange={e => handleUpdate('swap', e.target.checked ? true : null)} /> Pins swappable
+                                </label>
+                                <div className="ce-edge" title="Side that must face outward, on the board's edge (a plug or wires come in there). Which way it ends up pointing is up to the router.">
+                                    <span>Faces out</span>
+                                    {[[Minus, 'none'], [ArrowUp, 'top'], [ArrowRight, 'right'], [ArrowDown, 'bottom'], [ArrowLeft, 'left']].map(([icon, lbl], k) => (
+                                        <button key={lbl} className={(data.edge ?? -1) === k - 1 ? 'active' : ''} onClick={() => handleUpdate('edge', k - 1)} aria-label={`Faces out: ${lbl}`} title={lbl === 'none' ? 'No side has to face out' : `The ${lbl} side faces the board edge`}>{React.createElement(icon, { size: 13 })}</button>
                                     ))}
                                 </div>
                             </div>
@@ -351,7 +358,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             </div>
 
             {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
-                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} />}
+                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name} />}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .ce-photo-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -361,6 +368,10 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }
                 .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
                 .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }
+                .ce-head input.ce-title { min-width: 0; max-width: 100%; height: 30px; padding: 0 6px; margin-left: -6px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--txt0); font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 700; field-sizing: content; }
+                .ce-head input.ce-title:hover { border-color: var(--border); }
+                .ce-head input.ce-title:focus { outline: none; border-color: var(--ui-accent-hover); background: var(--bg0); }
+                .ce-kind { font-size: var(--fs-sm); color: var(--txt1); white-space: nowrap; }
                 .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: var(--radius-md); }
                 .ce-size { font-size: var(--fs-xs); color: var(--txt2); font-family: ui-monospace, Consolas, monospace; }
                 .ce-head-actions { margin-left: auto; display: flex; gap: 6px; }
@@ -389,11 +400,13 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
                 .ce-seg button.active { background: var(--ui-accent); color: #fff; }
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
-                .ce-side label.ce-check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
-                .ce-check input { width: auto; margin: 0; }
-                .ce-edge { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--txt1); }
-                .ce-edge .ce-seg { flex: 1; }
-                .ce-edge .ce-seg button { padding-left: 4px; padding-right: 4px; }
+                .ce-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+                .ce-side label.ce-check { flex-direction: row; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--txt1); cursor: pointer; white-space: nowrap; }
+                .ce-side .ce-check input[type=checkbox] { width: 14px; height: 14px; padding: 0; margin: 0; flex: none; accent-color: var(--ui-accent); }
+                .ce-edge { display: flex; align-items: center; gap: 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); }
+                .ce-edge span { margin-right: 4px; white-space: nowrap; }
+                .ce-edge button { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); cursor: pointer; }
+                .ce-edge button.active { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
                 .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
                 .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }

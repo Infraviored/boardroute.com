@@ -346,7 +346,7 @@ function App() {
       // a board size set in the board settings is the target (less the margin, like the fit check)
       const bv = normalizeBoardView(boardView);
       const target = bv.boardCols || bv.boardRows
-        ? { cols: bv.boardCols ? bv.boardCols - bv.margin : null, rows: bv.boardRows ? bv.boardRows - bv.margin : null }
+        ? { cols: bv.boardCols ? Math.max(1, bv.boardCols - bv.margin) : null, rows: bv.boardRows ? Math.max(1, bv.boardRows - bv.margin) : null }
         : null;
       res = await engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true, target });
     } finally {

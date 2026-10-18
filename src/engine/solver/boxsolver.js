@@ -5,7 +5,7 @@
 // Once found, crop to the real footprint, delete one row or column, repair, repeat.
 // The best legal layout seen is the answer.
 import { buildModel, toEngine } from './model.js';
-import { areaLowerBound } from '../lower-bound.js';
+import { areaLowerBound, targetExcess } from '../lower-bound.js';
 import { BoxRouter, edgeGap } from './boxrouter.js';
 
 const now = () => globalThis.performance?.now?.() ?? Date.now();
@@ -399,7 +399,9 @@ export async function solveBox(defs, opts = {}) {
         const f = footprint(model, s, W);
         const area = f.w * f.h;
         const jumpers = s.route.jumpers || 0;
-        const key = area + V.jumperArea * jumpers;
+        // a board size target comes first: any layout that fits beats every one that doesn't
+        const excess = targetExcess(f.w, f.h, opts.target).excess;
+        const key = area + V.jumperArea * jumpers + (excess > 0 ? 1e6 + 1e4 * excess : 0);
         if (!best || key < best.key || (key === best.key && s.route.wl < best.wl)) {
             // Emit clean trees (no loops or dangling ends left over from salvaging).
             router.setPlacement(s.pl);
@@ -407,10 +409,10 @@ export async function solveBox(defs, opts = {}) {
             const route = { ...s.route, conns, wl: conns.reduce((t, cs) => t + (cs ? cs.reduce((u, c) => u + c.length - 1, 0) : 0), 0) };
             s = { ...s, route };
             best = { area, key, jumpers, wl: route.wl, pl: clonePl(s.pl), route, W, H, f };
-            optimal = area <= bound.area && jumpers === 0;
+            optimal = area <= bound.area && jumpers === 0 && excess === 0;
             if (onBest) {
                 const out = toEngine(model, s.pl, s.route, W);
-                onBest(out.components, out.wires, { area, width: f.w, height: f.h, wl: s.route.wl, jumpers, bound: bound.area, optimal });
+                onBest(out.components, out.wires, { area, width: f.w, height: f.h, wl: s.route.wl, jumpers, bound: bound.area, optimal, excess });
             }
         }
         return f;
@@ -498,8 +500,8 @@ export async function solveBox(defs, opts = {}) {
             const options = [];
             if (W - 1 >= minDimA && (W - 1) * H > 0) options.push({ axis: 0, w: W - 1, h: H });
             if (H - 1 >= minDimA) options.push({ axis: 1, w: W, h: H - 1 });
-            // larger area cut first
-            options.sort((a, b) => a.w * a.h - b.w * b.h);
+            // larger area cut first; with a board size target, first what gets closer to it
+            options.sort((a, b) => (targetExcess(a.w, a.h, opts.target).excess - targetExcess(b.w, b.h, opts.target).excess) || (a.w * a.h - b.w * b.h));
             if (W - 1 < minDimB && H - 1 < minDimB) { /* both dims at minimum */ }
 
             let next = null;

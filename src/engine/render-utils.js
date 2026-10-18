@@ -380,7 +380,8 @@ function insideLabel(c, title) {
 const prevCandidateIndices = new Map();
 
 // { [id]: label } for every part; pass the components as the board draws them (solder side: the
-// mirrored ones). opts.bounds = { x, y, w, h } keeps tags inside an export's frame.
+// mirrored ones). opts.bounds = { x, y, w, h } keeps tags inside an export's frame; opts.avoid =
+// [{ x, y, w, h }] areas tags stay off (the hole-coordinate strips drawn on top of them).
 export function layoutPartLabels(components, opts = {}) {
   const res = {};
   const rects = components.map(c => bodyRect(c));
@@ -422,6 +423,7 @@ export function layoutPartLabels(components, opts = {}) {
         }
       }
       for (const t of tags) score += 2 * overlap(r, t);
+      for (const a of opts.avoid || []) score += 3 * overlap(r, a);
       const B = opts.bounds;
       if (B && (x < B.x || y < B.y || x + w > B.x + B.w || y + h > B.y + B.h)) score += 1e6;
 

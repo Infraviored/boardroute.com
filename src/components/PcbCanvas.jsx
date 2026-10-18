@@ -632,10 +632,26 @@ export function PcbCanvas({
         ).join('|');
     }, [view.components, solder, mCenter, tick]);
 
+    // Coordinate text grows when zoomed out so it stays readable; quantised so zooming doesn't
+    // regenerate the layer on every frame.
+    const coordScale = Math.min(3, Math.max(1, Math.round(4 / (camera.z || 1)) / 4));
+    // the hole-coordinate strips around the board are drawn over the parts: tags keep off them
+    const labelAvoid = useMemo(() => {
+        if (!boardFrame) return [];
+        const g = coordGutters(boardFrame, boardView, side, coordScale);
+        const left = solder ? mCenter - boardFrame.c0 - boardFrame.cols : boardFrame.c0;
+        const X0 = left * SP, X1 = X0 + boardFrame.cols * SP, Y0 = boardFrame.r0 * SP, Y1 = Y0 + boardFrame.rows * SP;
+        return [
+            { x: X0 - g.left, y: Y0 - g.top, w: X1 - X0 + g.left + g.right, h: g.top },
+            { x: X0 - g.left, y: Y1, w: X1 - X0 + g.left + g.right, h: g.bottom },
+            { x: X0 - g.left, y: Y0, w: g.left, h: Y1 - Y0 },
+            { x: X1, y: Y0, w: g.right, h: Y1 - Y0 },
+        ].filter(r => r.w > 0 && r.h > 0);
+    }, [boardFrame, boardView, side, coordScale, solder, mCenter]);
     const partLabels = useMemo(() => {
         void labelKey;
-        return layoutPartLabels(view.components, { prevIndices: prevLabelIndices.current });
-    }, [labelKey, view.components]);
+        return layoutPartLabels(view.components, { prevIndices: prevLabelIndices.current, avoid: labelAvoid });
+    }, [labelKey, view.components, labelAvoid]);
 
     const compsSplit = useMemo(() => {
         void tick;
@@ -654,9 +670,6 @@ export function PcbCanvas({
         return out;
     }, [conflicts, components, solder]);
     const boundingBoxSvg = useMemo(() => { void tick; return generateBoundingBoxSVG(components, wires); }, [components, wires, tick]);
-    // Coordinate text grows when zoomed out so it stays readable; quantised so zooming doesn't
-    // regenerate the layer on every frame.
-    const coordScale = Math.min(3, Math.max(1, Math.round(4 / (camera.z || 1)) / 4));
     const coordsSvg = useMemo(() => {
         void tick;
         return generateCoordinatesSVG({ frame: boardFrame, view: boardView, components, side, mCenter, scale: coordScale, dimOutside: true });

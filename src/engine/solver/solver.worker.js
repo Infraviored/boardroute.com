@@ -1,7 +1,7 @@
 // Runs solveBox off the main thread. Several of these run side by side (engine.layout), each
 // with its own random stream; the engine keeps the overall best and decides when to stop.
 // Protocol:
-//   in:  { type: 'solve', defs, initial?, budgetMs, stallMs?, variant?, firstOnly?, live? }   { type: 'stop' }
+//   in:  { type: 'solve', defs, initial?, budgetMs, stallMs?, variant?, firstOnly?, live?, target? }   { type: 'stop' }
 //   out: { type: 'best', components, wires, metrics }  { type: 'live', components, wires }
 //        { type: 'progress', elapsed, text }  { type: 'done', found }
 import { solveBox } from './boxsolver.js';
@@ -14,14 +14,14 @@ self.onmessage = async (e) => {
     if (msg.type !== 'solve') return;
     stopRequested = false;
     const t0 = performance.now();
-    let lastBest = null;
+    let lastBest = null, lastFits = false;
     // Optional own stop on stagnation (stallMs set): no better layout for stallMs, or for half
     // the time it took to find the last improvement. Never before the first layout: until then
     // the search (and the switch to jumper wires) needs the time.
     // firstOnly (the UI's Wire step): stop as soon as one fully routed layout exists.
     const stalled = () => {
         if (lastBest === null) return false;
-        if (msg.firstOnly) return true;
+        if (msg.firstOnly) return lastFits;
         if (!msg.stallMs) return false;
         const t = performance.now();
         return t - lastBest > Math.max(msg.stallMs, (lastBest - t0) * 0.5);
@@ -32,9 +32,11 @@ self.onmessage = async (e) => {
             budgetMs: msg.budgetMs,
             initial: msg.initial,
             variant: msg.variant,
+            target: msg.target,
             shouldStop: () => stopRequested || stalled(),
             onBest: (components, wires, metrics) => {
                 lastBest = performance.now();
+                lastFits = !metrics.excess;
                 self.postMessage({ type: 'best', components, wires, metrics });
             },
             onLive: msg.live ? (components, wires) => self.postMessage({ type: 'live', components, wires }) : null,

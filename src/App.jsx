@@ -21,6 +21,7 @@ import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
 import { useBoardView } from './hooks/useBoardView.js';
+import { normalizeBoardView } from './engine/render-utils.js';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function App() {
@@ -342,7 +343,12 @@ function App() {
     setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null, mode: refine ? 'compact' : 'wire' }));
     let res = null;
     try {
-      res = await engine.layout(defs, refine ? { refine: true } : { firstOnly: true });
+      // a board size set in the board settings is the target (less the margin, like the fit check)
+      const bv = normalizeBoardView(boardView);
+      const target = bv.boardCols || bv.boardRows
+        ? { cols: bv.boardCols ? bv.boardCols - bv.margin : null, rows: bv.boardRows ? bv.boardRows - bv.margin : null }
+        : null;
+      res = await engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true, target });
     } finally {
       setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
       setBestSnapshot(null);
@@ -368,6 +374,10 @@ function App() {
           : `No layout without crossings turned up, most likely because some wires don't fit between closely spaced pins. boardroute added ${jumperText(res.jumpers)}, drawn as arcs: insulated wire on the component side, bridging over the wiring underneath.`,
       });
     }
+    if (res?.found && res.fits === false) {
+      const bv = normalizeBoardView(boardView);
+      setNotice({ kind: 'warn', title: 'Doesn\'t fit the board yet', text: `The best layout is still larger than the ${bv.boardCols || 'any'} × ${bv.boardRows || 'any'} board${bv.margin ? ` (with ${bv.margin} hole margin)` : ''}. Press Compact to keep going, or make the board bigger in the board settings.` });
+    }
     if (res?.found) {
       const s = scoreState(engine.components, engine.wires);
       setResultCard({
@@ -379,7 +389,7 @@ function App() {
       });
     }
     setSnapCounter(c => c + 1); saveHistory();
-  }, [engine, parseCircuit, saveHistory]);
+  }, [engine, parseCircuit, saveHistory, boardView]);
 
   const handleShareLink = useCallback(() => {
     window.goatcounter?.count?.({ path: 'share-create', event: true });

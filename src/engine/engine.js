@@ -2,7 +2,7 @@ import { route, incrementalReroute } from './router.js';
 import { Grid, BLOCKED_WIRE } from './grid.js';
 import { scoreState, recenterComponents } from './metrics.js';
 import { netCompletion } from './net-completion.js';
-import { areaLowerBound, isPerfect } from './lower-bound.js';
+import { areaLowerBound, isPerfect, targetExcess } from './lower-bound.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
 import { placeInitial } from './initial-placement.js';
@@ -38,6 +38,17 @@ function findConflicts(components, wires) {
         if (a.ox < b.ox + b.w && b.ox < a.ox + a.w && a.oy < b.oy + b.h && b.oy < a.oy + a.h) parts.push(a.id, b.id);
     }
     return { cells: [...bad.values()], parts: [...new Set(parts)] };
+}
+
+// The whole layout turned 90° clockwise, in place: hole (x, y) -> (-y, x); parts turn with it
+// (pins, cable side) via rotateComp90InPlace. Callers recentre afterwards.
+function turnBoard90(components, wires) {
+    for (const c of components) {
+        const nx = -(c.oy + c.h - 1), ny = c.ox;
+        rotateComp90InPlace(c);
+        moveComp(c, nx, ny);
+    }
+    for (const w of wires) for (const pt of w.path || []) { const col = -pt.row; pt.row = pt.col; pt.col = col; }
 }
 
 export class AutorouterEngine {
@@ -113,7 +124,10 @@ export class AutorouterEngine {
      * solver is looking at right now (onLive); the best layout so far goes to onBestSnapshot.
      * When the run ends, the board is set to the best layout (or back to where it was).
      */
-    async layout(compDefs, { refine = false, firstOnly = false } = {}) {
+    // target = { cols, rows } (either may be null): the board the layout has to fit on. The
+    // search may wander outside it, but a layout that fits always wins, Wire runs until one
+    // fits, and the result is turned 90° when it only fits that way round.
+    async layout(compDefs, { refine = false, firstOnly = false, target = null } = {}) {
         if (!compDefs?.length) return null;
         this.gCancelRequested = false;
 
@@ -133,6 +147,8 @@ export class AutorouterEngine {
             cy = Math.round((Math.min(...ys) + Math.max(...ys)) / 2);
         }
         const place = (components, wires) => {
+            const sc0 = scoreState(components, wires);
+            if (targetExcess(sc0.width, sc0.height, target).turned) turnBoard90(components, wires);
             recenterComponents(components, wires);
             components.forEach(c => moveComp(c, c.ox + cx, c.oy + cy));
             wires.forEach(w => w.path.forEach(pt => { pt.col += cx; pt.row += cy; }));
@@ -145,11 +161,14 @@ export class AutorouterEngine {
             this.notify();
         };
         // a jumper counts as 4 holes, like in the solver
-        const keyOf = (m) => m.area + 4 * (m.jumpers || 0);
+        const keyOf = (m) => m.area + 4 * (m.jumpers || 0) + (m.excess > 0 ? 1e6 + 1e4 * m.excess : 0);
         // Provable minimum: a layout that reaches it is perfect and ends the run. A non-planar
         // circuit needs a jumper, which needs 3 holes free of parts.
         const bound = areaLowerBound(compDefs, { jumpers: topo.planar ? 0 : 1 });
-        const judge = (m) => ({ ...m, bound: bound.area, optimal: isPerfect(m.area, m.jumpers, bound, topo.planar) });
+        const judge = (m) => {
+            const excess = targetExcess(m.width, m.height, target).excess;
+            return { ...m, excess, fits: excess === 0, bound: bound.area, optimal: excess === 0 && isPerfect(m.area, m.jumpers, bound, topo.planar) };
+        };
         const onBest = (components, wires, rawMetrics) => {
             const metrics = judge(rawMetrics);
             if (best && (keyOf(metrics) > best.key || (keyOf(metrics) === best.key && metrics.wl >= best.metrics.wl))) return;
@@ -173,7 +192,7 @@ export class AutorouterEngine {
         // stallMs, or for half the time it took to find the last one. Never before the first.
         const stalled = () => {
             if (!best) return false;
-            if (firstOnly || best.metrics.optimal) return true;
+            if (best.metrics.optimal || (firstOnly && best.metrics.fits)) return true;
             return performance.now() - lastImprove > Math.max(stallMs, (lastImprove - t0) * 0.5);
         };
         const nWorkers = typeof Worker === 'undefined' ? 0 : this.workerCount();
@@ -232,13 +251,13 @@ export class AutorouterEngine {
                             const finish = () => { if (!done) { done = true; finishOne(worker); } };
                             worker.onmessage = (e) => {
                                 const m = e.data;
-                                if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly) stopAll(); }
+                                if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly && best?.metrics.fits) stopAll(); }
                                 else if (m.type === 'live') { if (!stopping) onLive(m.components, m.wires); }
                                 else if (m.type === 'done') finish();
                             };
                             worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
                             // the engine decides when to stop (stallMs: null), worker 0 streams its live state
-                            worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, live: this.liveView && i === 0 });
+                            worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, target, live: this.liveView && i === 0 });
                         }
                         open = workers.length;
                         this.activeWorkers = workers;
@@ -261,7 +280,7 @@ export class AutorouterEngine {
             }
             if (!ranWorkers) {
                 await solveBox(compDefs, {
-                    budgetMs, initial, variant,
+                    budgetMs, initial, variant, target,
                     shouldStop: () => this.gCancelRequested || stalled(),
                     onBest,
                     onLive: this.liveView ? onLive : null,
@@ -272,7 +291,7 @@ export class AutorouterEngine {
         }
         if (best) show(best.components, best.wires);
         else show(before.components, before.wires);
-        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null };
+        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null, fits: best ? best.metrics.fits : null };
     }
 
     // Planarity check (+ certificate) in a worker so a slow certificate can't freeze the UI.

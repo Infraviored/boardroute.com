@@ -565,7 +565,7 @@ export const DEFAULT_BOARD_VIEW = {
   pinCoords: false,  // additionally label every pin ("C7")
   boardCols: null,   // null = auto (layout footprint)
   boardRows: null,
-  margin: 1,         // holes between the board edge and the layout (only for a set size)
+  margin: 0,         // kept for old saved settings; the board size is the whole board now
   colStyle: 'num',   // 'num' | 'alpha'
   rowStyle: 'alpha',
   start: 1,          // numbers count from 1 or 0 (letters always start at A)
@@ -622,12 +622,13 @@ export function computeBoardFrame(components, wires, view) {
   const v = normalizeBoardView(view);
   const fw = b.maxC - b.minC, fh = b.maxR - b.minR;
   const sizedC = !!v.boardCols, sizedR = !!v.boardRows;
-  const need = { cols: fw + (sizedC ? v.margin : 0), rows: fh + (sizedR ? v.margin : 0) };
+  const need = { cols: fw, rows: fh };
   const cols = sizedC ? v.boardCols : fw;
   const rows = sizedR ? v.boardRows : fh;
+  // a set board is drawn with the layout in its middle (left/top aligned if it doesn't fit)
   return {
-    c0: sizedC ? b.minC - v.margin : b.minC,
-    r0: sizedR ? b.minR - v.margin : b.minR,
+    c0: b.minC - Math.max(0, Math.floor((cols - fw) / 2)),
+    r0: b.minR - Math.max(0, Math.floor((rows - fh) / 2)),
     cols, rows,
     sized: sizedC || sizedR,
     layout: b,

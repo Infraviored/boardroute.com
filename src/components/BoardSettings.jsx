@@ -52,11 +52,8 @@ export function BoardCard({ view, setView, components, wires }) {
       </div>
       {sized && (
         <div className="bv-row">
-          <span className="bv-label">Margin</span>
+          <span className="bv-label" />
           <div className="bv-size">
-            <input type="number" min="0" max="50" inputMode="numeric" aria-label="Margin in holes"
-              value={view.margin} onChange={(e) => set({ margin: e.target.value === '' ? 0 : e.target.value })} />
-            <span className="bv-unit">holes</span>
             <button type="button" className="bv-mini" onClick={() => set({ boardCols: null, boardRows: null })}>Auto</button>
           </div>
         </div>
@@ -67,7 +64,7 @@ export function BoardCard({ view, setView, components, wires }) {
           <AlertTriangle size={14} />
           <span>
             Layout doesn't fit: it needs {frame.need.cols} × {frame.need.rows} holes
-            {view.margin > 0 ? ' (incl. margin)' : ''}, the board has {frame.cols} × {frame.rows}.
+, the board has {frame.cols} × {frame.rows}.
           </span>
         </div>
       ) : (

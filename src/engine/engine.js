@@ -127,8 +127,11 @@ export class AutorouterEngine {
     // target = { cols, rows } (either may be null): the board the layout has to fit on. The
     // search may wander outside it, but a layout that fits always wins, Wire runs until one
     // fits, and the result is turned 90° when it only fits that way round.
-    async layout(compDefs, { refine = false, firstOnly = false, target = null } = {}) {
+    async layout(compDefs, { refine = false, firstOnly: firstOnlyAsked = false, target = null } = {}) {
         if (!compDefs?.length) return null;
+        // Wire with a board size: the first layout that fits is usually a long strip, so keep
+        // shrinking like Compact (best fitting layout kept) until it stalls
+        const firstOnly = firstOnlyAsked && !(target && (target.cols || target.rows));
         this.gCancelRequested = false;
 
         const topo = await this.topology(compDefs);

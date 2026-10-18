@@ -31,13 +31,7 @@ function BoardSizeRow({ view, setView, components, wires }) {
         <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board rows" value={v.boardRows ?? ''} onChange={e => set({ boardRows: e.target.value })} />
         {sized && <button type="button" className="rs-board-clear" onClick={() => set({ boardCols: null, boardRows: null })} aria-label="Any board size" title="Any board size"><X size={12} /></button>}
       </div>
-      {sized && (
-        <div className="rs-board-row">
-          <span className="rs-board-l" title="Free holes between the layout and the board edge">Margin</span>
-          <input type="number" min="0" max="50" inputMode="numeric" aria-label="Margin in holes" value={v.margin} onChange={e => set({ margin: e.target.value === '' ? 0 : e.target.value })} />
-          {frame && <span className={`rs-board-fit ${frame.fits ? 'ok' : 'bad'}`}>{frame.fits ? 'fits' : `needs ${frame.need.cols} × ${frame.need.rows}`}</span>}
-        </div>
-      )}
+      {frame && <div className="rs-board-row"><span className="rs-board-l" /><span className={`rs-board-fit ${frame.fits ? 'ok' : 'bad'}`}>{frame.fits ? 'layout fits' : `layout is ${frame.need.cols} × ${frame.need.rows}`}</span></div>}
     </div>
   );
 }

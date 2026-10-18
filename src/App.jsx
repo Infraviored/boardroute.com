@@ -343,11 +343,9 @@ function App() {
     setStatus(prev => ({ ...prev, isProcessing: true, isInitial: false, progress: 0, best: null, mode: refine ? 'compact' : 'wire' }));
     let res = null;
     try {
-      // a board size set in the board settings is the target (less the margin, like the fit check)
+      // a board size set in the sidebar / board settings is the target
       const bv = normalizeBoardView(boardView);
-      const target = bv.boardCols || bv.boardRows
-        ? { cols: bv.boardCols ? bv.boardCols - bv.margin : null, rows: bv.boardRows ? bv.boardRows - bv.margin : null }
-        : null;
+      const target = bv.boardCols || bv.boardRows ? { cols: bv.boardCols, rows: bv.boardRows } : null;
       res = await engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true, target });
     } finally {
       setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
@@ -376,7 +374,7 @@ function App() {
     }
     if (res?.found && res.fits === false) {
       const bv = normalizeBoardView(boardView);
-      setNotice({ kind: 'warn', title: 'Doesn\'t fit the board yet', text: `The best layout is still larger than the ${bv.boardCols || 'any'} × ${bv.boardRows || 'any'} board${bv.margin ? ` (with ${bv.margin} hole margin)` : ''}. Press Compact to keep going, or make the board bigger in the board settings.` });
+      setNotice({ kind: 'warn', title: 'Doesn\'t fit the board yet', text: `The best layout is still larger than the ${bv.boardCols || 'any'} × ${bv.boardRows || 'any'} board. Press Compact to keep going, or make the board bigger in the board settings.` });
     }
     if (res?.found) {
       const s = scoreState(engine.components, engine.wires);

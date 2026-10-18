@@ -23,6 +23,20 @@ const gridOf = (g, x, y) => {
     return [dx * cs + dy * sn, -dx * sn + dy * cs];
 };
 const holeOf = (g, x, y) => gridOf(g, x, y).map(Math.round);
+// the grid turned by da / scaled by k around image point P (P keeps its grid position)
+const turnGrid = (g, da, P) => {
+    const [u, v] = gridOf(g, ...P), a = (g.angle || 0) + da, cs = Math.cos(a), sn = Math.sin(a);
+    return { ...g, angle: a, phaseX: P[0] - g.pitch * (u * cs - v * sn), phaseY: P[1] - g.pitch * (u * sn + v * cs) };
+};
+const scaleGrid = (g, k, P) => ({ ...g, pitch: g.pitch * k, phaseX: P[0] - k * (P[0] - g.phaseX), phaseY: P[1] - k * (P[1] - g.phaseY) });
+const samePin = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+// every hole from a to b along a row, a column or a 45° diagonal; null when that isn't straight
+const lineHoles = (a, b) => {
+    const dc = b[0] - a[0], dr = b[1] - a[1];
+    if (dc && dr && Math.abs(dc) !== Math.abs(dr)) return null;
+    const n = Math.max(Math.abs(dc), Math.abs(dr));
+    return Array.from({ length: n + 1 }, (_, i) => [a[0] + Math.sign(dc) * i, a[1] + Math.sign(dr) * i]);
+};
 // a point in the frame's own coordinates (origin at its centre, x along its width) and back
 const toFrame = (f, x, y) => { const cs = Math.cos(f.a), sn = Math.sin(f.a), dx = x - f.cx, dy = y - f.cy; return [dx * cs + dy * sn, -dx * sn + dy * cs]; };
 const fromFrame = (f, u, v) => { const cs = Math.cos(f.a), sn = Math.sin(f.a); return [f.cx + u * cs - v * sn, f.cy + u * sn + v * cs]; };
@@ -35,6 +49,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const [frame, setFrame] = useState(null);   // { cx, cy, w, h, a } on the whole photo (px, radians)
     const [grid, setGrid] = useState(null);     // { pitch, phaseX, phaseY, angle }; null = no scale yet
     const [pins, setPins] = useState([]);       // [[col, row]]
+    const [sel, setSel] = useState(null);       // the selected pin [col, row]: a row starts here, Del removes it
+    const [rowMode, setRowMode] = useState(false); // touch's Shift: a tap draws a row from the selected pin
     const [mirror, setMirror] = useState(false);
     const [box, setBox] = useState(null);       // outline changed by hand: { x0, y0, x1, y1 } in holes; null = the frame
     const [keepPhoto, setKeepPhoto] = useState(true); // the cut-out photo becomes the part's picture
@@ -54,7 +70,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const undo = () => setHist(h => {
         if (!h.length) return h;
         const last = h[h.length - 1];
-        setGrid(last.grid); setPins(last.pins); setBox(last.box); setLabels(last.labels || {}); setMeasure(null);
+        setGrid(last.grid); setPins(last.pins); setBox(last.box); setLabels(last.labels || {}); setMeasure(null); setSel(null);
         return h.slice(0, -1);
     });
     const svgRef = useRef(null);
@@ -64,7 +80,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
     const load = (blob) => {
         if (!blob || !/^image\//.test(blob.type || 'image/')) return;
-        setMeasure(null); setMirror(false); setHist([]); setBox(null); setLabels({}); setOcr(null); setGrid(null); setPins([]); setFound(null);
+        setMeasure(null); setMirror(false); setHist([]); setBox(null); setLabels({}); setOcr(null); setGrid(null); setPins([]); setFound(null); setSel(null); setRowMode(false);
         setState({ status: 'loading' }); setSrc(blob);
     };
 
@@ -161,6 +177,14 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     onKeyRef.current = (e) => {
         if (e.key === 'Escape') { e.stopPropagation(); if (measure) setMeasure(null); else onCancel(); }
         else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && document.activeElement?.tagName !== 'INPUT') { e.preventDefault(); e.stopPropagation(); undo(); }
+        else if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) { /* typing */ }
+        else if ((e.key === 'Delete' || e.key === 'Backspace') && sel && pins.some(q => samePin(q, sel))) { e.preventDefault(); e.stopPropagation(); snap(); removePin(sel); }
+        else if ((e.key === '[' || e.key === ']') && grid && state.status === 'ready') {
+            // turn the grid a little: 0.25° (Shift: 1°)
+            e.preventDefault(); e.stopPropagation();
+            if (!e.repeat) snap();
+            setGrid(g => turnGrid(g, (e.key === ']' ? 1 : -1) * (e.shiftKey ? 1 : 0.25) * Math.PI / 180, pinsCentre()));
+        }
     };
     useEffect(() => {
         if (hidden) return;
@@ -298,6 +322,11 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             // a second finger: zoom and pan; whatever the first finger started is dropped
             const [a, b] = [...ptrs.current.values()];
             pinch.current = { v: view2, d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
+            if (measure?.kind === 'grid' && grid) {
+                // aligning: twisting the two fingers turns the grid around the point between them
+                const ctm = svgRef.current?.getScreenCTM(), P = ctm && new DOMPoint(...pinch.current.m).matrixTransform(ctm.inverse());
+                if (P) Object.assign(pinch.current, { ang: Math.atan2(b[1] - a[1], b[0] - a[0]), g: grid, P: [P.x, P.y] });
+            }
             if (drag?.m && drag.moved) {
                 if (drag.origMeasure) setMeasure(drag.origMeasure);
                 if (drag.origGrid) setGrid(drag.origGrid);
@@ -330,7 +359,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             return;
         }
         if (t('data-m')) { setDrag({ ...start, m: t('data-m'), origMeasure: measure, origGrid: grid, origPins: pins }); return; }
-        if (t('data-pin') && !measure) { setDrag({ ...start, pin: t('data-pin').split(',').map(Number), origPins: pins, origLabels: labels }); return; }
+        if (t('data-pin') && (!measure || (measure.kind === 'scale' && measure.b))) { setDrag({ ...start, pin: t('data-pin').split(',').map(Number), origPins: pins, origLabels: labels }); return; }
         if (measure?.kind === 'grid') { setDrag({ ...start, grid: true, g: grid, v: view2, z: z2 }); return; }
         setDrag({ ...start, pan: true, v: view2 });
     };
@@ -341,6 +370,11 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             if (ptrs.current.size < 2) return;
             const [a, b] = [...ptrs.current.values()], pc = pinch.current;
             setZv(viewFor(pc.v, Math.hypot(a[0] - b[0], a[1] - b[1]) / pc.d, pc.m, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]));
+            if (pc.g) {
+                let da = Math.atan2(b[1] - a[1], b[0] - a[0]) - pc.ang;
+                da = Math.atan2(Math.sin(da), Math.cos(da));
+                setGrid(turnGrid(pc.g, da, pc.P));
+            }
             return;
         }
         if (!drag) return;
@@ -379,6 +413,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             if (to[0] !== from[0] || to[1] !== from[1]) {
                 if (!pins.some(q => q[0] === to[0] && q[1] === to[1])) {
                     setPins(prev => prev.map(q => (q[0] === from[0] && q[1] === from[1] ? to : q)));
+                    if (samePin(sel, from)) setSel(to);
                     setLabels(l => { const k0 = from.join(), k1 = to.join(); if (!(k0 in l)) return l; const n = { ...l, [k1]: l[k0] }; delete n[k0]; return n; });
                     setDrag({ ...drag, moved: true, cur: to });
                     return;
@@ -432,12 +467,33 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 setMeasure({ ...measure, b, n });
                 applyMeasure(measure.a, b, n, true);
             }
-        } else if (p && !measure && grid) {
-            const [c, r] = holeOf(grid, p.x, p.y);
-            snap();
-            setPins(prev => prev.some(([a, b]) => a === c && b === r) ? prev.filter(([a, b]) => a !== c || b !== r) : [...prev, [c, r]]);
+        } else if (p && grid && (!measure || (measure.kind === 'scale' && measure.b))) {
+            // a tap on the photo also ends measuring
+            if (measure) setMeasure(null);
+            const h = holeOf(grid, p.x, p.y);
+            const has = pins.some(q => samePin(q, h));
+            const line = (e.shiftKey || rowMode) && sel && !samePin(sel, h) ? lineHoles(sel, h) : null;
+            if (line) {
+                snap();
+                setPins(prev => { const have = new Set(prev.map(q => q.join())); return [...prev, ...line.filter(q => !have.has(q.join()))]; });
+                setSel(h);
+            } else if (has && samePin(sel, h)) { snap(); removePin(h); }
+            else if (has) setSel(h);
+            else { snap(); setPins(prev => [...prev, h]); setSel(h); }
         }
     };
+    const removePin = (h) => {
+        setPins(prev => prev.filter(q => !samePin(q, h)));
+        setLabels(l => { const k = h.join(); if (!(k in l)) return l; const n = { ...l }; delete n[k]; return n; });
+        setSel(null);
+    };
+    // the point the grid turns around: the middle of the pins (else of the frame)
+    const pinsCentre = () => {
+        if (!grid || !pins.length) { const fp = state.framePx; return [(fp.x0 + fp.x1) / 2, (fp.y0 + fp.y1) / 2]; }
+        const pts = pins.map(([c, r]) => holeAt(grid, c, r));
+        return [pts.reduce((a, q) => a + q[0], 0) / pts.length, pts.reduce((a, q) => a + q[1], 0) / pts.length];
+    };
+    const startAlign = () => { snap(); setRowMode(false); setMeasure({ kind: 'grid', pitch0: grid.pitch }); };
 
     // Another row on the current grid: both clicks snap to holes, every hole on the straight
     // line between them becomes a pin.
@@ -668,7 +724,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         )}
 
                         {ready && measure && (measure.kind === 'scale' || measure.kind === 'row') && !measure.b && <div className="pf-banner">{measure.a ? 'Now tap the last pin of that row' : 'Tap the first pin of a row'}</div>}
-                        {ready && measure?.kind === 'grid' && <div className="pf-banner">Drag the photo</div>}
+                        {ready && measure?.kind === 'grid' && <div className="pf-banner">{touch ? 'Drag to move · twist two fingers to turn' : 'Drag to move · [ ] or the slider to turn'}</div>}
+                        {ready && rowMode && !measure && <div className="pf-banner">{sel ? 'Tap where the row ends' : 'Tap the row\'s first pin'}</div>}
                         {ready && (
                             <div className="pf-zoom">
                                 <button onClick={() => zoomBy(1.6)} aria-label="Zoom in" title="Zoom in (or pinch, or mouse wheel)"><ZoomIn size={16} /></button>
@@ -692,9 +749,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                     <circle key={c + ',' + r} cx={x} cy={y} r={unit * 0.07}
                                         fill="rgba(255,255,255,.55)" stroke="rgba(0,0,0,.5)" strokeWidth={unit / 40} />
                                 ))}
-                                {scaled && pins.map(([c, r]) => { const [x, y] = holeAt(grid, c, r); const on = drag?.cur?.[0] === c && drag.cur[1] === r; return (
+                                {scaled && pins.map(([c, r]) => { const [x, y] = holeAt(grid, c, r); const on = drag?.cur?.[0] === c && drag.cur[1] === r; const picked = samePin(sel, [c, r]); return (
                                     <g key={'p' + c + ',' + r}>
-                                        <circle cx={x} cy={y} r={unit * 0.36} fill={on ? 'rgba(63,185,80,.4)' : 'rgba(63,185,80,.18)'} stroke="#3fb950" strokeWidth={2.5 / z2} style={{ pointerEvents: 'none' }} />
+                                        <circle cx={x} cy={y} r={unit * 0.36} fill={on || picked ? 'rgba(240,136,62,.35)' : 'rgba(63,185,80,.18)'} stroke={picked ? '#f0883e' : '#3fb950'} strokeWidth={(picked ? 3.5 : 2.5) / z2} style={{ pointerEvents: 'none' }} />
                                         {/* the grab area: a little larger than the ring, still clear of the neighbours */}
                                         <circle data-pin={c + ',' + r} cx={x} cy={y} r={unit * 0.46} fill="transparent" style={{ cursor: measure ? 'crosshair' : 'move' }} />
                                     </g>
@@ -775,16 +832,25 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                             </section>
                             <section>
                                 <div className="ce-label">3 · Pins {scaled && <span>{pins.length}</span>}</div>
-                                <p className="ce-hint">{scaled ? 'Tap a hole: pin on/off · drag a pin to move it · pinch or scroll to zoom.' : 'Set the scale first.'}</p>
+                                <p className="ce-hint">{!scaled ? 'Set the scale first.'
+                                    : measure?.kind === 'grid' ? 'Line the grid up with the holes: drag, and turn or size it below.'
+                                        : `Tap: add a pin · tap a pin: select, again${touch ? '' : ' or Del'}: remove · ${touch ? 'Row' : 'Shift+tap'}: a straight row from the selected pin.`}</p>
                                 <div className="pf-tools">
                                     <button className="ce-btn" disabled={!scaled || !pins.length || !!measure} onClick={moreLikeThese} title="Find pins like the marked ones"><Sparkles size={14} /> Find similar</button>
-                                    {measure?.kind === 'row'
-                                        ? <button className="ce-btn" onClick={() => setMeasure(null)}>Cancel</button>
-                                        : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'row' })} title="Mark a row: tap its first and last pin"><Rows3 size={14} /> Row</button>}
+                                    <button className={`ce-btn ${rowMode ? 'primary' : ''}`} disabled={!scaled || measure?.kind === 'grid'} onClick={() => setRowMode(m => !m)}
+                                        aria-pressed={rowMode} title="Tap to draw a straight row from the selected pin (Shift+click does the same)"><Rows3 size={14} /> Row</button>
                                     {measure?.kind === 'grid'
                                         ? <button className="ce-btn primary" onClick={() => setMeasure(null)}>Done</button>
-                                        : <button className="ce-btn" disabled={!scaled || !!measure} onClick={() => setMeasure({ kind: 'grid' })} title="Move the photo under the pins"><Move size={14} /> Move photo</button>}
+                                        : <button className="ce-btn" disabled={!scaled || (!!measure && measure.kind !== 'scale')} onClick={startAlign} title="Move and turn the grid onto the holes"><Move size={14} /> Align</button>}
                                 </div>
+                                {measure?.kind === 'grid' && grid && <>
+                                    <span className="pf-lbl">Turn {((grid.angle || 0) * 180 / Math.PI).toFixed(1)}°</span>
+                                    <input className="pf-range" type="range" min="-45" max="45" step="0.1" value={((grid.angle || 0) * 180 / Math.PI).toFixed(1)} aria-label="Turn the grid"
+                                        onChange={e => setGrid(g => turnGrid(g, +e.target.value * Math.PI / 180 - (g.angle || 0), pinsCentre()))} />
+                                    <span className="pf-lbl">Size {Math.round(grid.pitch / measure.pitch0 * 1000) / 10} %</span>
+                                    <input className="pf-range" type="range" min="0.9" max="1.1" step="0.002" value={grid.pitch / measure.pitch0} aria-label="Size of the grid"
+                                        onChange={e => setGrid(g => scaleGrid(g, (+e.target.value * measure.pitch0) / g.pitch, pinsCentre()))} />
+                                </>}
                                 {found && <p className="ce-hint pf-note">{found}</p>}
                             </section>
                             <section>
@@ -811,7 +877,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                             <section>
                                 <div className="pf-row">
                                     <button className="ce-btn" disabled={!hist.length} onClick={undo} title="Ctrl+Z"><Undo2 size={13} /> Undo</button>
-                                    <button className="ce-btn" disabled={!pins.length} onClick={() => { snap(); setPins([]); setFound(null); }}>Clear pins</button>
+                                    <button className="ce-btn" disabled={!pins.length} onClick={() => { snap(); setPins([]); setFound(null); setSel(null); }}>Clear pins</button>
                                     <button className="ce-btn" onClick={backToFrame} title="Back to step 1"><Crop size={13} /> Frame</button>
                                     <button className="ce-btn" onClick={() => { setMeasure(null); setState({ status: 'pick' }); }}><ImageUp size={13} /> Other photo</button>
                                 </div>

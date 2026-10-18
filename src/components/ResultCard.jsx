@@ -44,8 +44,8 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         {optimal ? <Trophy size={16} className="rc-ok" aria-hidden="true" /> : <CircleCheck size={16} className="rc-ok" aria-hidden="true" />}
         <span className="rc-title">{optimal ? 'Perfect' : isCompact ? 'Compacted' : 'Wired'}</span>
         <span className="rc-hint">{optimal
-          ? 'Provably the smallest possible board'
-          : isCompact ? `Smallest layout found · no board can be smaller than ${bound} holes` : 'Every net is connected'}</span>
+          ? 'Smallest possible board, proven'
+          : isCompact ? `Best found · can't go below ${bound} holes` : 'Every net is connected'}</span>
         <button className="rc-close" onClick={onClose} aria-label="Close result"><X size={15} /></button>
       </div>
 
@@ -106,7 +106,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .rc-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .rc-ok { color: var(--ui-primary-hover); flex-shrink: 0; }
         .rc-title { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--txt0); letter-spacing: -0.01em; }
-        .rc-hint { font-size: 12px; color: var(--txt1); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rc-hint { font-size: 12px; line-height: 1.3; color: var(--txt1); flex: 1; min-width: 0; }
         .rc-close { background: none; border: none; color: var(--txt1); cursor: pointer; padding: 4px; border-radius: var(--radius-sm); display: flex; flex-shrink: 0; }
         .rc-close:hover { color: var(--txt0); background: var(--ui-ghost-hover); }
         .rc-stats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 22px; margin: 10px 0 12px; }

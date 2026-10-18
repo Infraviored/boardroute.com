@@ -166,8 +166,10 @@ export class AutorouterEngine {
         // circuit needs a jumper, which needs 3 holes free of parts.
         const bound = areaLowerBound(compDefs, { jumpers: topo.planar ? 0 : 1 });
         const judge = (m) => {
-            const excess = targetExcess(m.width, m.height, target).excess;
-            return { ...m, excess, fits: excess === 0, bound: bound.area, optimal: excess === 0 && isPerfect(m.area, m.jumpers, bound, topo.planar) };
+            const tx = targetExcess(m.width, m.height, target);
+            const width = tx.turned ? m.height : m.width;
+            const height = tx.turned ? m.width : m.height;
+            return { ...m, width, height, excess: tx.excess, fits: tx.excess === 0, bound: bound.area, optimal: tx.excess === 0 && isPerfect(m.area, m.jumpers, bound, topo.planar) };
         };
         const onBest = (components, wires, rawMetrics) => {
             const metrics = judge(rawMetrics);
@@ -219,10 +221,12 @@ export class AutorouterEngine {
         if (initial && before.wires.length) {
             const nc = netCompletion(before.components, before.wires);
             if (nc.total > 0 && nc.done === nc.total) {
+                place(before.components, before.wires);
                 const sc = scoreState(before.components, before.wires);
                 const metrics = judge({ area: sc.area, width: sc.width, height: sc.height, wl: sc.wl, jumpers: before.wires.filter(w => w.jumper && !w.failed).length });
                 best = { components: before.components, wires: before.wires, metrics, key: keyOf(metrics) };
                 lastImprove = t0;
+                show(before.components, before.wires);
                 this.onBestSnapshot?.({ components: before.components, wires: before.wires });
                 this.onStatusUpdate?.({ best: metrics });
             }

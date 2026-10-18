@@ -7,11 +7,12 @@ import { isJump } from './boxrouter.js';
 // footprint where pin p sits in the hole of pin perm[p]. Variants x 4 rotations make up `rots`
 // (index = variant * 4 + rotation), so the solver's rotate moves also try other pin orders.
 const MAX_VARIANTS = 24;
-function permutations(a) {
-    if (a.length <= 1) return [a];
-    const out = [];
-    a.forEach((x, i) => { for (const rest of permutations([...a.slice(0, i), ...a.slice(i + 1)])) out.push([x, ...rest]); });
-    return out;
+function* permutations(a) {
+    if (a.length <= 1) { yield a; return; }
+    for (let i = 0; i < a.length; i++) {
+        const rest = [...a.slice(0, i), ...a.slice(i + 1)];
+        for (const p of permutations(rest)) yield [a[i], ...p];
+    }
 }
 export function offsetVariants(def) {
     let vars = [def.offsets];
@@ -49,19 +50,22 @@ function rotations(def) {
 
 export function buildModel(defs) {
     const netIds = new Map();
-    const comps = defs.map(def => ({
-        id: def.id,
-        def,
-        routeUnder: !!def.routeUnder,
-        edge: def.edge >= 0 ? def.edge : -1,
-        variants: offsetVariants(def),
-        rots: offsetVariants(def).flatMap(offsets => rotations({ ...def, offsets })),
-        net: Int32Array.from(def.pinNets.map(n => {
-            if (!n) return -1;
-            if (!netIds.has(n)) netIds.set(n, netIds.size);
-            return netIds.get(n);
-        })),
-    }));
+    const comps = defs.map(def => {
+        const variants = offsetVariants(def);
+        return {
+            id: def.id,
+            def,
+            routeUnder: !!def.routeUnder,
+            edge: def.edge >= 0 ? def.edge : -1,
+            variants,
+            rots: variants.flatMap(offsets => rotations({ ...def, offsets })),
+            net: Int32Array.from(def.pinNets.map(n => {
+                if (!n) return -1;
+                if (!netIds.has(n)) netIds.set(n, netIds.size);
+                return netIds.get(n);
+            })),
+        };
+    });
     const netNames = [...netIds.keys()];
     const netPinCount = new Int32Array(netNames.length);
     for (const c of comps) for (const n of c.net) if (n >= 0) netPinCount[n]++;

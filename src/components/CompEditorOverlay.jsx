@@ -16,7 +16,7 @@ function fromComponent(component) {
     // a body larger than the pins' box is a custom body
     const w = c.w || pb.w, h = c.h || pb.h;
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
-    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap: c.swap?.length ? c.swap : null, pins,
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap: c.swap?.length ? c.swap : null, edge: c.edge >= 0 ? c.edge : -1, pins,
         body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
 }
 
@@ -177,6 +177,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         onSave({
             ...component, // keeps position and anything the editor doesn't touch
             id: data.id, name: data.name, value: data.value, color: data.color, routeUnder: data.routeUnder,
+            edge: data.edge >= 0 ? data.edge : undefined,
             // interchangeable pins: groups saved by index; after pins were added or removed, all pins form one group
             swap: !data.swap || data.pins.length < 2 ? undefined : data.swap === true || data.swap.flat().some(i => i >= data.pins.length) ? [data.pins.map((_, i) => i)] : data.swap,
             w: foot.w, h: foot.h,
@@ -291,6 +292,14 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                             <label className="ce-check" title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
                                 <input type="checkbox" checked={!!data.swap} onChange={e => handleUpdate('swap', e.target.checked ? true : null)} /> Pins are interchangeable
                             </label>
+                            <div className="ce-edge" title="This side must face outward, on the board's edge (e.g. where the wires enter a screw terminal). Which way it ends up pointing is up to the router.">
+                                <span>Cable side</span>
+                                <div className="ce-seg">
+                                    {['none', 'top', 'right', 'bottom', 'left'].map((lbl, k) => (
+                                        <button key={lbl} className={(data.edge ?? -1) === k - 1 ? 'active' : ''} onClick={() => handleUpdate('edge', k - 1)}>{lbl}</button>
+                                    ))}
+                                </div>
+                            </div>
                         </section>
 
                         <section className="ce-bodysec">
@@ -373,6 +382,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
                 .ce-side label.ce-check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
                 .ce-check input { width: auto; margin: 0; }
+                .ce-edge { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--txt1); }
+                .ce-edge .ce-seg { flex: 1; }
+                .ce-edge .ce-seg button { padding-left: 4px; padding-right: 4px; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
                 .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
                 .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }

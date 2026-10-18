@@ -16,7 +16,7 @@ import { ResultCard } from './components/ResultCard.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
 import { decodeShare, shareFromHash, shareUrl } from './engine/share.js';
-import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON } from './engine/templates.js';
+import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, EDGE_SIDES } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
@@ -119,6 +119,7 @@ function App() {
         ...(c.color ? { color: c.color } : {}),
         ...(c.routeUnder === false ? { routeUnder: false } : {}),
         ...(swapJSON(c) !== undefined ? { swap: swapJSON(c) } : {}),
+        ...(c.edge >= 0 ? { edge: EDGE_SIDES[c.edge] } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
           label: p.lbl,
@@ -473,7 +474,7 @@ function App() {
       cx = Math.max(...board.components.map(c => c.ox + c.w)) + 1;
       cy = Math.min(...board.components.map(c => c.oy));
     }
-    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, ...(def.swap ? { swap: def.swap } : {}), w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
+    const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, ...(def.swap ? { swap: def.swap } : {}), ...(def.edge >= 0 ? { edge: def.edge } : {}), w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     // Show it big in the editor first (pins, nets, body can be adjusted); "Add to circuit" adds it.
     setIsLibraryOpen(false);
     setEditorPhoto(photo);

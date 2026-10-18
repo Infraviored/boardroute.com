@@ -78,6 +78,7 @@ export function processTemplate(data) {
 
         return {
             ...(swapGroups(cd) ? { swap: swapGroups(cd) } : {}),
+            ...(edgeSide(cd.edge) >= 0 ? { edge: edgeSide(cd.edge) } : {}),
             id: cd.id || ('C' + (idx + 1)),
             name: cd.name || '?',
             value: cd.value || '',
@@ -128,6 +129,12 @@ export function swapGroups(cd) {
     }
     return out.length ? out : null;
 }
+// Cable side: `edge: "top" | "right" | "bottom" | "left"` (in the part's own orientation, the
+// same frame as its pin offsets) must face outward: flush with the board's outline, nothing in
+// front of it (wires entering a screw terminal). Which way it ends up pointing is free.
+export const EDGE_SIDES = ['top', 'right', 'bottom', 'left'];
+export const edgeSide = (e) => (Number.isInteger(e) && e >= 0 && e < 4 ? e : EDGE_SIDES.indexOf(String(e ?? '').toLowerCase()));
+
 // the JSON form: true when one group holds every pin, else the index groups
 export const swapJSON = (c) => !c.swap?.length ? undefined : (c.swap.length === 1 && c.swap[0].length === c.pins.length ? true : c.swap);
 
@@ -147,6 +154,7 @@ export function generateJSONFromState(components) {
         };
         if (c.routeUnder === false) compJson.routeUnder = false;
         if (swapJSON(c) !== undefined) compJson.swap = swapJSON(c);
+        if (c.edge >= 0) compJson.edge = EDGE_SIDES[c.edge];
         const body = bodyOf(c);
         if (body) compJson.body = body;
         json.components.push(compJson);

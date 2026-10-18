@@ -53,6 +53,7 @@ export function buildModel(defs) {
         id: def.id,
         def,
         routeUnder: !!def.routeUnder,
+        edge: def.edge >= 0 ? def.edge : -1,
         variants: offsetVariants(def),
         rots: offsetVariants(def).flatMap(offsets => rotations({ ...def, offsets })),
         net: Int32Array.from(def.pinNets.map(n => {

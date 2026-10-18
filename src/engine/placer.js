@@ -70,6 +70,8 @@ export function anyOverlap(comp, all) {
 export function rotateComp90InPlace(c) {
   const oldW = c.w;
   const oldH = c.h;
+  // the cable side turns with the part (top -> right -> bottom -> left)
+  if (c.edge >= 0) c.edge = (c.edge + 1) % 4;
 
   c.w = oldH;
   c.h = oldW;
@@ -91,6 +93,7 @@ export function rotateComp90InPlace(c) {
 export function unrotateComp90InPlace(c) {
   const oldW = c.w;
   const oldH = c.h;
+  if (c.edge >= 0) c.edge = (c.edge + 3) % 4;
 
   c.w = oldH;
   c.h = oldW;

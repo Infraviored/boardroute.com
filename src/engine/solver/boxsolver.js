@@ -6,7 +6,7 @@
 // The best legal layout seen is the answer.
 import { buildModel, toEngine } from './model.js';
 import { areaLowerBound } from '../lower-bound.js';
-import { BoxRouter } from './boxrouter.js';
+import { BoxRouter, edgeGap } from './boxrouter.js';
 
 const now = () => globalThis.performance?.now?.() ?? Date.now();
 
@@ -174,6 +174,7 @@ export async function solveBox(defs, opts = {}) {
                 const x0 = s.pl.ox[i] - r, x1 = s.pl.ox[i] + R.w - 1 + r, y0 = s.pl.oy[i] - r, y1 = s.pl.oy[i] + R.h - 1 + r;
                 for (const k of hot) { const x = k % W, y = (k / W) | 0; if (x >= x0 && x <= x1 && y >= y0 && y <= y1) { out.push(i); return; } }
             } else if (c.nets.some(n => s.route.badNets.has(n))) { out.push(i); return; }
+            if (s.overlap && c.edge >= 0 && edgeGap(c, s.pl.rot[i], s.pl.ox[i], s.pl.oy[i], W, H) > 0) { out.push(i); return; }
             if (s.overlap) {
                 const R = c.rots[s.pl.rot[i]];
                 for (let dx = 0; dx < R.w; dx++) for (let dy = 0; dy < R.h; dy++) {

@@ -38,6 +38,7 @@ export function makeComp(cd, ox, oy) {
     id: cd.id, name: cd.name, value: cd.value, color: cd.color,
     routeUnder: !!cd.routeUnder,
     ...(cd.swap ? { swap: cd.swap } : {}),
+    ...(cd.edge >= 0 ? { edge: cd.edge } : {}),
     w: cd.w, h: cd.h, ox, oy,
     pins: cd.offsets.map((off, i) => ({
       col: ox + off[0], row: oy + off[1],

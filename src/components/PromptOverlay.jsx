@@ -17,6 +17,7 @@ Every component is a collection of pins. You must define the position of every p
 - MODULES (ESP32/Arduino): You must map the exact physical pinout. If the module is 7 holes wide, the left pins are at x=0 and right pins are at x=6.
 - BODIES (optional): if the part's housing is larger than its pin area (relay, electrolytic capacitor, screw terminal, standing TO-220, a dev board whose PCB extends past its pin rows), add "body": { "offset": [x,y], "size": [w,h] }: the rectangle of holes the housing covers, in the same coordinates as the pin offsets (it may start at negative values). No other part may sit inside it; wires underneath are fine. 1 hole = 2.54 mm, round up. Example, 5 V relay (19 x 15.5 mm) with its coil pins at [0,0] and [0,1]: "body": { "offset": [-1,-2], "size": [8,6] }. Leave it out for resistors, diodes, DIP chips and pin headers.
 - INTERCHANGEABLE PINS (optional): if it does not matter which of some pins gets which net (screw terminal, non-polarised capacitor, resistor, fuse, switch), add "swap": true for all pins, or groups of pin labels like "swap": [["1","2"]]. The router then picks whichever order wires better.
+- CABLE SIDE (optional): if wires from outside enter the part from one side (screw terminal, DC jack, USB socket), add "edge": "top" | "right" | "bottom" | "left" (that side in the same coordinates as the pin offsets). The router keeps that side on the board's edge, facing outward.
 
 ### 2. LOGICAL CONNECTIVITY (Nets)
 To connect two or more pins, assign them the EXACT same string in their "net" field. 

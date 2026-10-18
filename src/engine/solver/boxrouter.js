@@ -58,6 +58,20 @@ export const isJump = (a, b, W) => Math.abs((a % W) - (b % W)) + Math.abs(((a / 
 export const CELL_FREE = -1;
 export const CELL_DEAD = -2; // unconnected pin or pin collision: nobody may use it
 
+// How far a part's cable side is from the box edge it faces (0 = flush). Rotation r turns
+// the side like rotateComp90InPlace: side' = (side + r) % 4.
+export function edgeGap(c, rot, ox, oy, W, H) {
+    if (c.edge < 0) return 0;
+    const R = c.rots[rot];
+    switch ((c.edge + (rot & 3)) % 4) {
+        case 0: return oy;
+        case 1: return W - (ox + R.w);
+        case 2: return H - (oy + R.h);
+        default: return ox;
+    }
+}
+
+
 export class BoxRouter {
     constructor(model, W, H) {
         this.model = model;
@@ -104,6 +118,8 @@ export class BoxRouter {
                 if (this.bodyCount[k]++ > 0) overlap++;
                 if (!c.routeUnder) this.blocked[k] = 1;
             }
+            // a cable side that doesn't face the outline is as illegal as an overlap
+            if (c.edge >= 0) overlap += 2 * Math.max(0, edgeGap(c, pl.rot[i], ox, oy, W, H));
         }
         for (let i = 0; i < model.comps.length; i++) {
             const c = model.comps[i], R = c.rots[pl.rot[i]];

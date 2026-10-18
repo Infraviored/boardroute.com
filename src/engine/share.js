@@ -13,7 +13,8 @@
 //          pins  = flat [dCol, dRow, net, label, ...] in the part's current rotation;
 //                  net = index into n plus 1, 0 = unconnected
 //          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour,
-//                  { s: [[pinIndex, ...], ...] } for interchangeable pins
+//                  { s: [[pinIndex, ...], ...] } for interchangeable pins,
+//                  { e: 0..3 } for the cable side that must face outward (top, right, bottom, left)
 //     w: [[net, flags, col, row, steps], ...]          flags: 1 = jumper, 2 = failed
 //          steps = run-length unit steps "r3d2l" (r/l/u/d), any other step as "~dc,dr;" }
 //
@@ -92,6 +93,7 @@ export function packBoard(components, wires) {
     if (comp.routeUnder === false) extra.u = 0;
     if (comp.color) extra.k = comp.color;
     if (comp.swap?.length) extra.s = comp.swap;
+    if (comp.edge >= 0) extra.e = comp.edge;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
     return row;
@@ -143,6 +145,10 @@ export function unpackBoard(data) {
         const n = pins.length / 4;
         if (!Array.isArray(extra.s) || !extra.s.every(g => Array.isArray(g) && g.length >= 2 && g.every(i => isInt(i, 0, n - 1)))) throw new ShareError(`bad interchangeable pins on ${id}`);
         comp.swap = extra.s;
+      }
+      if (extra.e !== undefined) {
+        if (!isInt(extra.e, 0, 3)) throw new ShareError(`bad cable side on ${id}`);
+        comp.edge = extra.e;
       }
     }
     const seen = new Set();

@@ -888,6 +888,8 @@ function App() {
           activeNets={activeNets}
           mobileOpen={mobileDrawer === 'inspector'}
           onCloseDrawer={() => setMobileDrawer(null)}
+          boardView={boardView} setBoardView={setBoardView}
+          components={board.components} wires={board.wires}
         />
         <div className={`mobile-drawer-backdrop ${mobileDrawer ? 'active' : ''}`} onClick={() => setMobileDrawer(null)} />
       </div>

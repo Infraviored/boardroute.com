@@ -1,5 +1,5 @@
 import React from 'react';
-import { netColor } from '../engine/render-utils.js';
+import { netColor, normalizeBoardView, computeBoardFrame } from '../engine/render-utils.js';
 import {
   Settings2,
   Tag,
@@ -16,6 +16,28 @@ import {
 
 const SECTIONS_KEY = 'pcb_rsb_sections';
 
+// The board the layout has to fit on (Wire and Compact aim for it); same setting as in Export.
+function BoardSizeRow({ view, setView, components, wires }) {
+  const v = normalizeBoardView(view);
+  const set = (patch) => setView(prev => normalizeBoardView({ ...prev, ...patch }));
+  const sized = !!(v.boardCols || v.boardRows);
+  const frame = sized && components.length ? computeBoardFrame(components, wires, v) : null;
+  return (
+    <div className="rs-board" title="The perfboard you have: Wire and Compact make the layout fit on it. Leave a side empty for any length.">
+      <span className="rs-board-l">Board</span>
+      <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board columns" value={v.boardCols ?? ''} onChange={e => set({ boardCols: e.target.value })} />
+      <span className="rs-board-x">×</span>
+      <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board rows" value={v.boardRows ?? ''} onChange={e => set({ boardRows: e.target.value })} />
+      {sized && <>
+        <span className="rs-board-l" title="Free holes between the layout and the board edge">margin</span>
+        <input type="number" min="0" max="50" inputMode="numeric" aria-label="Margin in holes" value={v.margin} onChange={e => set({ margin: e.target.value === '' ? 0 : e.target.value })} />
+        <button type="button" className="rs-board-clear" onClick={() => set({ boardCols: null, boardRows: null })} aria-label="Any board size" title="Any board size"><X size={12} /></button>
+      </>}
+      {frame && <span className={`rs-board-fit ${frame.fits ? 'ok' : 'bad'}`}>{frame.fits ? 'fits' : `needs ${frame.need.cols} × ${frame.need.rows}`}</span>}
+    </div>
+  );
+}
+
 export function SidebarRight({
   stats,
   selectedComp,
@@ -26,7 +48,11 @@ export function SidebarRight({
   setSelectedNet,
   activeNets = [],
   mobileOpen = false,
-  onCloseDrawer
+  onCloseDrawer,
+  boardView = null,
+  setBoardView = null,
+  components = [],
+  wires = [],
 }) {
   // Which accordion sections are open. Component and Network also open on their own when
   // something gets selected.
@@ -90,6 +116,7 @@ export function SidebarRight({
             <AlertTriangle size={13} /> <span>{lonely.join(', ')} {lonely.length === 1 ? 'has' : 'have'} only one pin, connected to nothing</span>
           </div>
         )}
+        {setBoardView && <BoardSizeRow view={boardView} setView={setBoardView} components={components} wires={wires} />}
       </div>
 
       {/* Selected component */}
@@ -318,6 +345,17 @@ export function SidebarRight({
         .rs-jumpers { color: var(--blu-bright); }
         .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--org); }
         .rs-lonely svg { flex: none; margin-top: 1px; }
+        .rs-board { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--txt2); }
+        .rs-board-l { font-weight: 600; margin-right: 2px; }
+        .rs-board-l + input, .rs-board input { width: 46px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: 12px; -moz-appearance: textfield; }
+        .rs-board input::-webkit-outer-spin-button, .rs-board input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .rs-board input:focus { outline: none; border-color: var(--ui-accent-hover); }
+        .rs-board-l:not(:first-child) { margin-left: 6px; }
+        .rs-board-x { color: var(--txt2); }
+        .rs-board-clear { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
+        .rs-board-fit { flex-basis: 100%; font-weight: 600; }
+        .rs-board-fit.ok { color: var(--grn-bright); }
+        .rs-board-fit.bad { color: var(--org); }
         .net-count.lonely { color: var(--org); }
 
         /* --- Accordion sections --- */

@@ -472,6 +472,17 @@ function partLabelSVG(L, color) {
     + `</g>`;
 }
 
+// Path of the 'faces out' arrow for side e (0 top, 1 right, 2 bottom, 3 left) of the box
+// x, y, w, h: a short shaft with a head, just outside the middle of that side, pointing away.
+export function edgeArrowPath(x, y, w, h, e, size = SP) {
+  const [nx, ny] = [[0, -1], [1, 0], [0, 1], [-1, 0]][e];
+  const mx = x + w / 2 + nx * w / 2, my = y + h / 2 + ny * h / 2;
+  const s0 = size * 0.12, L = size * 0.5, hd = size * 0.18;
+  const sx = mx + nx * s0, sy = my + ny * s0, tx = mx + nx * (s0 + L), ty = my + ny * (s0 + L);
+  const bx = tx - nx * hd, by = ty - ny * hd, px = -ny * hd, py = nx * hd;
+  return `M${sx} ${sy}L${tx} ${ty}M${bx + px} ${by + py}L${tx} ${ty}L${bx - px} ${by - py}`;
+}
+
 export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null) {
   const bx = c.ox * SP + SP * .08, by = c.oy * SP + SP * .08;
   const bw = c.w * SP - SP * .16, bh = c.h * SP - SP * .16;
@@ -504,17 +515,8 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   // subtle tint overlay (entire area)
   if (!pic) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
 
-  // the cable side (must face outward): a thick bar with arrow ticks along that edge
-  if (c.edge >= 0) {
-    const e = c.edge, t = 3.2, [x0, y0, x1, y1] = [[bx, by, bx + bw, by], [bx + bw, by, bx + bw, by + bh], [bx, by + bh, bx + bw, by + bh], [bx, by, bx, by + bh]][e];
-    const [nx, ny] = [[0, -1], [1, 0], [0, 1], [-1, 0]][e];
-    out += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${mainColor}" stroke-width="${t}" stroke-linecap="round" style="pointer-events:none"/>`;
-    const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(len / SP));
-    for (let k = 0; k < n; k++) {
-      const f = (k + 0.5) / n, mx = x0 + (x1 - x0) * f, my = y0 + (y1 - y0) * f, a = SP * .16;
-      out += `<path d="M${mx - ny * a - nx * a * .2} ${my + nx * a - ny * a * .2}L${mx + nx * a * .9} ${my + ny * a * .9}L${mx + ny * a - nx * a * .2} ${my - nx * a - ny * a * .2}" fill="none" stroke="${mainColor}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" style="pointer-events:none"/>`;
-    }
-  }
+  // the side that faces out: a small arrow just outside the middle of that edge
+  if (c.edge >= 0) out += `<path d="${edgeArrowPath(bx, by, bw, bh, c.edge)}" fill="none" stroke="${mainColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"/>`;
 
   let labelsOut = '';
   // 2. Draw Pins

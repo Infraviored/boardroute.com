@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Camera, Undo2, ArrowUp, ArrowRight, ArrowDown, ArrowLeft, Minus } from 'lucide-react';
-import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect } from '../engine/render-utils.js';
+import { Plus, Trash2, Camera, Undo2, X } from 'lucide-react';
+import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
 import { swapGroups } from '../engine/templates.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 
@@ -59,6 +59,7 @@ const union = (a, b) => {
 export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames = [], mode = 'edit', photo = null }) {
     const [data, setData] = useState(() => fromComponent(component));
     const [selectedPinIdx, setSelectedPinIdx] = useState(null);
+    const [faceMode, setFaceMode] = useState(false); // picking the side that faces out: the four sides are clickable
     const [drag, setDrag] = useState(null); // { kind: 'pin', idx } | { kind: 'edge', edge: 'l'|'r'|'t'|'b' }
     const [frozenView, setFrozenView] = useState(null); // view box held still while dragging
     const svgRef = useRef(null);
@@ -254,12 +255,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 stroke={mainColor} strokeWidth={2.5}
                                 strokeDasharray={data.body ? '7 5' : undefined}
                             />
-                            {/* the side that faces out: a thick bar on that edge */}
-                            {data.edge >= 0 && (() => {
-                                const x0 = bodyBox.x * SP + 3, y0 = bodyBox.y * SP + 3, x1 = (bodyBox.x + bodyBox.w) * SP - 3, y1 = (bodyBox.y + bodyBox.h) * SP - 3;
-                                const [a, b, c, d] = [[x0, y0, x1, y0], [x1, y0, x1, y1], [x0, y1, x1, y1], [x0, y0, x0, y1]][data.edge];
-                                return <line x1={a} y1={b} x2={c} y2={d} stroke={mainColor} strokeWidth={6} strokeLinecap="round" style={{ pointerEvents: 'none' }} />;
-                            })()}
+                            {/* the side that faces out: a small arrow pointing away from it */}
+                            {data.edge >= 0 && !faceMode && <path d={edgeArrowPath(bodyBox.x * SP + 3, bodyBox.y * SP + 3, bodyBox.w * SP - 6, bodyBox.h * SP - 6, data.edge, SP * 1.4)}
+                                fill="none" stroke={mainColor} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }} />}
                             {data.image && (
                                 <g transform={`translate(${data.image.box.x * SP},${data.image.box.y * SP}) matrix(${turnMatrix(data.image.turn, data.image.base.w * SP, data.image.base.h * SP)})`} style={{ pointerEvents: 'none' }}>
                                     <image href={data.image.src} x="0" y="0" width={data.image.base.w * SP} height={data.image.base.h * SP} preserveAspectRatio="none" opacity="0.9" />
@@ -275,6 +273,20 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                     fill="#fff" stroke={mainColor} strokeWidth={2} style={{ cursor }}
                                     onPointerDown={(e) => startDrag(e, { kind: 'edge', edge })} />
                             ))}
+
+                            {/* picking the side: a band along each side, click one (again: none) */}
+                            {faceMode && [0, 1, 2, 3].map(k => {
+                                const x0 = bodyBox.x * SP, y0 = bodyBox.y * SP, w = bodyBox.w * SP, h = bodyBox.h * SP, t = SP * 0.9;
+                                const r = [{ x: x0, y: y0 - t, w, h: t }, { x: x0 + w, y: y0, w: t, h }, { x: x0, y: y0 + h, w, h: t }, { x: x0 - t, y: y0, w: t, h }][k];
+                                const on = data.edge === k;
+                                return (
+                                    <g key={'face' + k} className={`ce-face-side ${on ? 'on' : ''}`} style={{ '--c': mainColor }}
+                                        onPointerDown={(e) => { e.stopPropagation(); handleUpdate('edge', on ? -1 : k); setFaceMode(false); }}>
+                                        <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={6} />
+                                        <path d={edgeArrowPath(x0 + 3, y0 + 3, w - 6, h - 6, k, SP * 1.4)} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                                    </g>
+                                );
+                            })}
 
                             {data.pins.map((p, i) => {
                                 const isActive = selectedPinIdx === i;
@@ -293,6 +305,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 );
                             })}
                         </svg>
+                        {faceMode && <div className="ce-face-banner">Tap the side that faces out (the board edge)</div>}
                         <div className="ce-canvas-hint">Drag pins{data.body ? ' and the outline handles' : ''} · arrows move the selected pin · Del removes it</div>
                     </div>
 
@@ -309,11 +322,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 <label className="ce-check" title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
                                     <input type="checkbox" checked={!!data.swap} onChange={e => handleUpdate('swap', e.target.checked ? true : null)} /> Pins swappable
                                 </label>
-                                <div className="ce-edge" title="Side that must face outward, on the board's edge (a plug or wires come in there). Which way it ends up pointing is up to the router.">
-                                    <span>Faces out</span>
-                                    {[[Minus, 'none'], [ArrowUp, 'top'], [ArrowRight, 'right'], [ArrowDown, 'bottom'], [ArrowLeft, 'left']].map(([icon, lbl], k) => (
-                                        <button key={lbl} className={(data.edge ?? -1) === k - 1 ? 'active' : ''} onClick={() => handleUpdate('edge', k - 1)} aria-label={`Faces out: ${lbl}`} title={lbl === 'none' ? 'No side has to face out' : `The ${lbl} side faces the board edge`}>{React.createElement(icon, { size: 13 })}</button>
-                                    ))}
+                                <div className="ce-edge">
+                                    <button className={`ce-face ${faceMode ? 'active' : ''} ${data.edge >= 0 ? 'set' : ''}`} onClick={() => setFaceMode(m => !m)} aria-pressed={faceMode}
+                                        title="Pick the side that must face outward, on the board's edge (a plug or wires come in there). Which way it ends up pointing is up to the router.">
+                                        Face out{data.edge >= 0 ? `: ${['top', 'right', 'bottom', 'left'][data.edge]}` : ''}
+                                    </button>
+                                    {data.edge >= 0 && <button className="ce-face-x" onClick={() => { handleUpdate('edge', -1); setFaceMode(false); }} aria-label="No side faces out" title="No side has to face out"><X size={12} /></button>}
                                 </div>
                             </div>
                         </section>
@@ -403,10 +417,18 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
                 .ce-side label.ce-check { flex-direction: row; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--txt1); cursor: pointer; white-space: nowrap; }
                 .ce-side .ce-check input[type=checkbox] { width: 14px; height: 14px; padding: 0; margin: 0; flex: none; accent-color: var(--ui-accent); }
-                .ce-edge { display: flex; align-items: center; gap: 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); }
-                .ce-edge span { margin-right: 4px; white-space: nowrap; }
-                .ce-edge button { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); cursor: pointer; }
-                .ce-edge button.active { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+                .ce-edge { display: flex; align-items: center; gap: 4px; }
+                .ce-face { height: 24px; padding: 0 9px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
+                .ce-face.set { color: var(--txt0); border-color: var(--border2); }
+                .ce-face.active { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+                .ce-face-x { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
+                .ce-face-x:hover { color: var(--txt0); }
+                .ce-face-side { cursor: pointer; }
+                .ce-face-side rect { fill: var(--c); fill-opacity: .08; stroke: var(--c); stroke-opacity: .35; stroke-dasharray: 4 3; }
+                .ce-face-side path { stroke: var(--c); opacity: .35; }
+                .ce-face-side:hover rect, .ce-face-side.on rect { fill-opacity: .22; stroke-opacity: .9; }
+                .ce-face-side:hover path, .ce-face-side.on path { opacity: 1; }
+                .ce-face-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: var(--radius-md); background: var(--ui-accent); color: #fff; font-size: var(--fs-xs); font-weight: 600; pointer-events: none; white-space: nowrap; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
                 .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
                 .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }

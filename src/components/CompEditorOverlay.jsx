@@ -173,17 +173,25 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             if (seen.has(key)) { alert(`Two pins in the same hole (${key})`); return; }
             seen.add(key);
         }
+        let savedSwap;
+        if (data.swap && data.pins.length >= 2) {
+            if (data.swap === true || data.pins.length !== (component?.pins?.length || 0)) {
+                savedSwap = [data.pins.map((_, i) => i)];
+            } else {
+                savedSwap = data.swap;
+            }
+        }
         // normalise: footprint box starts at 0,0; w/h cover pins and body
-        onSave({
+        const saved = {
             ...component, // keeps position and anything the editor doesn't touch
             id: data.id, name: data.name, value: data.value, color: data.color, routeUnder: data.routeUnder,
-            edge: data.edge >= 0 ? data.edge : undefined,
-            // interchangeable pins: groups saved by index; after pins were added or removed, all pins form one group
-            swap: !data.swap || data.pins.length < 2 ? undefined : data.swap === true || data.swap.flat().some(i => i >= data.pins.length) ? [data.pins.map((_, i) => i)] : data.swap,
             w: foot.w, h: foot.h,
             pins: data.pins.map(p => ({ ...p, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
             image: recordFromImage(data.image, foot, data.pins),
-        });
+        };
+        if (data.edge >= 0) saved.edge = data.edge; else delete saved.edge;
+        if (savedSwap) saved.swap = savedSwap; else delete saved.swap;
+        onSave(saved);
     };
 
     const mainColor = boostColor(compColor(data));

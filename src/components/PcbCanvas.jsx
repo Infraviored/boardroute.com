@@ -88,6 +88,7 @@ export function PcbCanvas({
     const holesRef = useRef(null);
     const vignetteRef = useRef(null);
     const boundsRef = useRef(null);
+    const prevLabelIndices = useRef({});
     const commitTimer = useRef(null);
     const paintCamera = useCallback(() => {
         const cam = camRef.current;
@@ -623,15 +624,27 @@ export function PcbCanvas({
     }, [solder, components, wires, mCenter, tick]);
     const wiresSvg = useMemo(() => { void tick; return generateWiresSVG(view.wires, activeNets, { solderSide: solder }); }, [view, activeNets, solder, tick]);
     const ratsnestSvg = useMemo(() => { void tick; return solder ? '' : generateRatsnestSVG(components, wires); }, [solder, components, wires, tick]);
+    const labelKey = useMemo(() => {
+        void tick;
+        return `${solder ? 's' : 't'}:${mCenter}:` + view.components.map(c =>
+            `${c.id}/${c.ox}/${c.oy}/${c.w}/${c.h}/${c.name || ''}/${c.value || ''}/` +
+            (c.pins ? c.pins.map(p => `${p.col},${p.row}`).join(';') : '')
+        ).join('|');
+    }, [view.components, solder, mCenter, tick]);
+
+    const partLabels = useMemo(() => {
+        void labelKey;
+        return layoutPartLabels(view.components, { prevIndices: prevLabelIndices.current });
+    }, [labelKey, view.components]);
+
     const compsSplit = useMemo(() => {
         void tick;
         if (customComponentsSvg) return { base: customComponentsSvg, labels: '' };
-        const partLabels = layoutPartLabels(view.components);
         if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id], partLabels[c.id])).join(''), labels: '' };
         // solder side: part outlines under the copper, labels on top
         const parts = view.components.map(c => renderCompSVG(c, 'split', null, null, partLabels[c.id]));
         return { base: parts.map(r => r.base).join(''), labels: parts.map(r => r.labels).join('') };
-    }, [solder, view, components, selectedId, activePin, tick, customComponentsSvg, partImages]);
+    }, [solder, view.components, components, selectedId, activePin, tick, customComponentsSvg, partImages, partLabels]);
     const conflictsSvg = useMemo(() => {
         if (!conflicts || solder) return '';
         const ids = new Set(conflicts.parts);

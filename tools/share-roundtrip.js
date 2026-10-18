@@ -13,6 +13,7 @@ const fail = (msg) => { failures++; console.log('  FAIL', msg); };
 
 const normComp = (c) => JSON.stringify({
   id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder !== false,
+  swap: c.swap?.length ? c.swap : null, edge: c.edge >= 0 ? c.edge : null,
   w: c.w, h: c.h, ox: c.ox, oy: c.oy,
   pins: c.pins.map(p => [p.dCol, p.dRow, p.col, p.row, p.net || '', p.lbl ?? '']),
 });
@@ -41,7 +42,7 @@ for (const ex of examples) {
   console.log(`${ex.id.padEnd(18)} ${String(components.length).padStart(5)} ${String(wires.length).padStart(5)} ${String(wires.filter(w => w.jumper).length).padStart(7)}  ${String(lens.deflate).padStart(13)} / ${lens.plain}`);
 }
 
-// Rotated parts, colours, routeUnder:false, a failed wire, unconnected pin, negative coordinates.
+// Rotated parts, colours, routeUnder:false, swap, edge, a failed wire, unconnected pin, negative coordinates.
 {
   const defs = processTemplate(examples[0].circuit);
   const comps = defs.map((d, i) => {
@@ -52,13 +53,15 @@ for (const ex of examples) {
   });
   comps[0].color = '#ff8800'; comps[1].routeUnder = false; comps[2].pins[0].net = '';
   comps[3].name = 'Relais "groß" ✓';
+  comps[0].swap = [[0, 1]];
+  comps[0].edge = 1;
   const wires = [
     { net: 'VCC', failed: false, path: [{ col: comps[0].pins[0].col, row: comps[0].pins[0].row }, { col: comps[0].pins[0].col + 1, row: comps[0].pins[0].row }, { col: comps[0].pins[0].col + 1, row: comps[0].pins[0].row + 3 }] },
     { net: 'GND', failed: true, path: [{ col: 1, row: 1 }, { col: 2, row: 1 }] },
     { net: 'GATE', failed: false, jumper: true, path: [{ col: 3, row: 2 }, { col: 3, row: -2 }] },
   ];
   await check('synthetic', comps, wires);
-  console.log('synthetic (rotations, colour, routeUnder:false, failed + jumper wire, non-unit step, unicode): checked');
+  console.log('synthetic (rotations, colour, routeUnder:false, swap, edge, failed + jumper wire, non-unit step, unicode): checked');
 }
 
 // Damaged links must fail with a ShareError, never with something else.

@@ -4,6 +4,7 @@ import {
     generateWiresSVG,
     generateRatsnestSVG,
     renderCompSVG,
+    layoutPartLabels,
     generateBoundingBoxSVG,
     computeBoardFrame,
     generateCoordinatesSVG,
@@ -625,9 +626,10 @@ export function PcbCanvas({
     const compsSplit = useMemo(() => {
         void tick;
         if (customComponentsSvg) return { base: customComponentsSvg, labels: '' };
-        if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id])).join(''), labels: '' };
+        const partLabels = layoutPartLabels(view.components);
+        if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id], partLabels[c.id])).join(''), labels: '' };
         // solder side: part outlines under the copper, labels on top
-        const parts = view.components.map(c => renderCompSVG(c, 'split'));
+        const parts = view.components.map(c => renderCompSVG(c, 'split', null, null, partLabels[c.id]));
         return { base: parts.map(r => r.base).join(''), labels: parts.map(r => r.labels).join('') };
     }, [solder, view, components, selectedId, activePin, tick, customComponentsSvg, partImages]);
     const conflictsSvg = useMemo(() => {

@@ -289,7 +289,108 @@ export function turnRect(r, W, H) {
 }
 const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
-export function renderCompSVG(c, isSelected = false, activePin = null, photo = null) {
+// ---------------------------------------------------------------------------
+// Part labels
+//
+// The board shows what a part is ("ESP8266", "IRLB8721", "100 Ω"), not only its id. Inside the
+// body when the text fits clear of the pins (largest size first, title + id, then title alone);
+// otherwise as a small tag outside, on a leader line, at the spot around the part that covers
+// the fewest other parts and tags. Text widths are estimated (render-utils stays DOM-free).
+const charW = (ch) => /[A-Z0-9MWmw]/.test(ch) ? 0.62 : ch === ' ' ? 0.28 : /[ijl.,:;'|!·]/.test(ch) ? 0.3 : 0.53;
+export const textWidth = (s, fs) => [...String(s)].reduce((a, ch) => a + charW(ch), 0) * fs;
+
+export function partTitle(c) {
+  const v = String(c.value || '').trim(), n = String(c.name || '').trim();
+  const name = n === '?' ? '' : n;
+  if (v && /resist/i.test(n) && /^\d+(\.\d+)?[kKM]?$/.test(v)) return `${v} Ω`;
+  // a package ("DIP-8", "TO-220", "3-pin") says less than the name ("NE555")
+  if (name && /^(DIP|SOIC|SIP|TO|SOT|HC49|DO|PDIP)-?\d|^\d+-pin$/i.test(v)) return name;
+  if (/^LED$/i.test(name) && v && !/LED/i.test(v)) return `LED ${v}`;
+  return v || name;
+}
+
+const bodyRect = (c) => ({ x: c.ox * SP + SP * .08, y: c.oy * SP + SP * .08, w: c.w * SP - SP * .16, h: c.h * SP - SP * .16 });
+const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+function insideLabel(c, title) {
+  const b = bodyRect(c), pr = SP * .22 + 1.5;
+  const pins = c.pins.map(p => [p.col * SP + SP / 2, p.row * SP + SP / 2]);
+  const clear = (x0, y0, x1, y1) => x0 >= b.x + 3 && x1 <= b.x + b.w - 3 && y0 >= b.y + 2 && y1 <= b.y + b.h - 2
+    && pins.every(([px, py]) => { const dx = Math.max(x0 - px, 0, px - x1), dy = Math.max(y0 - py, 0, py - y1); return dx * dx + dy * dy > pr * pr; });
+  const cx = b.x + b.w / 2;
+  const ys = [0, -.5, .5, -1, 1, -1.5, 1.5, -2, 2].map(k => b.y + b.h / 2 + k * SP);
+  const tries = title ? [[title, c.id], [title, null]] : [[c.id, null]];
+  for (const [main, sub] of tries) {
+    for (let fs = 14; fs >= 7; fs--) {
+      const sfs = Math.max(5.5, fs * .72);
+      const w = Math.max(textWidth(main, fs), sub ? textWidth(sub, sfs) : 0);
+      const h = fs + (sub ? sfs * 1.15 : 0);
+      for (const cy of ys) {
+        if (clear(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)) return { mode: 'in', cx, y0: cy - h / 2, fs, sfs, main, sub };
+      }
+    }
+  }
+  return null;
+}
+
+// { [id]: label } for every part; pass the components as the board draws them (solder side: the
+// mirrored ones). opts.bounds = { x, y, w, h } keeps tags inside an export's frame.
+export function layoutPartLabels(components, opts = {}) {
+  const res = {};
+  const rects = components.map(c => bodyRect(c));
+  const tags = [];
+  for (const c of components) {
+    const title = partTitle(c);
+    const fit = insideLabel(c, title);
+    if (fit) { res[c.id] = fit; continue; }
+    const fs = 7.5, text = title || c.id;
+    const w = (title ? textWidth(`${c.id} `, fs) : 0) + textWidth(text, fs) + 6, h = fs + 5;
+    const b = bodyRect(c), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    const cands = [];
+    for (const g of [SP * .45, SP * 1.1]) {
+      cands.push([cx - w / 2, b.y - g - h], [cx - w / 2, b.y + b.h + g], [b.x + b.w + g, cy - h / 2], [b.x - g - w, cy - h / 2],
+        [b.x + b.w + g * .5, b.y - g - h], [b.x - g * .5 - w, b.y - g - h], [b.x + b.w + g * .5, b.y + b.h + g], [b.x - g * .5 - w, b.y + b.h + g]);
+    }
+    let best = null;
+    cands.forEach(([x, y], i) => {
+      const r = { x, y, w, h };
+      let score = i * 0.01; // on a tie, the earlier (closer) spot
+      for (const o of rects) score += overlap(r, o);
+      for (const t of tags) score += 2 * overlap(r, t);
+      const B = opts.bounds;
+      if (B && (x < B.x || y < B.y || x + w > B.x + B.w || y + h > B.y + B.h)) score += 1e6;
+      if (!best || score < best.score) best = { r, score };
+    });
+    const r = best.r;
+    tags.push(r);
+    // leader: from the body edge nearest the tag to the tag edge nearest that point
+    const tx = r.x + r.w / 2, ty = r.y + r.h / 2;
+    const ax = Math.min(Math.max(tx, b.x), b.x + b.w), ay = Math.min(Math.max(ty, b.y), b.y + b.h);
+    const lx = Math.min(Math.max(ax, r.x), r.x + r.w), ly = Math.min(Math.max(ay, r.y), r.y + r.h);
+    res[c.id] = { mode: 'out', ...r, fs, ax, ay, lx, ly, main: text, sub: title ? c.id : null };
+  }
+  return res;
+}
+
+const LABEL_TEXT = `font-family="'Outfit', sans-serif" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
+
+function partLabelSVG(L, color) {
+  if (!L) return '';
+  if (L.mode === 'in') {
+    let s = `<text x="${L.cx}" y="${L.y0 + L.fs * .82}" fill="#fff" font-size="${L.fs}" font-weight="800" stroke-width="2.5" ${LABEL_TEXT}>${escXml(L.main)}</text>`;
+    if (L.sub) s += `<text x="${L.cx}" y="${L.y0 + L.fs + L.sfs * .95}" fill="rgba(255,255,255,0.6)" font-size="${L.sfs}" font-weight="700" stroke-width="2.2" ${LABEL_TEXT}>${escXml(L.sub)}</text>`;
+    return s;
+  }
+  const sub = L.sub ? `<tspan fill="${color}">${escXml(L.sub)}</tspan> ` : '';
+  return `<g style="pointer-events:none">`
+    + `<line x1="${L.ax}" y1="${L.ay}" x2="${L.lx}" y2="${L.ly}" stroke="${color}" stroke-width="1" stroke-opacity="0.8"/>`
+    + `<circle cx="${L.ax}" cy="${L.ay}" r="1.6" fill="${color}"/>`
+    + `<rect x="${L.x}" y="${L.y}" width="${L.w}" height="${L.h}" rx="3" fill="#0b0c0e" fill-opacity="0.85" stroke="${color}" stroke-opacity="0.6" stroke-width="0.8"/>`
+    + `<text x="${L.x + L.w / 2}" y="${L.y + L.h / 2}" dy=".35em" fill="#fff" font-size="${L.fs}" font-weight="700" stroke-width="0" ${LABEL_TEXT}>${sub}${escXml(L.main)}</text>`
+    + `</g>`;
+}
+
+export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null) {
   const bx = c.ox * SP + SP * .08, by = c.oy * SP + SP * .08;
   const bw = c.w * SP - SP * .16, bh = c.h * SP - SP * .16;
   const mainColor = boostColor(compColor(c));
@@ -338,21 +439,9 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
     labelsOut += `<text ${textAttrs}>${escXml(p.lbl)}</text>`;
   });
 
-  // 3. Draw Component Labels (Centered, two-line layout)
-  const midX = bx + bw / 2;
-  // Shift midY only for vertical strips (h > w) with odd pin counts (h > 1) to avoid pin overlap.
-  const isVerticalStrip = c.h > c.w && c.h > 1;
-  const midY = (isVerticalStrip && c.h % 2 !== 0) ? (by + bh / 2 - SP / 2) : (by + bh / 2);
-  const fontSize = Math.min(SP * .3, 10);
-
-  // Name line
-  const nameAttrs = `x="${midX}" y="${midY}" fill="#fff" font-family="'Outfit', sans-serif" font-size="${fontSize}" font-weight="800" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${nameAttrs}>${escXml(c.id)}</text>`;
-
-  // Value line (slightly smaller and dimmer)
-  const valY = midY + fontSize * 0.8;
-  const valAttrs = `x="${midX}" y="${valY}" fill="rgba(255,255,255,0.6)" font-family="'Outfit', sans-serif" font-size="${fontSize * 0.8}" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${valAttrs}>${escXml(c.value)}</text>`;
+  // 3. Part label: what the part is (value, else name) large, its id small; outside on a
+  // leader line when it doesn't fit between the pins (see layoutPartLabels).
+  labelsOut += partLabelSVG(label || layoutPartLabels([c])[c.id], mainColor);
 
   out += `</g>`;
 
@@ -683,14 +772,15 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   const compsBases = [];
   const compsLabels = [];
 
-  displayComps.forEach(c => {
-    const sc = {
-      ...c,
-      ox: c.ox - minC,
-      oy: c.oy - minR,
-      pins: c.pins.map(p => ({ ...p, col: p.col - minC, row: p.row - minR }))
-    };
-    const rendered = renderCompSVG(sc, 'split');
+  const shifted = displayComps.map(c => ({
+    ...c,
+    ox: c.ox - minC,
+    oy: c.oy - minR,
+    pins: c.pins.map(p => ({ ...p, col: p.col - minC, row: p.row - minR }))
+  }));
+  const partLabels = layoutPartLabels(shifted, { bounds: { x: 0, y: 0, w: W, h: H } });
+  shifted.forEach(sc => {
+    const rendered = renderCompSVG(sc, 'split', null, null, partLabels[sc.id]);
     compsBases.push(rendered.base);
     compsLabels.push(rendered.labels);
   });

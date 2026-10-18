@@ -100,6 +100,7 @@ Key invariants:
 
 ### UI (`src/`)
 
+- Part labels on the board: `partTitle()` (value, else name; name when the value is just a package; "100 Ω" for resistors) large plus the id small, inside the body if it fits clear of the pins; else a tag on a leader line around the part (`layoutPartLabels`, greedy, fewest overlaps with parts and other tags; computed per render in PcbCanvas and in the export).
 - Tooltips: `FastTooltips` shows every `title` after 150 ms (native ones take ~2 s); just use `title`.
 - Keyboard: W wire, C compact, R rotate selected, F fit view, B solder side (mirrored, view only), H hole coordinates; handled in `App.jsx` (ignored in inputs and while a dialog is open).
 - `App.jsx` owns all app state (board, workflow step, selection, active pin for manual routing, undo history, overlays) and a single `AutorouterEngine` instance; components are presentational and call back into `App`.

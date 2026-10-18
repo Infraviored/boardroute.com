@@ -296,11 +296,19 @@ const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
 // body when the text fits clear of the pins (largest size first, title + id, then title alone);
 // otherwise as a small tag outside, on a leader line, at the spot around the part that covers
 // the fewest other parts and tags. Text widths are estimated (render-utils stays DOM-free).
-const charW = (ch) => /[A-Z0-9MWmw]/.test(ch) ? 0.62 : ch === ' ' ? 0.28 : /[ijl.,:;'|!·]/.test(ch) ? 0.3 : 0.53;
+const charW = (ch) => {
+  if (ch === ' ') return 0.28;
+  if (/[ijl.,:;'|!·]/.test(ch)) return 0.3;
+  if (/[MWOCGDQmw]/i.test(ch) || ch.charCodeAt(0) > 127) return 0.75;
+  if (/[A-Z0-9]/.test(ch)) return 0.62;
+  return 0.53;
+};
 export const textWidth = (s, fs) => [...String(s)].reduce((a, ch) => a + charW(ch), 0) * fs;
 
 export function partTitle(c) {
-  const v = String(c.value || '').trim(), n = String(c.name || '').trim();
+  const rawV = String(c.value || '').trim();
+  const v = rawV === '?' ? '' : rawV;
+  const n = String(c.name || '').trim();
   const name = n === '?' ? '' : n;
   if (v && /resist/i.test(n) && /^\d+(\.\d+)?[kKM]?$/.test(v)) return `${v} Ω`;
   // a package ("DIP-8", "TO-220", "3-pin") says less than the name ("NE555")
@@ -312,19 +320,55 @@ export function partTitle(c) {
 const bodyRect = (c) => ({ x: c.ox * SP + SP * .08, y: c.oy * SP + SP * .08, w: c.w * SP - SP * .16, h: c.h * SP - SP * .16 });
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
+export function segmentIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+  const pad = 0.5;
+  const xmin = rx + pad, xmax = rx + rw - pad;
+  const ymin = ry + pad, ymax = ry + rh - pad;
+  if (xmax <= xmin || ymax <= ymin) return false;
+
+  if (x1 >= xmin && x1 <= xmax && y1 >= ymin && y1 <= ymax) return true;
+  if (x2 >= xmin && x2 <= xmax && y2 >= ymin && y2 <= ymax) return true;
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  let t0 = 0;
+  let t1 = 1;
+
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - xmin, xmax - x1, y1 - ymin, ymax - y1];
+
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false;
+    } else {
+      const t = q[i] / p[i];
+      if (p[i] < 0) {
+        if (t > t1) return false;
+        if (t > t0) t0 = t;
+      } else {
+        if (t < t0) return false;
+        if (t < t1) t1 = t;
+      }
+    }
+  }
+  return t0 <= t1;
+}
+
 function insideLabel(c, title) {
-  const b = bodyRect(c), pr = SP * .22 + 1.5;
+  const b = bodyRect(c), pr = SP * .22 + 3;
   const pins = c.pins.map(p => [p.col * SP + SP / 2, p.row * SP + SP / 2]);
   const clear = (x0, y0, x1, y1) => x0 >= b.x + 3 && x1 <= b.x + b.w - 3 && y0 >= b.y + 2 && y1 <= b.y + b.h - 2
     && pins.every(([px, py]) => { const dx = Math.max(x0 - px, 0, px - x1), dy = Math.max(y0 - py, 0, py - y1); return dx * dx + dy * dy > pr * pr; });
   const cx = b.x + b.w / 2;
   const ys = [0, -.5, .5, -1, 1, -1.5, 1.5, -2, 2].map(k => b.y + b.h / 2 + k * SP);
-  const tries = title ? [[title, c.id], [title, null]] : [[c.id, null]];
+  const sameTitle = title && String(title).toLowerCase() === String(c.id).toLowerCase();
+  const tries = title ? (sameTitle ? [[title, null]] : [[title, c.id], [title, null]]) : [[c.id, null]];
   for (const [main, sub] of tries) {
     for (let fs = 14; fs >= 7; fs--) {
       const sfs = Math.max(5.5, fs * .72);
-      const w = Math.max(textWidth(main, fs), sub ? textWidth(sub, sfs) : 0);
-      const h = fs + (sub ? sfs * 1.15 : 0);
+      const w = Math.max(textWidth(main, fs), sub ? textWidth(sub, sfs) : 0) + 2.5;
+      const h = fs + (sub ? sfs * 1.15 : 0) + 2.5;
       for (const cy of ys) {
         if (clear(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)) return { mode: 'in', cx, y0: cy - h / 2, fs, sfs, main, sub };
       }
@@ -333,41 +377,77 @@ function insideLabel(c, title) {
   return null;
 }
 
+const prevCandidateIndices = new Map();
+
 // { [id]: label } for every part; pass the components as the board draws them (solder side: the
 // mirrored ones). opts.bounds = { x, y, w, h } keeps tags inside an export's frame.
 export function layoutPartLabels(components, opts = {}) {
   const res = {};
   const rects = components.map(c => bodyRect(c));
   const tags = [];
+  const prevIndices = opts.prevIndices;
+  const HYSTERESIS_MARGIN = 2.0;
+
   for (const c of components) {
     const title = partTitle(c);
     const fit = insideLabel(c, title);
     if (fit) { res[c.id] = fit; continue; }
+
+    const sameTitle = title && String(title).toLowerCase() === String(c.id).toLowerCase();
+    const hasSub = title && !sameTitle;
     const fs = 7.5, text = title || c.id;
-    const w = (title ? textWidth(`${c.id} `, fs) : 0) + textWidth(text, fs) + 6, h = fs + 5;
+    const w = (hasSub ? textWidth(`${c.id} `, fs) : 0) + textWidth(text, fs) + 6, h = fs + 5;
     const b = bodyRect(c), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     const cands = [];
     for (const g of [SP * .45, SP * 1.1]) {
       cands.push([cx - w / 2, b.y - g - h], [cx - w / 2, b.y + b.h + g], [b.x + b.w + g, cy - h / 2], [b.x - g - w, cy - h / 2],
         [b.x + b.w + g * .5, b.y - g - h], [b.x - g * .5 - w, b.y - g - h], [b.x + b.w + g * .5, b.y + b.h + g], [b.x - g * .5 - w, b.y + b.h + g]);
     }
+
     let best = null;
+    let prevCandBest = null;
+    const rememberedIdx = prevIndices ? prevIndices[c.id] : prevCandidateIndices.get(c.id);
+
     cands.forEach(([x, y], i) => {
       const r = { x, y, w, h };
+      const tx = r.x + r.w / 2, ty = r.y + r.h / 2;
+      const ax = Math.min(Math.max(tx, b.x), b.x + b.w), ay = Math.min(Math.max(ty, b.y), b.y + b.h);
+      const lx = Math.min(Math.max(ax, r.x), r.x + r.w), ly = Math.min(Math.max(ay, r.y), r.y + r.h);
+
       let score = i * 0.01; // on a tie, the earlier (closer) spot
-      for (const o of rects) score += overlap(r, o);
+      for (const o of rects) {
+        score += overlap(r, o);
+        if (o !== b && segmentIntersectsRect(ax, ay, lx, ly, o.x, o.y, o.w, o.h)) {
+          score += 500;
+        }
+      }
       for (const t of tags) score += 2 * overlap(r, t);
       const B = opts.bounds;
       if (B && (x < B.x || y < B.y || x + w > B.x + B.w || y + h > B.y + B.h)) score += 1e6;
-      if (!best || score < best.score) best = { r, score };
+
+      const candData = { r, score, ax, ay, lx, ly, idx: i };
+      if (!best || score < best.score) best = candData;
+      if (rememberedIdx === i) prevCandBest = candData;
     });
-    const r = best.r;
-    tags.push(r);
-    // leader: from the body edge nearest the tag to the tag edge nearest that point
-    const tx = r.x + r.w / 2, ty = r.y + r.h / 2;
-    const ax = Math.min(Math.max(tx, b.x), b.x + b.w), ay = Math.min(Math.max(ty, b.y), b.y + b.h);
-    const lx = Math.min(Math.max(ax, r.x), r.x + r.w), ly = Math.min(Math.max(ay, r.y), r.y + r.h);
-    res[c.id] = { mode: 'out', ...r, fs, ax, ay, lx, ly, main: text, sub: title ? c.id : null };
+
+    const chosen = (prevCandBest && prevCandBest.score <= best.score + HYSTERESIS_MARGIN) ? prevCandBest : best;
+
+    if (prevIndices) prevIndices[c.id] = chosen.idx;
+    prevCandidateIndices.set(c.id, chosen.idx);
+
+    tags.push(chosen.r);
+    res[c.id] = {
+      mode: 'out',
+      ...chosen.r,
+      fs,
+      ax: chosen.ax,
+      ay: chosen.ay,
+      lx: chosen.lx,
+      ly: chosen.ly,
+      main: text,
+      sub: hasSub ? c.id : null,
+      candIdx: chosen.idx
+    };
   }
   return res;
 }
@@ -738,6 +818,17 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     path: w.path?.map(pt => ({ ...pt, col: mCenter - pt.col - 1 }))
   })) : wires;
 
+  // Compute part labels on unshifted display components, then grow bounds so all outside tags fit
+  const unshiftedLabels = layoutPartLabels(displayComps);
+  Object.values(unshiftedLabels).forEach(L => {
+    if (L && L.mode === 'out') {
+      minC = Math.min(minC, L.x / SP);
+      maxC = Math.max(maxC, (L.x + L.w) / SP);
+      minR = Math.min(minR, L.y / SP);
+      maxR = Math.max(maxR, (L.y + L.h) / SP);
+    }
+  });
+
   const gut = coordGutters(frame, bv, side);
   minC -= (padding + gut.left) / SP; minR -= (padding + gut.top) / SP;
   maxC += (padding + gut.right) / SP; maxR += (padding + gut.bottom) / SP;
@@ -779,7 +870,27 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     oy: c.oy - minR,
     pins: c.pins.map(p => ({ ...p, col: p.col - minC, row: p.row - minR }))
   }));
-  const partLabels = layoutPartLabels(shifted, { bounds: { x: 0, y: 0, w: W, h: H } });
+
+  const dxPx = minC * SP;
+  const dyPx = minR * SP;
+  const partLabels = {};
+  for (const [id, L] of Object.entries(unshiftedLabels)) {
+    if (!L) continue;
+    if (L.mode === 'in') {
+      partLabels[id] = { ...L, cx: L.cx - dxPx, y0: L.y0 - dyPx };
+    } else {
+      partLabels[id] = {
+        ...L,
+        x: L.x - dxPx,
+        y: L.y - dyPx,
+        ax: L.ax - dxPx,
+        ay: L.ay - dyPx,
+        lx: L.lx - dxPx,
+        ly: L.ly - dyPx
+      };
+    }
+  }
+
   shifted.forEach(sc => {
     const rendered = renderCompSVG(sc, 'split', null, null, partLabels[sc.id]);
     compsBases.push(rendered.base);

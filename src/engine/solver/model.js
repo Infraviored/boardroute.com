@@ -3,6 +3,34 @@ import { makeComp } from '../initial-placement.js';
 import { rotateComp90InPlace, moveComp } from '../placer.js';
 import { isJump } from './boxrouter.js';
 
+// Interchangeable pins (def.swap): every permutation within each group is a variant of the
+// footprint where pin p sits in the hole of pin perm[p]. Variants x 4 rotations make up `rots`
+// (index = variant * 4 + rotation), so the solver's rotate moves also try other pin orders.
+const MAX_VARIANTS = 24;
+function permutations(a) {
+    if (a.length <= 1) return [a];
+    const out = [];
+    a.forEach((x, i) => { for (const rest of permutations([...a.slice(0, i), ...a.slice(i + 1)])) out.push([x, ...rest]); });
+    return out;
+}
+export function offsetVariants(def) {
+    let vars = [def.offsets];
+    for (const g of def.swap || []) {
+        const next = [];
+        for (const offs of vars) {
+            for (const perm of permutations(g)) {
+                const o = offs.slice();
+                g.forEach((p, k) => { o[p] = offs[perm[k]]; });
+                next.push(o);
+                if (next.length >= MAX_VARIANTS) break;
+            }
+            if (next.length >= MAX_VARIANTS) break;
+        }
+        vars = next;
+    }
+    return vars;
+}
+
 // Rotation matches rotateComp90InPlace: w' = h, h' = w, dCol' = h-1-dRow, dRow' = dCol.
 function rotations(def) {
     const out = [];
@@ -25,7 +53,8 @@ export function buildModel(defs) {
         id: def.id,
         def,
         routeUnder: !!def.routeUnder,
-        rots: rotations(def),
+        variants: offsetVariants(def),
+        rots: offsetVariants(def).flatMap(offsets => rotations({ ...def, offsets })),
         net: Int32Array.from(def.pinNets.map(n => {
             if (!n) return -1;
             if (!netIds.has(n)) netIds.set(n, netIds.size);
@@ -47,8 +76,8 @@ export function buildModel(defs) {
 // Placement -> engine components/wires (engine format, positions offset by origin).
 export function toEngine(model, pl, routing, W, originCol = 0, originRow = 0) {
     const components = model.comps.map((c, i) => {
-        const comp = makeComp(c.def, 0, 0);
-        for (let r = 0; r < pl.rot[i]; r++) rotateComp90InPlace(comp);
+        const comp = makeComp({ ...c.def, offsets: c.variants[pl.rot[i] >> 2] }, 0, 0);
+        for (let r = 0; r < (pl.rot[i] & 3); r++) rotateComp90InPlace(comp);
         moveComp(comp, pl.ox[i] + originCol, pl.oy[i] + originRow);
         return comp;
     });

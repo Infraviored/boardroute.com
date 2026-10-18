@@ -1173,7 +1173,8 @@
         4,
         3
       ]
-    }
+    },
+    "swap": true
   },
   {
     "name": "Screw Terminal 3P",
@@ -1210,6 +1211,7 @@
         6,
         3
       ]
-    }
+    },
+    "swap": true
   }
 ]

@@ -218,7 +218,10 @@ export async function solveBox(defs, opts = {}) {
             else pl.oy[i] += rnd() < 0.5 ? -step : step;
         } else if (kind === 1) {
             const R0 = model.comps[i].rots[pl.rot[i]];
-            pl.rot[i] = (pl.rot[i] + 1 + ri(3)) & 3;
+            const nv = model.comps[i].variants.length;
+            // interchangeable pins: half the time another pin order instead of another turn
+            if (nv > 1 && rnd() < 0.5) pl.rot[i] = ((pl.rot[i] >> 2) + 1 + ri(nv - 1)) % nv * 4 + (pl.rot[i] & 3);
+            else pl.rot[i] = (pl.rot[i] & ~3) | ((pl.rot[i] + 1 + ri(3)) & 3);
             const R1 = model.comps[i].rots[pl.rot[i]];
             pl.ox[i] += Math.floor((R0.w - R1.w) / 2);
             pl.oy[i] += Math.floor((R0.h - R1.h) / 2);
@@ -236,7 +239,7 @@ export async function solveBox(defs, opts = {}) {
             const n = c.nets[ri(c.nets.length)];
             const others = pinsOfNet(pl, n, i);
             if (others.length) {
-                if (rnd() < 0.5) pl.rot[i] = ri(4);
+                if (rnd() < 0.5) pl.rot[i] = ri(c.rots.length);
                 const R = c.rots[pl.rot[i]];
                 const mine = [];
                 for (let p = 0; p < c.net.length; p++) if (c.net[p] === n) mine.push(p);
@@ -322,7 +325,7 @@ export async function solveBox(defs, opts = {}) {
     const randomPlacement = () => {
         const pl = { ox: new Int32Array(nC), oy: new Int32Array(nC), rot: new Int32Array(nC) };
         for (let i = 0; i < nC; i++) {
-            pl.rot[i] = ri(4);
+            pl.rot[i] = ri(model.comps[i].rots.length);
             const R = model.comps[i].rots[pl.rot[i]];
             pl.ox[i] = ri(Math.max(1, W - R.w + 1));
             pl.oy[i] = ri(Math.max(1, H - R.h + 1));
@@ -369,7 +372,7 @@ export async function solveBox(defs, opts = {}) {
             const i = ri(nC);
             const ox = pl.ox[i], oy = pl.oy[i], rot = pl.rot[i];
             const m = rnd();
-            if (m < 0.25) pl.rot[i] = (rot + 1 + ri(3)) & 3;
+            if (m < 0.25) pl.rot[i] = ri(model.comps[i].rots.length);
             else if (m < 0.9) { pl.ox[i] += ri(5) - 2; pl.oy[i] += ri(5) - 2; }
             else { const R = model.comps[i].rots[rot]; pl.ox[i] = ri(Math.max(1, W - R.w + 1)); pl.oy[i] = ri(Math.max(1, H - R.h + 1)); }
             clampComp(pl, i);

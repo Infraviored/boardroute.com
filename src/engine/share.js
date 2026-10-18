@@ -12,7 +12,8 @@
 //     c: [[id, name, value, w, h, ox, oy, pins, extra?], ...]
 //          pins  = flat [dCol, dRow, net, label, ...] in the part's current rotation;
 //                  net = index into n plus 1, 0 = unconnected
-//          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour
+//          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour,
+//                  { s: [[pinIndex, ...], ...] } for interchangeable pins
 //     w: [[net, flags, col, row, steps], ...]          flags: 1 = jumper, 2 = failed
 //          steps = run-length unit steps "r3d2l" (r/l/u/d), any other step as "~dc,dr;" }
 //
@@ -90,6 +91,7 @@ export function packBoard(components, wires) {
     const extra = {};
     if (comp.routeUnder === false) extra.u = 0;
     if (comp.color) extra.k = comp.color;
+    if (comp.swap?.length) extra.s = comp.swap;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
     return row;
@@ -136,6 +138,11 @@ export function unpackBoard(data) {
       if (extra.k !== undefined) {
         if (!isStr(extra.k, 40)) throw new ShareError(`bad colour for ${id}`);
         comp.color = extra.k;
+      }
+      if (extra.s !== undefined) {
+        const n = pins.length / 4;
+        if (!Array.isArray(extra.s) || !extra.s.every(g => Array.isArray(g) && g.length >= 2 && g.every(i => isInt(i, 0, n - 1)))) throw new ShareError(`bad interchangeable pins on ${id}`);
+        comp.swap = extra.s;
       }
     }
     const seen = new Set();

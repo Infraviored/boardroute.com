@@ -77,6 +77,7 @@ export function processTemplate(data) {
         const normalizedOffsets = offsets.map(off => [off[0] - minCol, off[1] - minRow]);
 
         return {
+            ...(swapGroups(cd) ? { swap: swapGroups(cd) } : {}),
             id: cd.id || ('C' + (idx + 1)),
             name: cd.name || '?',
             value: cd.value || '',
@@ -109,6 +110,27 @@ export function bodyOf(c) {
     return { offset: [0, 0], size: [c.w, c.h] };
 }
 
+// Interchangeable pins: `swap: true` (all pins) or groups of pin labels / indices,
+// e.g. [["+", "-"]]. The solver may then give the pins of a group each other's nets (a screw
+// terminal works either way round). Normalised to [[pinIndex, ...], ...] or null.
+export function swapGroups(cd) {
+    const n = cd.pins?.length || 0;
+    if (!cd.swap || n < 2) return null;
+    const raw = cd.swap === true ? [cd.pins.map((_, i) => i)] : Array.isArray(cd.swap) ? cd.swap : [];
+    const used = new Set(), out = [];
+    for (const g of raw) {
+        if (!Array.isArray(g)) continue;
+        const idx = [...new Set(g.map(x => typeof x === 'number' ? x : cd.pins.findIndex(p => (p.label ?? p.lbl) === x)))]
+            .filter(i => Number.isInteger(i) && i >= 0 && i < n && !used.has(i));
+        if (idx.length < 2) continue;
+        idx.forEach(i => used.add(i));
+        out.push(idx);
+    }
+    return out.length ? out : null;
+}
+// the JSON form: true when one group holds every pin, else the index groups
+export const swapJSON = (c) => !c.swap?.length ? undefined : (c.swap.length === 1 && c.swap[0].length === c.pins.length ? true : c.swap);
+
 export function generateJSONFromState(components) {
     const json = { components: [] };
     components.forEach(c => {
@@ -124,6 +146,7 @@ export function generateJSONFromState(components) {
             }))
         };
         if (c.routeUnder === false) compJson.routeUnder = false;
+        if (swapJSON(c) !== undefined) compJson.swap = swapJSON(c);
         const body = bodyOf(c);
         if (body) compJson.body = body;
         json.components.push(compJson);

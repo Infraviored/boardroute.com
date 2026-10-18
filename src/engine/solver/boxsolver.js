@@ -52,9 +52,19 @@ function placementFromEngine(model, comps) {
     for (let i = 0; i < n; i++) {
         const m = model.comps[i], c = byId.get(m.id);
         if (!c || c.pins.length !== m.net.length) return null;
-        const r = m.rots.findIndex(R => R.w === c.w && R.h === c.h && c.pins.every((p, k) => R.dc[k] === p.dCol && R.dr[k] === p.dRow));
-        if (r < 0) return null;
-        pl.rot[i] = r; pl.ox[i] = c.ox; pl.oy[i] = c.oy;
+        let bestR = -1;
+        for (let r = 0; r < m.rots.length; r++) {
+            const R = m.rots[r];
+            if (R.w === c.w && R.h === c.h && c.pins.every((p, k) => R.dc[k] === p.dCol && R.dr[k] === p.dRow)) {
+                if (bestR < 0) bestR = r;
+                if (m.edge >= 0 && c.edge >= 0 && ((m.edge + (r & 3)) % 4 === c.edge)) {
+                    bestR = r;
+                    break;
+                }
+            }
+        }
+        if (bestR < 0) return null;
+        pl.rot[i] = bestR; pl.ox[i] = c.ox; pl.oy[i] = c.oy;
         minX = Math.min(minX, c.ox); minY = Math.min(minY, c.oy);
         maxX = Math.max(maxX, c.ox + c.w - 1); maxY = Math.max(maxY, c.oy + c.h - 1);
     }

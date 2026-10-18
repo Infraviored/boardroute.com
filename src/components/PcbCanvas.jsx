@@ -363,17 +363,17 @@ export function PcbCanvas({
         }
         if (boardFrame) {
             // Frame the whole physical board plus its label strips, not just the layout.
-            const g = coordGutters(boardFrame, boardView);
+            const g = coordGutters(boardFrame, boardView, side);
             const ext = (px) => Math.ceil(px / SP);
             minCol = Math.min(minCol, boardFrame.c0 - ext(g.left));
             minRow = Math.min(minRow, boardFrame.r0 - ext(g.top));
-            maxCol = Math.max(maxCol, boardFrame.c0 + boardFrame.cols - 1 + ext(g.right));
-            maxRow = Math.max(maxRow, boardFrame.r0 + boardFrame.rows - 1 + ext(g.bottom));
+            maxCol = Math.max(maxCol, boardFrame.c0 + boardFrame.cols + ext(g.right));
+            maxRow = Math.max(maxRow, boardFrame.r0 + boardFrame.rows + ext(g.bottom));
         }
         if (minCol === maxCol) maxCol += 1;
         if (minRow === maxRow) maxRow += 1;
         return { minCol, minRow, maxCol, maxRow };
-    }, [components, wires, cols, rows, boardFrame, boardView]);
+    }, [components, wires, cols, rows, boardFrame, boardView, side]);
 
     const snapLockRef = useRef(null);
     const lastSnapStep = useRef(0);
@@ -613,7 +613,26 @@ export function PcbCanvas({
     // also switch off the React Compiler lint rules for this whole component).
     // Solder side: mirror every column about the layout's bounds (same convention as the export).
     const solder = side === 'bottom';
-    const mCenter = bounds.minCol + bounds.maxCol;
+    const mCenter = useMemo(() => {
+        void tick;
+        let minC = Infinity, maxC = -Infinity;
+        for (const c of components) {
+            minC = Math.min(minC, c.ox);
+            maxC = Math.max(maxC, c.ox + c.w);
+        }
+        for (const w of wires) {
+            if (!w.path) continue;
+            for (const p of w.path) {
+                minC = Math.min(minC, p.col);
+                maxC = Math.max(maxC, p.col + 1);
+            }
+        }
+        if (boardFrame?.sized) {
+            minC = Math.min(minC, boardFrame.c0);
+            maxC = Math.max(maxC, boardFrame.c0 + boardFrame.cols);
+        }
+        return isFinite(minC) ? minC + maxC : cols;
+    }, [components, wires, boardFrame, tick, cols]);
     const view = useMemo(() => {
         void tick;
         if (!solder) return { components, wires };

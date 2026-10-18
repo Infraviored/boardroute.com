@@ -512,7 +512,8 @@ export async function solveBox(defs, opts = {}) {
                     { axis: 0, idx: 0 }, { axis: 0, idx: W - 1 }, { axis: 1, idx: 0 }, { axis: 1, idx: H - 1 },
                 ].filter(e => (e.axis === 0 ? W - 1 >= minDimA : H - 1 >= minDimA));
                 for (const e of lines) e.occ = lineOccupancy(s.route, e) / (e.axis === 0 ? H : W);
-                lines.sort((a, b) => a.occ - b.occ);
+                const lineExcess = (e) => targetExcess(e.axis === 0 ? W - 1 : W, e.axis === 1 ? H - 1 : H, opts.target).excess;
+                lines.sort((a, b) => (lineExcess(a) - lineExcess(b)) || (a.occ - b.occ));
                 for (const e of lines.slice(0, V.sides)) {
                     if (stop()) break;
                     edge = e;

@@ -236,8 +236,8 @@ const WORK = 3e6;
 // out of it, the cheaper of the two orientations (the whole layout can be turned 90°), and
 // whether it fits only turned. No target: 0.
 export function targetExcess(w, h, target) {
-    if (!target || (!target.cols && !target.rows)) return { excess: 0, turned: false };
-    const over = (a, b) => Math.max(0, a - (target.cols || Infinity)) + Math.max(0, b - (target.rows || Infinity));
+    if (!target || (target.cols == null && target.rows == null)) return { excess: 0, turned: false };
+    const over = (a, b) => Math.max(0, a - (target.cols ?? Infinity)) + Math.max(0, b - (target.rows ?? Infinity));
     const straight = over(w, h), turned = over(h, w);
     return turned < straight ? { excess: turned, turned: true } : { excess: straight, turned: false };
 }

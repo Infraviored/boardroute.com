@@ -21,7 +21,7 @@ self.onmessage = async (e) => {
     // firstOnly (the UI's Wire step): stop as soon as one fully routed layout exists.
     const stalled = () => {
         if (lastBest === null) return false;
-        if (msg.firstOnly) return lastFits;
+        if (msg.firstOnly && lastFits) return true;
         if (!msg.stallMs) return false;
         const t = performance.now();
         return t - lastBest > Math.max(msg.stallMs, (lastBest - t0) * 0.5);

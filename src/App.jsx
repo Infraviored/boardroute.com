@@ -166,6 +166,8 @@ function App() {
   // Optional account (cloud.js): who is signed in, and which saved circuit the board came from
   // (Save overwrites that one; loading anything else forgets it)
   const [account, setAccount] = useState(null);
+  const accountRef = useRef(account);
+  useEffect(() => { accountRef.current = account; }, [account]);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [cloudCurrent, setCloudCurrent] = useState(() => { try { return JSON.parse(localStorage.getItem('pcb_cloud_current')) || null; } catch { return null; } });
   useEffect(() => {
@@ -779,7 +781,15 @@ function App() {
       const t = signInFromHash(window.location.hash);
       if (!t) return false;
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      cloud.verify(t).then(r => { setAccount(r); setIsAccountOpen(true); })
+      cloud.verify(t).then(r => {
+        const prev = accountRef.current;
+        if (!prev || prev.email !== r.email) {
+          setCloudCurrent(null);
+          try { localStorage.removeItem('pcb_cloud_current'); } catch { /* private mode */ }
+        }
+        setAccount(r);
+        setIsAccountOpen(true);
+      })
         .catch(err => setNotice({ kind: 'error', title: 'Sign-in failed', text: err.code === 'BROWSER_MISMATCH' ? 'Open the link in the same browser you requested it from' : err.message }));
       return true;
     };

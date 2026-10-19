@@ -9,15 +9,29 @@ import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 // body is either "auto" (exactly the box around the pins: a resistor grows when a pin is moved
 // out) or a custom rectangle (relay, electrolytic, dev board) that is extended automatically
 // whenever a pin is dragged outside it. The view always frames the whole part.
+function remapSwap(swap, pins) {
+    if (!swap || swap === true) return swap;
+    const idToIndex = new Map(pins.map((p, i) => [p._id, i]));
+    const out = [];
+    for (const g of swap) {
+        if (!Array.isArray(g)) continue;
+        const mapped = g.map(id => idToIndex.get(id)).filter(i => i !== undefined);
+        if (mapped.length >= 2) out.push(mapped);
+    }
+    return out.length ? out : null;
+}
+
 function fromComponent(component) {
     if (!component) return null;
     const c = JSON.parse(JSON.stringify(component));
-    const pins = (c.pins || []).map(p => ({ lbl: p.lbl ?? '', net: p.net || '', dCol: p.dCol || 0, dRow: p.dRow || 0 }));
+    const pins = (c.pins || []).map((p, i) => ({ _id: i + 1, lbl: p.lbl ?? '', net: p.net || '', dCol: p.dCol || 0, dRow: p.dRow || 0 }));
     const pb = boxOf(pins);
     // a body larger than the pins' box is a custom body
     const w = c.w || pb.w, h = c.h || pb.h;
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
-    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap: swapGroups(c), edge: c.edge >= 0 ? c.edge : -1, pins,
+    const sg = swapGroups(c);
+    const swap = c.swap === true ? true : (sg ? sg.map(g => g.map(idx => pins[idx]?._id).filter(id => id !== undefined)) : null);
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap, edge: c.edge >= 0 ? c.edge : -1, pins,
         body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
 }
 
@@ -130,7 +144,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         let spot = null;
         for (let r = foot.y; r < foot.y + foot.h && !spot; r++) for (let c = foot.x; c < foot.x + foot.w && !spot; c++) if (!taken.has(`${c},${r}`)) spot = [c, r];
         if (!spot) spot = [foot.x + foot.w, foot.y];
-        const pins = [...data.pins, { lbl: `${data.pins.length + 1}`, net: '', dCol: spot[0], dRow: spot[1] }];
+        const nextId = Math.max(0, ...data.pins.map(p => p._id || 0)) + 1;
+        const pins = [...data.pins, { _id: nextId, lbl: `${data.pins.length + 1}`, net: '', dCol: spot[0], dRow: spot[1] }];
         update({ ...data, pins });
         setSelectedPinIdx(pins.length - 1);
     };
@@ -177,10 +192,10 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         }
         let savedSwap;
         if (data.swap && data.pins.length >= 2) {
-            if (data.swap === true || data.pins.length !== (component?.pins?.length || 0)) {
+            if (data.swap === true) {
                 savedSwap = [data.pins.map((_, i) => i)];
             } else {
-                savedSwap = data.swap;
+                savedSwap = remapSwap(data.swap, data.pins);
             }
         }
         // normalise: footprint box starts at 0,0; w/h cover pins and body
@@ -188,7 +203,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             ...component, // keeps position and anything the editor doesn't touch
             id: data.id, name: data.name, value: data.value, color: data.color, routeUnder: data.routeUnder,
             w: foot.w, h: foot.h,
-            pins: data.pins.map(p => ({ ...p, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
+            pins: data.pins.map(p => ({ lbl: p.lbl, net: p.net, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
             image: recordFromImage(data.image, foot, data.pins),
         };
         if (data.edge >= 0) saved.edge = data.edge; else delete saved.edge;
@@ -209,8 +224,20 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         }
         update(prev => {
             const keep = prev.pins.length === pins.length;
+            let nextId = Math.max(0, ...prev.pins.map(p => p._id || 0)) + 1;
             // names read from the photo win; otherwise keep the old labels (same count) or number them
-            const next = pins.map(([c, r, label], i) => ({ lbl: label || (keep ? prev.pins[i].lbl : String(i + 1)), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
+            const next = pins.map(([c, r, label], i) => {
+                const lbl = label || (keep ? prev.pins[i].lbl : String(i + 1));
+                const net = keep ? prev.pins[i].net : '';
+                let _id;
+                if (keep) {
+                    _id = prev.pins[i]._id;
+                } else {
+                    const match = prev.pins.find(p => p.lbl && p.lbl === lbl);
+                    _id = match ? match._id : nextId++;
+                }
+                return { _id, lbl, net, dCol: c, dRow: r };
+            });
             const pb = boxOf(next);
             const larger = body.x < pb.x || body.y < pb.y || body.x + body.w > pb.x + pb.w || body.y + body.h > pb.y + pb.h;
             return { ...prev, pins: next, body: larger ? body : null, image: image ? { src: image.src, turn: 0, box: { x: image.x, y: image.y, w: image.w, h: image.h }, base: { w: image.w, h: image.h } } : prev.image };

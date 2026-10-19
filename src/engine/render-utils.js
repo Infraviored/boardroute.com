@@ -384,8 +384,6 @@ function insideLabel(c, title) {
   return null;
 }
 
-const prevCandidateIndices = new Map();
-
 // { [id]: label } for every part; pass the components as the board draws them (solder side: the
 // mirrored ones). opts.bounds = { x, y, w, h } keeps tags inside an export's frame; opts.avoid =
 // [{ x, y, w, h }] areas tags stay off (the hole-coordinate strips drawn on top of them).
@@ -414,7 +412,7 @@ export function layoutPartLabels(components, opts = {}) {
 
     let best = null;
     let prevCandBest = null;
-    const rememberedIdx = prevIndices ? prevIndices[c.id] : prevCandidateIndices.get(c.id);
+    const rememberedIdx = prevIndices ? (prevIndices instanceof Map ? prevIndices.get(c.id) : prevIndices[c.id]) : undefined;
 
     cands.forEach(([x, y], i) => {
       const r = { x, y, w, h };
@@ -441,8 +439,10 @@ export function layoutPartLabels(components, opts = {}) {
 
     const chosen = (prevCandBest && prevCandBest.score <= best.score + HYSTERESIS_MARGIN) ? prevCandBest : best;
 
-    if (prevIndices) prevIndices[c.id] = chosen.idx;
-    prevCandidateIndices.set(c.id, chosen.idx);
+    if (prevIndices) {
+      if (prevIndices instanceof Map) prevIndices.set(c.id, chosen.idx);
+      else prevIndices[c.id] = chosen.idx;
+    }
 
     tags.push(chosen.r);
     res[c.id] = {

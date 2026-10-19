@@ -1,11 +1,12 @@
 // How many nets are fully connected on the board: each net's pins must be joined by its own
 // wires (consecutive path cells; a jumper joins its two legs). Used for the Completion stat, so
 // a net whose wires were deleted counts as open instead of silently vanishing from the ratio.
-export function netCompletion(components, wires) {
+// nets: optional Set of net names to count (the others are ignored).
+export function netCompletion(components, wires, nets = null) {
     const key = (c, r) => `${c},${r}`;
     const pinsByNet = new Map();
     for (const c of components) for (const p of c.pins) {
-        if (!p.net) continue;
+        if (!p.net || (nets && !nets.has(p.net))) continue;
         if (!pinsByNet.has(p.net)) pinsByNet.set(p.net, []);
         pinsByNet.get(p.net).push(key(c.ox + p.dCol, c.oy + p.dRow));
     }

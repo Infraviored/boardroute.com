@@ -73,41 +73,6 @@ export function routeFixed(components) {
     return toEngine(model, pl, r, W, minC, minR).wires;
 }
 
-// Returns true if every net with a pin on comp is fully connected across the board
-function compNetsConnected(comp, components, wires) {
-    const partNets = new Set(comp.pins.map(p => p.net).filter(Boolean));
-    if (!partNets.size) return true;
-    const key = (c, r) => `${c},${r}`;
-    const pinsByNet = new Map();
-    for (const c of components) for (const p of c.pins) {
-        if (!p.net || !partNets.has(p.net)) continue;
-        if (!pinsByNet.has(p.net)) pinsByNet.set(p.net, []);
-        pinsByNet.get(p.net).push(key(c.ox + p.dCol, c.oy + p.dRow));
-    }
-    const parent = new Map();
-    const find = (k) => {
-        if (!parent.has(k)) { parent.set(k, k); return k; }
-        let r = k;
-        while (parent.get(r) !== r) r = parent.get(r);
-        while (parent.get(k) !== r) { const n = parent.get(k); parent.set(k, r); k = n; }
-        return r;
-    };
-    const union = (net, a, b) => {
-        const ra = find(`${net}|${a}`), rb = find(`${net}|${b}`);
-        if (ra !== rb) parent.set(rb, ra);
-    };
-    for (const w of wires || []) {
-        if (w.failed || !w.path?.length || !partNets.has(w.net)) continue;
-        for (let i = 1; i < w.path.length; i++) union(w.net, key(w.path[i - 1].col, w.path[i - 1].row), key(w.path[i].col, w.path[i].row));
-    }
-    for (const [net, pins] of pinsByNet) {
-        if (pins.length < 2) continue;
-        const root = find(`${net}|${pins[0]}`);
-        if (!pins.every(p => find(`${net}|${p}`) === root)) return false;
-    }
-    return true;
-}
-
 export class AutorouterEngine {
     constructor(cols = 30, rows = 20) {
         this.components = [];
@@ -472,7 +437,9 @@ export class AutorouterEngine {
         const overlaps = () => this.components.some(o => o !== comp && comp.ox < o.ox + o.w && o.ox < comp.ox + comp.w && comp.oy < o.oy + o.h && o.oy < comp.oy + comp.h);
         const start = { ox: comp.ox, oy: comp.oy, pins: comp.pins.map(p => ({ ...p })), w: comp.w, h: comp.h, edge: comp.edge };
         // nothing broke on this part (a new picture, a renamed pin): keep the wiring as it is
-        if (!overlaps() && compNetsConnected(comp, this.components, this.wires)) return true;
+        // (only its own nets count: a net left open elsewhere is no reason to re-route)
+        const own = netCompletion(this.components, this.wires, new Set(comp.pins.map(p => p.net).filter(Boolean)));
+        if (!overlaps() && own.done === own.total) return true;
         const startWires = this.wires;
         const restore = () => { Object.assign(comp, { ox: start.ox, oy: start.oy, w: start.w, h: start.h, pins: start.pins.map(p => ({ ...p })) }); if (start.edge !== undefined) comp.edge = start.edge; this.wires = startWires; };
         const shifts = [];

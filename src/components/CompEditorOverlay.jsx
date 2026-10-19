@@ -409,7 +409,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
 
             {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
                 onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name}
-                mode={photoSession.mode || 'footprint'} footprint={{ w: foot.w, h: foot.h, pins: data.pins.map(p => [p.dCol - foot.x, p.dRow - foot.y]) }} />}
+                mode={photoSession.mode || 'footprint'} footprint={{ w: foot.w, h: foot.h, pins: data.pins.map(p => [p.dCol - foot.x, p.dRow - foot.y, p.lbl]) }} />}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .ce-photo-row { display: flex; gap: 6px; flex-wrap: wrap; }

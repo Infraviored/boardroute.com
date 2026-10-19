@@ -75,6 +75,8 @@ export function PcbCanvas({
     const activePointers = useRef(new Map());
     const pinchRef = useRef(null);
     const [draggingId, setDraggingId] = useState(null);
+    const draggingRef = useRef(null);
+    const dragMoved = useRef(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [routingPos, setRoutingPos] = useState(null); // Local mouse tracking for routing
 
@@ -147,6 +149,9 @@ export function PcbCanvas({
                 camStart: { ...cam },
                 worldMid: { x: (mid.x - cam.x) / cam.z, y: (mid.y - cam.y) / cam.z }
             };
+            if ((draggingId || draggingRef.current) && dragMoved.current) onMoveEnd?.();
+            dragMoved.current = false;
+            draggingRef.current = null;
             setIsPanning(false);
             setDraggingId(null);
             e.currentTarget.setPointerCapture(e.pointerId);
@@ -194,6 +199,8 @@ export function PcbCanvas({
         } else if (compHit) {
             // New component or body click: select only (allows drag)
             setDraggingId(compHit.id);
+            draggingRef.current = compHit.id;
+            dragMoved.current = false;
             setDragOffset({ x: worldX - compHit.ox * SP, y: worldY - compHit.oy * SP });
             onSelect?.(compHit.id);
             // If we were routing and clicked another component, cancel routing
@@ -250,7 +257,10 @@ export function PcbCanvas({
             const ny = Math.round((worldY - dragOffset.y) / SP);
             // only when the part actually lands on another hole: every move re-routes and re-renders the app
             const dc = components.find(c => c.id === draggingId);
-            if (!dc || dc.ox !== nx || dc.oy !== ny) onMove?.(draggingId, nx, ny);
+            if (!dc || dc.ox !== nx || dc.oy !== ny) {
+                dragMoved.current = true;
+                onMove?.(draggingId, nx, ny);
+            }
         } else if (isPanning) {
             const cam = camRef.current;
             const newP = {
@@ -272,7 +282,9 @@ export function PcbCanvas({
             const remaining = Array.from(activePointers.current.values())[0];
             lastPos.current = remaining;
         }
-        if (draggingId) onMoveEnd?.();
+        if ((draggingId || draggingRef.current) && dragMoved.current) onMoveEnd?.();
+        dragMoved.current = false;
+        draggingRef.current = null;
         setDraggingId(null);
         setIsPanning(false);
         const target = e.currentTarget;
@@ -290,6 +302,9 @@ export function PcbCanvas({
             const remaining = Array.from(activePointers.current.values())[0];
             lastPos.current = remaining;
         }
+        if ((draggingId || draggingRef.current) && dragMoved.current) onMoveEnd?.();
+        dragMoved.current = false;
+        draggingRef.current = null;
         setDraggingId(null);
         setIsPanning(false);
         const target = e.currentTarget;

@@ -12,23 +12,26 @@ const MAX_SIDE = 2400; // photos are scaled down to this (enough for pins and pr
 //      click pins; "find similar" looks for more holes that look like the pins marked so far.
 //      The outline, the part's picture (photo cut to the frame) and OCR of the pin names
 //      work on that grid.
-// Grid: hole (c, r) sits at origin + pitch·R(angle)·(c, r) in the turned photo.
+// Grid: hole (c, r) sits at origin + R(angle)·(pitch·c, pitch·ky·r) in the turned photo; ky
+// (default 1) stretches the rows apart: a photo taken slightly at an angle, fitted by hand.
 const holeAt = (g, c, r) => {
-    const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0);
-    return [g.phaseX + g.pitch * (c * cs - r * sn), g.phaseY + g.pitch * (c * sn + r * cs)];
+    const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0), u = g.pitch * c, v = g.pitch * (g.ky || 1) * r;
+    return [g.phaseX + u * cs - v * sn, g.phaseY + u * sn + v * cs];
 };
 // grid coordinates of an image point (not rounded) and the nearest hole
 const gridOf = (g, x, y) => {
-    const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0), dx = (x - g.phaseX) / g.pitch, dy = (y - g.phaseY) / g.pitch;
-    return [dx * cs + dy * sn, -dx * sn + dy * cs];
+    const cs = Math.cos(g.angle || 0), sn = Math.sin(g.angle || 0), dx = x - g.phaseX, dy = y - g.phaseY;
+    return [(dx * cs + dy * sn) / g.pitch, (-dx * sn + dy * cs) / (g.pitch * (g.ky || 1))];
 };
 const holeOf = (g, x, y) => gridOf(g, x, y).map(Math.round);
+// g moved so that grid point (c, r) lands on image point P
+const pinGrid = (g, c, r, P) => { const [x, y] = holeAt({ ...g, phaseX: 0, phaseY: 0 }, c, r); return { ...g, phaseX: P[0] - x, phaseY: P[1] - y }; };
 // the grid turned by da / scaled by k around image point P (P keeps its grid position)
 const turnGrid = (g, da, P) => {
     let a = (g.angle || 0) + da;
     a = Math.atan2(Math.sin(a), Math.cos(a));
-    const [u, v] = gridOf(g, ...P), cs = Math.cos(a), sn = Math.sin(a);
-    return { ...g, angle: a, phaseX: P[0] - g.pitch * (u * cs - v * sn), phaseY: P[1] - g.pitch * (u * sn + v * cs) };
+    const [u, v] = gridOf(g, ...P);
+    return pinGrid({ ...g, angle: a }, u, v, P);
 };
 const scaleGrid = (g, k, P) => ({ ...g, pitch: g.pitch * k, phaseX: P[0] - k * (P[0] - g.phaseX), phaseY: P[1] - k * (P[1] - g.phaseY) });
 const samePin = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
@@ -58,8 +61,10 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const aspect = picture ? footprint.w / footprint.h : 0;
     const aspectRef = useRef(aspect); // for the photo loader (a new photo starts with the current shape)
     aspectRef.current = aspect;
-    // the footprint's pins as seen on the photo (an underside photo shows them mirrored)
+    // the footprint's pins as seen on the photo (an underside photo shows them mirrored), with
+    // their names shown in the rings
     const footPins = (m) => footprint.pins.map(([c, r]) => [m ? footprint.w - 1 - c : c, r]);
+    const footLabels = (m) => Object.fromEntries(footprint.pins.filter(q => q[2]).map(([c, r, l]) => [(m ? footprint.w - 1 - c : c) + ',' + r, l]));
     const [src, setSrc] = useState(file); // the photo (Blob); null = ask for one
     // pick | loading | crop (frame the part on the whole photo) | ready (turned photo, pins) | error
     const [state, setState] = useState({ status: file ? 'loading' : 'pick' });
@@ -84,11 +89,12 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const [url, setUrl] = useState('');
     const [over, setOver] = useState(false);    // a file dragged over the dialog
     const [hist, setHist] = useState([]);       // undo: earlier { grid, pins, box, labels, zv }
-    const snap = () => setHist(h => [...h.slice(-49), { grid, pins, box, labels, zv }]);
+    const snap = () => setHist(h => [...h.slice(-49), { grid, pins, box, labels, zv, mirror }]);
     const undo = () => setHist(h => {
         if (!h.length) return h;
         const last = h[h.length - 1];
-        setGrid(last.grid); setPins(last.pins); setBox(last.box); setLabels(last.labels || {}); setMeasure(null); setSel(null); setZv(last.zv || null);
+        setGrid(last.grid); setPins(last.pins); setBox(last.box); setLabels(last.labels || {}); setSel(null); setZv(last.zv || null); setMirror(!!last.mirror);
+        if (!picture) setMeasure(null);
         return h.slice(0, -1);
     });
     const svgRef = useRef(null);
@@ -191,7 +197,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             if (!same || !grid) {
                 const pitch = (framePx.x1 - framePx.x0) / footprint.w;
                 setGrid({ angle: 0, pitch, phaseX: framePx.x0 + pitch / 2, phaseY: framePx.y0 + pitch / 2 });
-                setPins(footPins(mirror)); setHist([]);
+                setPins(footPins(mirror)); setLabels(footLabels(mirror)); setHist([]); setZv(null);
                 setMeasure({ kind: 'grid', pitch0: pitch });
             }
         } else if (!same) { setGrid(null); setPins([]); setBox(null); setLabels({}); setOcr(null); setHist([]); setFound(null); setMeasure({ kind: 'scale' }); }
@@ -394,6 +400,14 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             return;
         }
         const t = e.target.getAttribute?.bind(e.target) || (() => null);
+        if (picture && grid) {
+            // the box with the pins works like the frame of step 1: inside moves it, the round
+            // handle turns it, edges stretch it, corners size it; outside moves the photo
+            const [u, v] = gridOf(grid, p.x, p.y);
+            const inside = u >= -0.5 && u <= footprint.w - 0.5 && v >= -0.5 && v <= footprint.h - 0.5;
+            setDrag({ ...start, box: t('data-bh') || (inside ? 'move' : 'pan'), g: grid, p0: [p.x, p.y], v: view2, z: z2 });
+            return;
+        }
         if (t('data-edge') && grid) {
             // a handle of the outline: drag that edge
             snap();
@@ -427,6 +441,34 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const p = toImage(e);
         if (!p) return;
         if (drag.ocr) { setMeasure(m => ({ ...m, b: [p.x, p.y] })); return; }
+        if (drag.box) {
+            if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) <= 2) return;
+            if (!drag.moved) { if (drag.box !== 'pan') snap(); setDrag({ ...drag, moved: true }); }
+            const g = drag.g, W = footprint.w, H = footprint.h;
+            if (drag.box === 'pan') {
+                const dx = (e.clientX - drag.sx) / drag.z, dy = (e.clientY - drag.sy) / drag.z;
+                setZv([drag.v[0] - dx, drag.v[1] - dy, drag.v[2], drag.v[3]]);
+            } else if (drag.box === 'move') {
+                setGrid({ ...g, phaseX: g.phaseX + p.x - drag.p0[0], phaseY: g.phaseY + p.y - drag.p0[1] });
+            } else if (drag.box === 'rot') {
+                const C = holeAt(g, (W - 1) / 2, (H - 1) / 2);
+                let a = (g.angle || 0) + Math.atan2(p.y - C[1], p.x - C[0]) - Math.atan2(drag.p0[1] - C[1], drag.p0[0] - C[0]);
+                const q = Math.round(a / (Math.PI / 2)) * Math.PI / 2;
+                if (Math.abs(a - q) < 0.02) a = q; // snaps to straight
+                setGrid(turnGrid(g, a - (g.angle || 0), C));
+            } else {
+                // an edge stretches along its axis, a corner sizes both ways; the opposite side stays
+                const h = drag.box, [u, v] = gridOf(g, p.x, p.y);
+                const au = h.includes('l') ? W - 0.5 : -0.5, av = h.includes('t') ? H - 0.5 : -0.5;
+                const su = h.includes('l') || h.includes('r') ? Math.max(0.2, Math.abs(u - au) / W) : 1;
+                const sv = h.includes('t') || h.includes('b') ? Math.max(0.2, Math.abs(v - av) / H) : 1;
+                const corner = su !== 1 && sv !== 1, s = corner ? (su + sv) / 2 : 1;
+                const n = corner ? { ...g, pitch: g.pitch * s } : { ...g, pitch: g.pitch * su, ky: (g.ky || 1) * sv / su };
+                const cu = su !== 1 ? au : (W - 1) / 2, cv = sv !== 1 ? av : (H - 1) / 2;
+                setGrid(pinGrid(n, cu, cv, holeAt(g, cu, cv)));
+            }
+            return;
+        }
         if (drag.edge) {
             const [u, v] = gridOf(grid, p.x, p.y);
             // edges sit between holes; the outline never gets smaller than the pins
@@ -492,7 +534,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         if (swallow.current) { swallow.current = ptrs.current.size > 0; return; }
         if (!drag) return;
         setDrag(null);
-        if (drag.edge) return;
+        if (drag.edge || drag.box) return;
         if (drag.ocr) { runOcr(measure.a, measure.b); return; }
         if (drag.moved) {
             if (drag.m && measure.a && measure.b) applyMeasure(measure.a, measure.b, measure.n, true);
@@ -538,6 +580,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         const pts = pins.map(([c, r]) => holeAt(grid, c, r));
         return [pts.reduce((a, q) => a + q[0], 0) / pts.length, pts.reduce((a, q) => a + q[1], 0) / pts.length];
     };
+    // picture mode: the middle of the box (what the 90° buttons and the slider turn around)
+    const boxCentre = () => holeAt(grid, (footprint.w - 1) / 2, (footprint.h - 1) / 2);
     const startAlign = () => { snap(); setRowMode(false); setMeasure({ kind: 'grid', pitch0: grid.pitch }); };
 
 
@@ -669,6 +713,22 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const handles = scaled ? [['l', body.x - 0.5, body.y + (body.h - 1) / 2], ['r', body.x + body.w - 0.5, body.y + (body.h - 1) / 2],
         ['t', body.x + (body.w - 1) / 2, body.y - 0.5], ['b', body.x + (body.w - 1) / 2, body.y + body.h - 0.5]].map(([e, c, r]) => [e, ...holeAt(grid, c, r)]) : null;
 
+    // grid lines through the holes of the part: easier to see whether the photo sits right
+    const gridLines = [];
+    if (scaled) {
+        for (let c = body.x; c < body.x + body.w; c++) gridLines.push([holeAt(grid, c, body.y - 0.5), holeAt(grid, c, body.y + body.h - 0.5)]);
+        for (let r = body.y; r < body.y + body.h; r++) gridLines.push([holeAt(grid, body.x - 0.5, r), holeAt(grid, body.x + body.w - 0.5, r)]);
+    }
+    // picture mode: the box's handles (as the frame's in step 1) and the turn handle above it
+    let boxHandles = null, boxRot = null;
+    if (picture && scaled) {
+        const W = footprint.w, H = footprint.h;
+        boxHandles = [['tl', -0.5, -0.5], ['t', (W - 1) / 2, -0.5], ['tr', W - 0.5, -0.5], ['r', W - 0.5, (H - 1) / 2], ['br', W - 0.5, H - 0.5], ['b', (W - 1) / 2, H - 0.5], ['bl', -0.5, H - 0.5], ['l', -0.5, (H - 1) / 2]]
+            .map(([h, c, r]) => [h, ...holeAt(grid, c, r)]);
+        const T = holeAt(grid, (W - 1) / 2, -0.5), C = holeAt(grid, (W - 1) / 2, (H - 1) / 2), d = Math.hypot(T[0] - C[0], T[1] - C[1]) || 1;
+        boxRot = { base: T, dir: [(T[0] - C[0]) / d, (T[1] - C[1]) / d] };
+    }
+
     // grid holes on and a little around the part
     let holes = null;
     if (scaled) {
@@ -761,11 +821,20 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 <path fillRule="evenodd" fill="rgba(0,0,0,.55)" style={{ pointerEvents: 'none' }}
                                     d={`M0 0H${state.PW}V${state.PH}H0Z M${fc.map(p => p.join(' ')).join(' L')}Z`} />
                                 <polygon points={fc.map(p => p.join(',')).join(' ')} fill="transparent" stroke="#58a6ff" strokeWidth={2 / zoom} style={{ cursor: drag ? 'grabbing' : 'move' }} />
-                                {picture && footprint.pins.map(([c, r]) => {
-                                    // where the pins will be: helps putting the frame on the part
-                                    const [x, y] = fromFrame(frame, (c + 0.5) * frame.w / footprint.w - frame.w / 2, (r + 0.5) * frame.h / footprint.h - frame.h / 2);
-                                    return <circle key={c + ',' + r} cx={x} cy={y} r={frame.w / footprint.w * 0.3} fill="none" stroke="rgba(63,185,80,.8)" strokeWidth={1.5 / zoom} style={{ pointerEvents: 'none' }} />;
-                                })}
+                                {picture && (() => {
+                                    // the footprint's grid and pins (with names) in the frame: where the pins will be
+                                    const cw = frame.w / footprint.w, ch = frame.h / footprint.h, at = (c, r) => fromFrame(frame, (c + 0.5) * cw - frame.w / 2, (r + 0.5) * ch - frame.h / 2);
+                                    const lines = [];
+                                    for (let c = 0; c < footprint.w; c++) lines.push([at(c, -0.5), at(c, footprint.h - 0.5)]);
+                                    for (let r = 0; r < footprint.h; r++) lines.push([at(-0.5, r), at(footprint.w - 0.5, r)]);
+                                    return <g style={{ pointerEvents: 'none' }}>
+                                        {lines.map(([a, b], i) => <line key={i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="rgba(255,255,255,.22)" strokeWidth={1 / zoom} />)}
+                                        {footprint.pins.map(([c, r, l]) => { const [x, y] = at(c, r); return <g key={c + ',' + r}>
+                                            <circle cx={x} cy={y} r={Math.min(cw, ch) * 0.34} fill="rgba(63,185,80,.15)" stroke="#3fb950" strokeWidth={1.5 / zoom} />
+                                            {l && <text x={x} y={y} dy=".35em" textAnchor="middle" fontSize={Math.min(cw, ch) * Math.min(0.42, 1.1 / Math.max(2, l.length))} fontWeight="800" fill="#ffd33d" stroke="#000" strokeWidth={Math.min(cw, ch) / 22} paintOrder="stroke" transform={`rotate(${deg} ${x} ${y})`}>{l}</text>}
+                                        </g>; })}
+                                    </g>;
+                                })()}
                                 <line x1={rotBase[0]} y1={rotBase[1]} x2={rotH[0]} y2={rotH[1]} stroke="#58a6ff" strokeWidth={1.5 / zoom} style={{ pointerEvents: 'none' }} />
                                 {fHandles.map(([h, x, y]) => (
                                     <rect key={h} data-h={h} x={x - hs / 2} y={y - hs / 2} width={hs} height={hs} rx={hs / 5}
@@ -779,7 +848,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
                         {ready && measure?.kind === 'scale' && !measure.b && <div className="pf-banner">{measure.a ? 'Now tap the last pin of that row' : 'Tap the first pin of a row'}</div>}
                         {cropping && !drag && <div className="pf-banner soft">Drag inside the frame to move it · outside to move the photo</div>}
-                        {ready && measure?.kind === 'grid' && !drag && <div className="pf-banner soft">{picture ? 'Drag the photo until its pins sit in the green rings' : 'Drag to move'} · {touch ? 'twist two fingers to turn' : '[ ] or the slider to turn'}</div>}
+                        {ready && measure?.kind === 'grid' && !drag && <div className="pf-banner soft">{picture ? 'Put the box on the part: the rings on its pins' : 'Drag to move'} · {touch ? 'twist two fingers to turn' : (picture ? 'round handle turns' : '[ ] or the slider to turn')}</div>}
                         {ready && rowMode && !measure && <div className="pf-banner">{sel ? 'Tap where the row ends' : 'Tap the row\'s first pin'}</div>}
                         {ready && (
                             <div className="pf-zoom">
@@ -797,9 +866,12 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 <image href={state.url} x="0" y="0" width={state.W} height={state.H} />
                                 {/* outside the frame dimmed: still there for a scale, but not the part */}
                                 <path fillRule="evenodd" fill="rgba(0,0,0,.45)" style={{ pointerEvents: 'none' }}
-                                    d={`M0 0H${state.W}V${state.H}H0Z M${state.framePx.x0} ${state.framePx.y0}H${state.framePx.x1}V${state.framePx.y1}H${state.framePx.x0}Z`} />
+                                    d={picture && scaled ? `M0 0H${state.W}V${state.H}H0Z M${outline.map(p => p.join(' ')).join(' L')}Z`
+                                        : `M0 0H${state.W}V${state.H}H0Z M${state.framePx.x0} ${state.framePx.y0}H${state.framePx.x1}V${state.framePx.y1}H${state.framePx.x0}Z`} />
+                                {scaled && gridLines.map(([a, b], i) => <line key={'g' + i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="rgba(255,255,255,.22)" strokeWidth={1 / z2} style={{ pointerEvents: 'none' }} />)}
                                 {scaled && <polygon points={outline.map(p => p.join(',')).join(' ')}
-                                    fill="none" stroke="#58a6ff" strokeWidth={2 / z2} strokeDasharray={`${unit / 4} ${unit / 6}`} />}
+                                    fill={picture ? 'transparent' : 'none'} stroke="#58a6ff" strokeWidth={2 / z2} strokeDasharray={picture ? undefined : `${unit / 4} ${unit / 6}`}
+                                    style={picture ? { cursor: drag ? 'grabbing' : 'move' } : undefined} />}
                                 {scaled && holes.map(([c, r, x, y]) => (
                                     <circle key={c + ',' + r} cx={x} cy={y} r={unit * 0.07}
                                         fill="rgba(255,255,255,.55)" stroke="rgba(0,0,0,.5)" strokeWidth={unit / 40} />
@@ -821,6 +893,21 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                     <text key={'l' + c + ',' + r} x={x} y={y} dy=".35em" textAnchor="middle" fontSize={unit * Math.min(0.42, 1.1 / Math.max(2, t.length))} fontWeight="800"
                                         fill="#ffd33d" stroke="#000" strokeWidth={unit / 22} paintOrder="stroke" style={{ pointerEvents: 'none' }}>{t}</text>
                                 ); })}
+                                {boxHandles && (() => {
+                                    const hz = (touch ? 26 : 14) / z2, a = (grid.angle || 0) * 180 / Math.PI;
+                                    const R = [boxRot.base[0] + boxRot.dir[0] * hz * 3, boxRot.base[1] + boxRot.dir[1] * hz * 3];
+                                    const cur = (h) => ['ns-resize', 'nesw-resize', 'ew-resize', 'nwse-resize'][Math.round(((({ t: 0, tr: 45, r: 90, br: 135, b: 180, bl: 225, l: 270, tl: 315 })[h] + a) % 360 + 360) % 360 / 45) % 4];
+                                    return <g>
+                                        <line x1={boxRot.base[0]} y1={boxRot.base[1]} x2={R[0]} y2={R[1]} stroke="#58a6ff" strokeWidth={1.5 / z2} style={{ pointerEvents: 'none' }} />
+                                        {boxHandles.map(([h, x, y]) => (
+                                            <rect key={h} data-bh={h} x={x - hz / 2} y={y - hz / 2} width={hz} height={hz} rx={hz / 5} transform={`rotate(${a} ${x} ${y})`}
+                                                fill="#fff" stroke="#58a6ff" strokeWidth={2 / z2} style={{ cursor: cur(h) }}>
+                                                <title>{h.length === 2 ? 'Drag to size the box' : 'Drag to stretch the box this way'}</title>
+                                            </rect>
+                                        ))}
+                                        <circle data-bh="rot" cx={R[0]} cy={R[1]} r={hz * 0.7} fill="#58a6ff" stroke="#fff" strokeWidth={2 / z2} style={{ cursor: 'alias' }}><title>Drag to turn</title></circle>
+                                    </g>;
+                                })()}
                                 {measure?.kind === 'ocr' && measure.a && measure.b && (
                                     <rect x={Math.min(measure.a[0], measure.b[0])} y={Math.min(measure.a[1], measure.b[1])} width={Math.abs(measure.b[0] - measure.a[0])} height={Math.abs(measure.b[1] - measure.a[1])}
                                         fill="rgba(255,211,61,.15)" stroke="#ffd33d" strokeWidth={Math.max(2, unit / 16)} strokeDasharray={`${unit / 5} ${unit / 8}`} />
@@ -870,20 +957,25 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
                         {ready && picture && <>
                             <section>
-                                <div className="pf-title">Line up the photo</div>
-                                <p className="ce-hint">The green rings are the part's pins. Drag the photo until its pins sit in them; zoom in for the last bit.</p>
+                                <div className="pf-title">Put the box on the part</div>
+                                <p className="ce-hint">The box is the part, the rings its pins with their names. Line them up with the pins on the photo.</p>
+                                <ul className="pf-keys">
+                                    <li><b>Drag inside</b> moves the box, <b>outside</b> the photo</li>
+                                    <li><b>Round handle</b> turns it, <b>corners</b> size it</li>
+                                    <li><b>Edges</b> stretch it one way</li>
+                                </ul>
                             </section>
-                            {grid && measure?.kind === 'grid' && <section>
+                            {grid && <section>
                                 <div className="pf-title">Turn <span className="pf-val">{((grid.angle || 0) * 180 / Math.PI).toFixed(1)}°</span></div>
-                                <input className="pf-range" type="range" min="-45" max="45" step="0.1" value={((grid.angle || 0) * 180 / Math.PI).toFixed(1)} aria-label="Turn the photo"
-                                    onChange={e => setGrid(g => turnGrid(g, +e.target.value * Math.PI / 180 - (g.angle || 0), pinsCentre()))} />
-                                <div className="pf-title">Size <span className="pf-val">{Math.round(grid.pitch / measure.pitch0 * 1000) / 10} %</span></div>
-                                <input className="pf-range" type="range" min="0.7" max="1.4" step="0.002" value={grid.pitch / measure.pitch0} aria-label="Size of the photo"
-                                    onChange={e => setGrid(g => scaleGrid(g, (+e.target.value * measure.pitch0) / g.pitch, pinsCentre()))} />
+                                <div className="pf-turn">
+                                    <button className="ce-btn" onClick={() => { snap(); setGrid(g => turnGrid(g, -Math.PI / 2, boxCentre())); }} title="Turn 90° left" aria-label="Turn 90° left"><RotateCcw size={14} /></button>
+                                    <input className="pf-range" type="range" min="-180" max="180" step="0.1" value={((grid.angle || 0) * 180 / Math.PI).toFixed(1)} aria-label="Turn the box"
+                                        onChange={e => setGrid(g => turnGrid(g, +e.target.value * Math.PI / 180 - (g.angle || 0), boxCentre()))} />
+                                    <button className="ce-btn" onClick={() => { snap(); setGrid(g => turnGrid(g, Math.PI / 2, boxCentre())); }} title="Turn 90° right" aria-label="Turn 90° right"><RotateCw size={14} /></button>
+                                </div>
+                                <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => { snap(); setMirror(e.target.checked); setPins(footPins(e.target.checked)); setLabels(footLabels(e.target.checked)); }} /> <FlipHorizontal2 size={14} /> Mirrored (photo of the underside)</label>
+                                {(grid.ky || 1) !== 1 && <button className="ce-btn pf-wide" onClick={() => { snap(); setGrid(g => pinGrid({ ...g, ky: 1 }, (footprint.w - 1) / 2, (footprint.h - 1) / 2, boxCentre())); }}>Undo stretch</button>}
                             </section>}
-                            <section>
-                                <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => { setMirror(e.target.checked); setPins(footPins(e.target.checked)); }} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
-                            </section>
                             <div className="pf-grow" />
                             <section className="pf-foot">
                                 <div className="pf-row">
@@ -1300,10 +1392,11 @@ async function cutOut(state, grid, body, mirror) {
     c.width = W; c.height = H;
     const ctx = c.getContext('2d');
     if (mirror) ctx.setTransform(-1, 0, 0, 1, W, 0);
-    // output pixel -> image: P = holeAt(corner) + pitch/S · R(angle) · out; draw with the inverse
-    const k = S / grid.pitch, cs = Math.cos(grid.angle || 0), sn = Math.sin(grid.angle || 0);
+    // output pixel -> image: P = holeAt(corner) + R(angle) · (pitch/S · x, pitch·ky/S · y); draw
+    // with the inverse
+    const k = S / grid.pitch, ky = k / (grid.ky || 1), cs = Math.cos(grid.angle || 0), sn = Math.sin(grid.angle || 0);
     const [tx, ty] = holeAt(grid, body.x - 0.5, body.y - 0.5);
-    const a = k * cs, b = -k * sn, cc = k * sn, d = k * cs;
+    const a = k * cs, b = -ky * sn, cc = k * sn, d = ky * cs;
     ctx.transform(a, b, cc, d, -(a * tx + cc * ty), -(b * tx + d * ty));
     ctx.drawImage(img, 0, 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);

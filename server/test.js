@@ -128,6 +128,8 @@ test('save, list, update, delete; only your own', async () => {
     const u = await s.call('PUT', `/api/circuits/${c.id}`, { name: 'Blinker 2', data: { ...circuit, wires: [{ a: 1 }] } });
     assert.equal(u.json.name, 'Blinker 2');
     assert.equal((await s.call('POST', '/api/circuits', { name: 'x', data: { nope: 1 } })).json.error, 'BAD_CIRCUIT');
+    assert.equal((await s.call('POST', '/api/circuits', { name: 'x', data: { components: [{ pins: [] }] } })).status, 400);
+    assert.equal((await s.call('POST', '/api/circuits', { name: 'x', data: { components: [{ id: 'R1' }] } })).status, 400);
     // someone else sees nothing of it
     const mine = s.getCookie();
     await s.signIn('two@x.de');

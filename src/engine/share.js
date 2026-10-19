@@ -21,7 +21,7 @@
 // The circuit JSON in the Circuit Definition box is derived from the placed components (their
 // pins in the current rotation, body = w x h box), so the components carry the circuit too.
 
-import { swapGroups } from './templates.js';
+import { swapGroups, edgeSide } from './templates.js';
 
 const VERSION = '1';
 const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
@@ -257,4 +257,92 @@ export function shareFromHash(hash) {
 export async function shareUrl(components, wires) {
   const { origin, pathname } = window.location;
   return `${origin}${pathname}#b=${await encodeShare(components, wires)}`;
+}
+
+/** Validate and normalise cloud / project board data with the same checks as unpackBoard. Returns null if invalid. */
+export function validateBoardData(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (!Array.isArray(data.components) || !data.components.length || data.components.length > MAX_PARTS) return null;
+  const ids = new Set();
+  const cleanComps = [];
+  for (const c of data.components) {
+    if (!c || typeof c !== 'object') return null;
+    const { id, name = '', value = '', w, h, ox = 0, oy = 0, pins, edge, color, routeUnder } = c;
+    if (!isStr(id, 40) || !id || ids.has(id)) return null;
+    ids.add(id);
+    if (!isStr(name) || !isStr(value)) return null;
+    if (!isInt(w, 1, 200) || !isInt(h, 1, 200) || !isInt(ox) || !isInt(oy)) return null;
+    if (!Array.isArray(pins) || !pins.length || pins.length > MAX_PINS) return null;
+    const comp = {
+      id,
+      name,
+      value,
+      color: isStr(color, 40) ? color : null,
+      routeUnder: routeUnder !== false,
+      w,
+      h,
+      ox,
+      oy,
+      pins: []
+    };
+    if (edge !== undefined && edge !== null && edge !== -1) {
+      const e = typeof edge === 'string' ? edgeSide(edge) : edge;
+      if (!isInt(e, 0, 3)) return null;
+      comp.edge = e;
+    }
+    if (c.swap !== undefined && c.swap !== null && c.swap !== true) {
+      if (!Array.isArray(c.swap) || !c.swap.every(g => Array.isArray(g))) return null;
+    }
+    const seen = new Set();
+    for (const p of pins) {
+      if (!p || typeof p !== 'object') return null;
+      const dCol = p.dCol ?? p.offset?.[0];
+      const dRow = p.dRow ?? p.offset?.[1];
+      if (!isInt(dCol, 0, w - 1) || !isInt(dRow, 0, h - 1)) return null;
+      const key = dCol * 1000 + dRow;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      const lbl = p.lbl ?? p.label ?? '';
+      if (!isStr(lbl, 40)) return null;
+      const net = p.net ? String(p.net) : null;
+      if (net && !isStr(net, 200)) return null;
+      comp.pins.push({
+        dCol,
+        dRow,
+        col: p.col !== undefined && isInt(p.col) ? p.col : ox + dCol,
+        row: p.row !== undefined && isInt(p.row) ? p.row : oy + dRow,
+        net,
+        lbl
+      });
+    }
+    const s = swapGroups(c);
+    if (s) comp.swap = s; else delete comp.swap;
+    cleanComps.push(comp);
+  }
+  const cleanWires = [];
+  if (data.wires !== undefined) {
+    if (!Array.isArray(data.wires) || data.wires.length > MAX_WIRES) return null;
+    for (const wr of data.wires) {
+      if (!wr || typeof wr !== 'object') return null;
+      const net = wr.net ? String(wr.net) : null;
+      if (net && !isStr(net, 200)) return null;
+      if (!Array.isArray(wr.path)) return null;
+      const path = [];
+      for (const pt of wr.path) {
+        if (!pt || !isInt(pt.col) || !isInt(pt.row)) return null;
+        path.push({ col: pt.col, row: pt.row });
+      }
+      cleanWires.push({
+        net,
+        failed: !!wr.failed,
+        jumper: !!wr.jumper,
+        path
+      });
+    }
+  }
+  const cols = isInt(data.cols, 1, 1000) ? data.cols : undefined;
+  const rows = isInt(data.rows, 1, 1000) ? data.rows : undefined;
+  const partImages = data.partImages && typeof data.partImages === 'object' && !Array.isArray(data.partImages)
+    ? data.partImages : undefined;
+  return { components: cleanComps, wires: cleanWires, cols, rows, partImages };
 }

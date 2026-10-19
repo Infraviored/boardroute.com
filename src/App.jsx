@@ -15,7 +15,7 @@ import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { ResultCard } from './components/ResultCard.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
-import { decodeShare, shareFromHash, shareUrl } from './engine/share.js';
+import { decodeShare, shareFromHash, shareUrl, validateBoardData } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
@@ -597,21 +597,21 @@ function App() {
       reader.onload = (e) => {
         try {
           const parsed = JSON.parse(e.target.result);
-          if (parsed.components) {
-            const cols = parsed.cols || board.cols;
-            const rows = parsed.rows || board.rows;
-            const components = parsed.components.map(c => {
-              const next = { ...c };
-              const s = swapGroups(c);
-              if (s) next.swap = s; else delete next.swap;
-              return next;
-            });
-            engine.setState({ components, wires: parsed.wires || [], cols, rows });
-            setPartImages(parsed.partImages || {});
+          const valid = validateBoardData(parsed);
+          if (valid) {
+            const cols = valid.cols || board.cols;
+            const rows = valid.rows || board.rows;
+            engine.setState({ components: valid.components, wires: valid.wires, cols, rows });
+            setPartImages(valid.partImages || {});
             setCloudCurrent(null);
             saveHistory(null);
+          } else {
+            setNotice({ kind: 'error', title: 'This circuit could not be read' });
           }
-        } catch (err) { console.error(err); }
+        } catch (err) {
+          console.error(err);
+          setNotice({ kind: 'error', title: 'This circuit could not be read' });
+        }
       };
       reader.readAsText(file);
     };
@@ -739,19 +739,20 @@ function App() {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }), [engine, saveHistory]);
   // a saved circuit (from the account dialog or a /?c= link) onto the board
-  const applySaved = useCallback((data, current = null) => {
-    const components = (data.components || []).map(c => {
-      const next = { ...c };
-      const s = swapGroups(c);
-      if (s) next.swap = s; else delete next.swap;
-      return next;
-    });
-    engine.setState({ components, wires: data.wires || [], ...(data.cols ? { cols: data.cols, rows: data.rows } : {}) });
-    setPartImages(data.partImages || {});
+  const applySaved = useCallback((rawData, current = null) => {
+    const data = validateBoardData(rawData);
+    if (!data) {
+      setNotice({ kind: 'error', title: 'This circuit could not be read' });
+      return false;
+    }
+    const { components, wires, cols, rows, partImages } = data;
+    engine.setState({ components, wires, ...(cols ? { cols, rows } : {}) });
+    setPartImages(partImages || {});
     setNotice(null);
     setExampleTitle(null);
     setCloudCurrent(current);
-    setWorkflowStep((data.wires || []).length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory(current);
+    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory(current);
+    return true;
   }, [engine, saveHistory]);
   const shareStarted = useRef(false);
   useEffect(() => {
@@ -760,7 +761,10 @@ function App() {
     if (!sharedSlug) return;
     shareStarted.current = true;
     cloud.shared(sharedSlug).then(({ data }) => {
-      applySaved(data, null);
+      if (!applySaved(data, null)) {
+        setShareState('failed');
+        return;
+      }
       setShareState('done');
       window.goatcounter?.count?.({ path: 'shared-open', title: `${data.components.length} parts`, event: true });
     }).catch(err => {

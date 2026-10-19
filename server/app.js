@@ -188,6 +188,11 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
     const cleanName = (s) => (typeof s === 'string' ? s.trim().slice(0, LIMITS.nameChars) : '') || 'Untitled';
     function cleanData(d) {
         if (!d || typeof d !== 'object' || !Array.isArray(d.components)) throw new HttpError(400, 'BAD_CIRCUIT');
+        for (const c of d.components) {
+            if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !c.id || !Array.isArray(c.pins)) {
+                throw new HttpError(400, 'BAD_CIRCUIT');
+            }
+        }
         const json = JSON.stringify(d), size = Buffer.byteLength(json);
         if (size > LIMITS.circuitBytes) throw new HttpError(413, 'TOO_LARGE');
         return { json, size };

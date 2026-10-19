@@ -69,7 +69,12 @@ export function routeFixed(components) {
     if (router.setPlacement(pl) > 0) return null;
     let r = null;
     for (let k = 0; k < 4 && !(r && r.miss === 0 && r.overuse === 0); k++) r = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
-    if (r.miss > 0 || r.overuse > 0) return null;
+    if (r.miss > 0 || r.overuse > 0) {
+        router.jumpCost = 6;
+        r = null;
+        for (let k = 0; k < 4 && !(r && r.miss === 0 && r.overuse === 0); k++) r = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
+    }
+    if (!r || r.miss > 0 || r.overuse > 0 || (r.jumpers || 0) > 1) return null;
     return toEngine(model, pl, r, W, minC, minR).wires;
 }
 

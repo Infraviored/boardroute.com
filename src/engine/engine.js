@@ -57,7 +57,7 @@ function turnBoard90(components, wires) {
 // Wire a board without moving anything, with the solver's negotiating router (much stronger in
 // tight spots than the classic one). Returns the wires, or null if the parts overlap or some net
 // can't be connected.
-function routeFixed(components) {
+export function routeFixed(components) {
     if (!components.length) return null;
     // placement is fixed: no cable-side rule (it counts as overlap in the solver's router)
     const model = buildModel(processTemplate(generateJSONFromState(components)).map(d => ({ ...d, edge: -1 })));

@@ -101,6 +101,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     const photoRef = useRef(null);   // the whole photo (canvas)
     const pixRef = useRef(null);     // the turned photo's pixels (ImageData) for pin search and counting
     const onKeyRef = useRef(null);
+    const ocrRun = useRef(0);        // the latest label reading; older ones are dropped
+    const live = useRef({});         // the current grid and photo, for async work started earlier
+    live.current = { grid, url: state.url };
 
     const load = (blob) => {
         if (!blob || !/^image\//.test(blob.type || 'image/')) return;
@@ -624,14 +627,19 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
         }
         if (!cells.length) { setOcr({ read: 0, of: 0, error: 'No pins next to that box.' }); return; }
         setOcr({ done: 0, total: cells.length });
+        // reading takes seconds (the model loads on first use): if the grid or the photo changed
+        // meanwhile, the names belong to holes that are not these any more
+        const run = ++ocrRun.current, g0 = grid, url0 = state.url;
+        const stale = () => run !== ocrRun.current || live.current.grid !== g0 || live.current.url !== url0;
         try {
-            const res = await readLabels(state.url, grid, cells, { turn: textDir, progress: (done, total) => setOcr({ done, total }) });
+            const res = await readLabels(state.url, grid, cells, { turn: textDir, progress: (done, total) => { if (!stale()) setOcr({ done, total }); } });
+            if (stale()) { if (run === ocrRun.current) setOcr(null); return; }
             snap();
             setLabels(prev => ({ ...prev, ...res.labels }));
             setOcr({ read: Object.keys(res.labels).length, of: cells.length });
         } catch (err) {
             console.error(err);
-            setOcr({ read: 0, of: cells.length, error: 'Text recognition could not be loaded.' });
+            if (!stale()) setOcr({ read: 0, of: cells.length, error: 'Text recognition could not be loaded.' });
         }
     }
 

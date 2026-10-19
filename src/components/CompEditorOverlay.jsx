@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Camera, Undo2, X } from 'lucide-react';
+import { Plus, Trash2, Camera, Undo2, X, Image as ImageIcon } from 'lucide-react';
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
 import { swapGroups } from '../engine/templates.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
@@ -201,6 +201,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     // Pins found in a photo replace the current ones; with the same count the labels and nets
     // carry over (re-measuring a part that is already wired).
     const applyPhoto = ({ pins, body, image }) => {
+        if (!pins) {
+            // picture only: it covers the footprint as it is now, pins stay
+            update(prev => ({ ...prev, image: { src: image.src, turn: 0, box: { x: foot.x, y: foot.y, w: foot.w, h: foot.h }, base: { w: foot.w, h: foot.h } } }));
+            setPhotoSession(s => ({ ...s, open: false }));
+            return;
+        }
         update(prev => {
             const keep = prev.pins.length === pins.length;
             // names read from the photo win; otherwise keep the old labels (same count) or number them
@@ -345,9 +351,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
 
                         <section>
                             <div className="ce-photo-row">
-                                {data.image && <button className="ce-btn ce-photo" onClick={() => update(d => ({ ...d, image: null }))} title="Keep the footprint, drop the picture">Remove picture</button>}
                                 {photoSession && <button className="ce-btn primary ce-photo" onClick={() => setPhotoSession(s => ({ ...s, open: true }))}><Camera size={14} /> Back to photo</button>}
-                                <button className="ce-btn ce-photo" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1 }))}><Camera size={14} /> {photoSession ? 'New photo' : 'Footprint from a photo'}</button>
+                                <button className="ce-btn ce-photo ce-photo-fp" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1, mode: 'footprint' }))}
+                                    title="Pins and outline from a photo of the part (replaces the footprint)"><Camera size={14} /> Footprint from photo</button>
+                                <button className="ce-btn ce-photo" disabled={!data.pins.length} onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1, mode: 'picture' }))}
+                                    title="Only a picture of the part; pins and outline stay as they are"><ImageIcon size={14} /> {data.image ? 'Change picture' : 'Picture from photo'}</button>
+                                {data.image && <button className="ce-btn ce-photo-x" onClick={() => update(d => ({ ...d, image: null }))} title="Remove the picture (the footprint stays)" aria-label="Remove picture"><Trash2 size={14} /></button>}
                             </div>
                         </section>
 
@@ -372,11 +381,14 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             </div>
 
             {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
-                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name} />}
+                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name}
+                mode={photoSession.mode || 'footprint'} footprint={{ w: foot.w, h: foot.h, pins: data.pins.map(p => [p.dCol - foot.x, p.dRow - foot.y]) }} />}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .ce-photo-row { display: flex; gap: 6px; flex-wrap: wrap; }
-                .ce-photo-row .ce-photo { flex: 1 1 40%; white-space: nowrap; }
+                .ce-photo-row .ce-photo { flex: 1 1 0; white-space: nowrap; padding: 0 8px; }
+                .ce-photo-row .ce-photo-fp { flex-basis: 100%; }
+                .ce-photo-row .ce-photo-x { flex: none; width: 34px; padding: 0; display: grid; place-items: center; }
                 .ce-photo-row .ce-photo.primary { flex-basis: 100%; order: -1; }
                 .ce-photo { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }

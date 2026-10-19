@@ -483,7 +483,9 @@ export function edgeArrowPath(x, y, w, h, e, size = SP) {
   return `M${sx} ${sy}L${tx} ${ty}M${bx + px} ${by + py}L${tx} ${ty}L${bx - px} ${by - py}`;
 }
 
-export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null) {
+// opts.photoOpacity: how strongly the part's photo shows (board 0.3: wires under it stay visible);
+// opts.mirrorPhoto: the solder-side view (the part's box is mirrored, the photo with it)
+export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null, opts = {}) {
   const bx = c.ox * SP + SP * .08, by = c.oy * SP + SP * .08;
   const bw = c.w * SP - SP * .16, bh = c.h * SP - SP * .16;
   const mainColor = boostColor(compColor(c));
@@ -509,7 +511,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   out += `<rect x="${bx + half}" y="${by + half}" width="${bw - sw}" height="${bh - sw}" rx="3" fill="#080808" fill-opacity="0.2"/>`;
   // a photo of the real part, between the body and the rim/pins; faint for the same reason
   const pic = photo ? photoSVG(c, photo) : '';
-  if (pic) out += `<g opacity="0.3">${pic}</g>`;
+  if (pic) out += `<g opacity="${opts.photoOpacity ?? 0.3}"${opts.mirrorPhoto ? ` transform="translate(${(2 * c.ox + c.w) * SP} 0) scale(-1 1)"` : ''}>${pic}</g>`;
   // Rim: Drawn with fill="none" to ensure uniform wire visibility through the stroke
   out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)
@@ -796,7 +798,8 @@ export function generateCoordinatesSVG({
   return { board, labels };
 }
 
-export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null }) {
+// photos: { [part id]: picture record } (App's partImages) to draw the parts' photos
+export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null, photos = null }) {
   if (!components?.length) return null;
 
   let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
@@ -916,7 +919,9 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   }
 
   shifted.forEach(sc => {
-    const rendered = renderCompSVG(sc, 'split', null, null, partLabels[sc.id]);
+    // the solder-side copies keep their pins' offsets (only the holes are mirrored), so the photo
+    // is matched unmirrored and mirrored around the part
+    const rendered = renderCompSVG(sc, 'split', null, photos?.[sc.id] || null, partLabels[sc.id], { photoOpacity: 0.55, mirrorPhoto: isBottom });
     compsBases.push(rendered.base);
     compsLabels.push(rendered.labels);
   });
@@ -980,7 +985,8 @@ export function generateBoardSVG(components, wires = [], options = {}) {
     wires,
     side: options.side || 'top',
     padding: 3,
-    view: options.view || null
+    view: options.view || null,
+    photos: options.photos || null
   });
   if (!result) return '';
   const { W, H, inner } = result;

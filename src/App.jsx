@@ -916,7 +916,7 @@ function App() {
         current={cloudCurrent} setCurrent={setCloudCurrent} hasBoard={board.components.length > 0} getBoardData={boardData}
         onOpenCircuit={(c) => applySaved(c.data, { id: c.id, name: c.name })} />
       <ExportOverlay isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} components={board.components} wires={board.wires} bestSnapshot={bestSnapshot} boardView={boardView} setBoardView={setBoardView}
-        onSaveProject={handleExportState} onShareLink={handleShareLink} />
+        onSaveProject={handleExportState} onShareLink={handleShareLink} partImages={partImages} />
       <style dangerouslySetInnerHTML={{
         __html: `
         .app-main { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg0); }

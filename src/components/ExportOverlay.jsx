@@ -1,26 +1,34 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
-import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG } from '../engine/render-utils.js';
+import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG, photoTurn } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
 // Export with a live preview: the picture on the left is the exact SVG that gets downloaded or
 // printed, so every option (side, board size, hole coordinates) is visible before exporting.
-export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink }) {
+export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink, partImages = null }) {
     const [copied, setCopied] = useState(false);
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
     const [side, setSide] = useState('top');     // 'top' | 'bottom' | 'both'
     const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing)
     const [actualSize, setActualSize] = useState(true);
+    const [pictures, setPictures] = useState(true); // the parts' photos in the export
 
     const source = bestSnapshot || { components, wires };
+    // photos that still fit their part (a changed footprint hides it, as on the board)
+    const photos = useMemo(() => {
+        const out = {};
+        for (const c of source.components || []) if (partImages?.[c.id] && photoTurn(c, partImages[c.id]) >= 0) out[c.id] = partImages[c.id];
+        return Object.keys(out).length ? out : null;
+    }, [source.components, partImages]);
     const svg = useMemo(() => {
         if (!isOpen || !source.components?.length) return '';
+        const opts = { padding: 3, view: boardView, photos: pictures ? photos : null };
         const raw = side === 'both'
-            ? generateCombinedSVG(source.components, source.wires, { padding: 3, view: boardView })
-            : generateBoardSVG(source.components, source.wires, { padding: 3, view: boardView, side });
+            ? generateCombinedSVG(source.components, source.wires, opts)
+            : generateBoardSVG(source.components, source.wires, { ...opts, side });
         return look === 'paper' ? printThemeSVG(raw) : raw;
-    }, [isOpen, source.components, source.wires, side, boardView, look]);
+    }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures]);
 
     const previewUrl = useMemo(() => (svg ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) : ''), [svg]);
     useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -108,6 +116,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                             <button className={look === 'screen' ? 'active' : ''} onClick={() => setLook('screen')}>Dark (screen)</button>
                             <button className={look === 'paper' ? 'active' : ''} onClick={() => setLook('paper')}>Light (paper)</button>
                         </div>
+                        {photos && <label className="ex-check"><input type="checkbox" checked={pictures} onChange={e => setPictures(e.target.checked)} /> Part pictures (photos)</label>}
                         <label className="ex-check"><input type="checkbox" checked={actualSize} onChange={e => setActualSize(e.target.checked)} /> Print at actual size (1 hole = 2.54 mm)</label>
                         <div className="ex-hint">Print always uses the light colours.</div>
                     </div>

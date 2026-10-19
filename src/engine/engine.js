@@ -436,6 +436,8 @@ export class AutorouterEngine {
         const complete = () => { const nc = netCompletion(this.components, this.wires); return nc.done === nc.total; };
         const overlaps = () => this.components.some(o => o !== comp && comp.ox < o.ox + o.w && o.ox < comp.ox + comp.w && comp.oy < o.oy + o.h && o.oy < comp.oy + comp.h);
         const start = { ox: comp.ox, oy: comp.oy, pins: comp.pins.map(p => ({ ...p })), w: comp.w, h: comp.h, edge: comp.edge };
+        // nothing broke (a new picture, a renamed pin): keep the wiring as it is
+        if (!overlaps() && complete()) return true;
         const startWires = this.wires;
         const restore = () => { Object.assign(comp, { ox: start.ox, oy: start.oy, w: start.w, h: start.h, pins: start.pins.map(p => ({ ...p })) }); if (start.edge !== undefined) comp.edge = start.edge; this.wires = startWires; };
         const shifts = [];

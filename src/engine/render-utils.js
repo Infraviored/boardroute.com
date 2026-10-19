@@ -260,9 +260,16 @@ export function generateRatsnestSVG(components, wires = []) {
 // changed since the picture was taken.
 export function photoTurn(c, photo) {
   if (!photo?.offs || photo.offs.length !== c.pins.length) return -1;
+  const hasSwap = !!c.swap && (c.swap === true || (Array.isArray(c.swap) && c.swap.length > 0));
+  const pinKeys = hasSwap ? new Set(c.pins.map(p => `${p.dCol},${p.dRow}`)) : null;
   let w = photo.fw, h = photo.fh, offs = photo.offs.map(o => [o[0], o[1]]);
   for (let k = 0; k < 4; k++) {
-    if (w === c.w && h === c.h && offs.every((o, i) => o[0] === c.pins[i].dCol && o[1] === c.pins[i].dRow)) return k;
+    if (w === c.w && h === c.h) {
+      const match = hasSwap
+        ? offs.every(o => pinKeys.has(`${o[0]},${o[1]}`))
+        : offs.every((o, i) => o[0] === c.pins[i].dCol && o[1] === c.pins[i].dRow);
+      if (match) return k;
+    }
     offs = offs.map(([dc, dr]) => [h - 1 - dr, dc]);
     [w, h] = [h, w];
   }

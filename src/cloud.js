@@ -6,6 +6,7 @@ const MESSAGES = {
     SLOW_DOWN: 'Too many links asked for. Wait a few minutes, then try again.',
     MAIL_FAILED: 'The mail could not be sent. Try again later.',
     LINK_INVALID: 'This sign-in link is used up or expired. Ask for a new one.',
+    BROWSER_MISMATCH: 'Open the link in the same browser you requested it from.',
     SIGNED_OUT: 'You are signed out.',
     TOO_LARGE: 'This circuit is too large to save (part photos count too).',
     TOO_MANY: 'You have saved the most circuits there is room for. Delete some first.',

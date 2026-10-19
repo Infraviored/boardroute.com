@@ -776,7 +776,7 @@ function App() {
       if (!t) return false;
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       cloud.verify(t).then(r => { setAccount(r); setIsAccountOpen(true); })
-        .catch(err => setNotice({ kind: 'error', title: 'Sign-in failed', text: err.message }));
+        .catch(err => setNotice({ kind: 'error', title: 'Sign-in failed', text: err.code === 'BROWSER_MISMATCH' ? 'Open the link in the same browser you requested it from' : err.message }));
       return true;
     };
     if (!signIn()) cloud.me().then(setAccount).catch(() => { /* no API (local dev without the server) */ });

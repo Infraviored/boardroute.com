@@ -30,8 +30,20 @@ async function setup() {
             headers: h,
             body: body !== undefined ? JSON.stringify(body) : undefined,
         });
+        const sets = res.headers.getSetCookie ? res.headers.getSetCookie() : (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')] : []);
+        for (const s of sets) {
+            const first = s.split(';')[0].trim();
+            const eq = first.indexOf('=');
+            if (eq > 0) {
+                const name = first.slice(0, eq), val = first.slice(eq + 1);
+                if (!val || s.includes('Max-Age=0')) {
+                    if (cookie.startsWith(name + '=')) cookie = '';
+                } else {
+                    cookie = first;
+                }
+            }
+        }
         const set = res.headers.get('set-cookie');
-        if (set) cookie = set.split(';')[0].endsWith('=') ? '' : set.split(';')[0];
         return { status: res.status, json: await res.json(), set };
     };
     const signIn = async (email) => {
@@ -60,6 +72,32 @@ test('sign in by link, once, then signed in', async () => {
     s.setCookie('');
     assert.equal((await s.call('POST', '/api/auth/verify', { token: t })).status, 400);
     assert.equal((await s.call('GET', '/api/me')).status, 401);
+    s.close();
+});
+
+test('login CSRF: sign-in token bound to requesting browser nonce cookie', async () => {
+    const s = await setup();
+    const r = await s.call('POST', '/api/auth/request', { email: 'flo@example.com' });
+    assert.equal(r.status, 200);
+    const t = s.mails.at(-1).text.match(/#signin=([\w-]+)/)[1];
+    const signinCookie = s.getCookie();
+
+    // 1. verify without cookie fails
+    const noCookie = await s.call('POST', '/api/auth/verify', { token: t }, { Cookie: '' });
+    assert.equal(noCookie.status, 400);
+    assert.equal(noCookie.json.error, 'BROWSER_MISMATCH');
+
+    // 2. verify with wrong cookie fails
+    const wrongCookie = await s.call('POST', '/api/auth/verify', { token: t }, { Cookie: '__Host-br_signin=wrongnonce' });
+    assert.equal(wrongCookie.status, 400);
+    assert.equal(wrongCookie.json.error, 'BROWSER_MISMATCH');
+
+    // 3. verify with right cookie succeeds
+    const rightCookie = await s.call('POST', '/api/auth/verify', { token: t }, { Cookie: signinCookie });
+    assert.equal(rightCookie.status, 200);
+    assert.equal(rightCookie.json.email, 'flo@example.com');
+    assert.match(rightCookie.set, /__Host-br_signin=;.*Max-Age=0/);
+
     s.close();
 });
 

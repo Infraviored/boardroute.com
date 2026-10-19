@@ -81,6 +81,7 @@ export function clientIp(req) {
 
 export function createApp({ db, send, signInMail, now = Date.now, origin = 'https://boardroute.com', secure = true }) {
     const cookieName = secure ? '__Host-br_session' : 'br_session';
+    const signinCookieName = secure ? '__Host-br_signin' : 'br_signin';
     const perIp = limiter(10, 15 * MIN, now), perEmail = limiter(3, 15 * MIN, now);
 
     const q = {
@@ -88,8 +89,9 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         addUser: db.prepare('INSERT INTO users (email, created, last_login) VALUES (?, ?, ?)'),
         touchUser: db.prepare('UPDATE users SET last_login = ? WHERE id = ?'),
         delUser: db.prepare('DELETE FROM users WHERE id = ?'),
-        addToken: db.prepare('INSERT INTO login_tokens (hash, email, expires) VALUES (?, ?, ?)'),
-        takeToken: db.prepare('DELETE FROM login_tokens WHERE hash = ? RETURNING email, expires'),
+        addToken: db.prepare('INSERT INTO login_tokens (hash, email, expires, nonce_hash) VALUES (?, ?, ?, ?)'),
+        getToken: db.prepare('SELECT email, expires, nonce_hash FROM login_tokens WHERE hash = ?'),
+        delToken: db.prepare('DELETE FROM login_tokens WHERE hash = ?'),
         addSession: db.prepare('INSERT INTO sessions (hash, user_id, created, expires) VALUES (?, ?, ?, ?)'),
         session: db.prepare('SELECT u.id, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.hash = ? AND s.expires > ?'),
         delSession: db.prepare('DELETE FROM sessions WHERE hash = ?'),
@@ -120,8 +122,19 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
         }
         return out;
     }
-    const setCookie = (res, value, maxAgeS) => res.setHeader('Set-Cookie',
-        `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeS}${secure ? '; Secure' : ''}`);
+    const setCookieHeader = (res, name, value, maxAgeS) => {
+        const val = `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeS}${secure ? '; Secure' : ''}`;
+        const existing = res.getHeader('Set-Cookie');
+        if (!existing) {
+            res.setHeader('Set-Cookie', val);
+        } else if (Array.isArray(existing)) {
+            res.setHeader('Set-Cookie', [...existing, val]);
+        } else {
+            res.setHeader('Set-Cookie', [existing, val]);
+        }
+    };
+    const setCookie = (res, value, maxAgeS) => setCookieHeader(res, cookieName, value, maxAgeS);
+    const setSigninCookie = (res, value, maxAgeS) => setCookieHeader(res, signinCookieName, value, maxAgeS);
 
     function user(req) {
         const c = cookies(req)[cookieName];
@@ -197,7 +210,9 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
             const ip = clientIp(req);
             if (!perIp(ip) || !perEmail(email)) throw new HttpError(429, 'SLOW_DOWN');
             const t = token(32);
-            q.addToken.run(sha(t), email, now() + LIMITS.linkMs);
+            const nonce = token(32);
+            q.addToken.run(sha(t), email, now() + LIMITS.linkMs, sha(nonce));
+            setSigninCookie(res, nonce, Math.round(LIMITS.linkMs / 1000));
             try {
                 await send({ to: email, ...signInMail(`${origin}/#signin=${t}`) });
             } catch (err) {
@@ -209,13 +224,19 @@ export function createApp({ db, send, signInMail, now = Date.now, origin = 'http
 
         if (m === 'POST' && path === '/api/auth/verify') {
             const { token: t } = await body(req, res);
-            const row = typeof t === 'string' && t.length < 100 ? q.takeToken.get(sha(t)) : null;
+            const row = typeof t === 'string' && t.length < 100 ? q.getToken.get(sha(t)) : null;
             if (!row || row.expires <= now()) throw new HttpError(400, 'LINK_INVALID');
+            const signinCookie = cookies(req)[signinCookieName];
+            if (!signinCookie || !row.nonce_hash || sha(signinCookie) !== row.nonce_hash) {
+                throw new HttpError(400, 'BROWSER_MISMATCH');
+            }
+            q.delToken.run(sha(t));
             let u = q.userByEmail.get(row.email);
             if (!u) { q.addUser.run(row.email, now(), now()); u = q.userByEmail.get(row.email); } else q.touchUser.run(now(), u.id);
             const s = token(32);
             q.addSession.run(sha(s), u.id, now(), now() + LIMITS.sessionMs);
             setCookie(res, s, Math.round(LIMITS.sessionMs / 1000));
+            setSigninCookie(res, '', 0);
             cleanup();
             return { email: u.email };
         }

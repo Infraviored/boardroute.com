@@ -16,7 +16,8 @@ export function openDb(file) {
         CREATE TABLE IF NOT EXISTS login_tokens (
             hash TEXT PRIMARY KEY,
             email TEXT NOT NULL,
-            expires INTEGER NOT NULL
+            expires INTEGER NOT NULL,
+            nonce_hash TEXT
         );
         CREATE TABLE IF NOT EXISTS sessions (
             hash TEXT PRIMARY KEY,
@@ -36,5 +37,10 @@ export function openDb(file) {
         );
         CREATE INDEX IF NOT EXISTS circuits_user ON circuits(user_id, updated);
     `);
+    try {
+        db.exec('ALTER TABLE login_tokens ADD COLUMN nonce_hash TEXT');
+    } catch {
+        // column already exists
+    }
     return db;
 }

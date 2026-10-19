@@ -116,7 +116,9 @@ export function PcbCanvas({
     // Persist camera
     useEffect(() => {
         const timer = setTimeout(() => {
-            localStorage.setItem('pcb_camera_state', JSON.stringify(camera));
+            try {
+                localStorage.setItem('pcb_camera_state', JSON.stringify(camera));
+            } catch { /* storage unavailable */ }
         }, 500);
         return () => clearTimeout(timer);
     }, [camera]);

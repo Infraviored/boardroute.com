@@ -95,24 +95,36 @@ function App() {
   // Persist to localStorage
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem('pcb_board_state', JSON.stringify({
-        components: board.components,
-        wires: board.wires,
-        cols: board.cols,
-        rows: board.rows
-      }));
+      try {
+        localStorage.setItem('pcb_board_state', JSON.stringify({
+          components: board.components,
+          wires: board.wires,
+          cols: board.cols,
+          rows: board.rows
+        }));
+      } catch (e) {
+        console.warn('board state not saved', e);
+      }
     }, 500);
     return () => clearTimeout(timer);
   }, [board.components, board.wires, board.cols, board.rows]);
 
   useEffect(() => {
-    localStorage.setItem('pcb_json_input', jsonInput);
+    try {
+      localStorage.setItem('pcb_json_input', jsonInput);
+    } catch { /* storage unavailable */ }
   }, [jsonInput]);
 
-  useEffect(() => { localStorage.setItem('pcb_model_version', '2'); }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem('pcb_model_version', '2');
+    } catch { /* storage unavailable */ }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('pcb_workflow_step', workflowStep.toString());
+    try {
+      localStorage.setItem('pcb_workflow_step', workflowStep.toString());
+    } catch { /* storage unavailable */ }
   }, [workflowStep]);
 
   // Sync board components back to JSON
@@ -209,9 +221,31 @@ function App() {
   const [partImages, setPartImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pcb_part_images')) || {}; } catch { return {}; }
   });
+  const warnedPicturesQuota = useRef(false);
   useEffect(() => {
-    try { localStorage.setItem('pcb_part_images', JSON.stringify(partImages)); } catch (e) { console.warn('part pictures not saved', e); }
+    try {
+      localStorage.setItem('pcb_part_images', JSON.stringify(partImages));
+    } catch (e) {
+      console.warn('part pictures not saved', e);
+      if (!warnedPicturesQuota.current) {
+        warnedPicturesQuota.current = true;
+        setNotice({ kind: 'warn', title: 'Part pictures could not be stored (browser storage full)' });
+      }
+    }
   }, [partImages]);
+  // Prune pictures for parts no longer on the board
+  useEffect(() => {
+    const valid = new Set(board.components.map(c => c.id));
+    setPartImages(prev => {
+      let changed = false;
+      const next = {};
+      for (const [id, img] of Object.entries(prev)) {
+        if (valid.has(id)) next[id] = img;
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [board.components]);
   const [editorPhoto, setEditorPhoto] = useState(null);  // 'pick': open the editor with the photo dialog
   const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
   const [activePin, setActivePin] = useState(null);
@@ -237,10 +271,10 @@ function App() {
   const [isResizingR, setIsResizingR] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('pcb_lsb_width', lsbWidth.toString());
+    try { localStorage.setItem('pcb_lsb_width', lsbWidth.toString()); } catch { /* storage unavailable */ }
   }, [lsbWidth]);
   useEffect(() => {
-    localStorage.setItem('pcb_rsb_width', rsbWidth.toString());
+    try { localStorage.setItem('pcb_rsb_width', rsbWidth.toString()); } catch { /* storage unavailable */ }
   }, [rsbWidth]);
 
   const handlePointerMove = useCallback((e) => {
@@ -287,6 +321,7 @@ function App() {
     setWorkflowStep(0);
     setExampleTitle(null);
     setCloudCurrent(null);
+    setPartImages({});
     setJsonInput(JSON.stringify(TEMPLATE, null, 2));
     const defs = processTemplate(TEMPLATE);
     engine.initializeBoard(defs);
@@ -572,7 +607,7 @@ function App() {
               return next;
             });
             engine.setState({ components, wires: parsed.wires || [], cols, rows });
-            if (parsed.partImages) setPartImages(prev => ({ ...prev, ...parsed.partImages }));
+            setPartImages(parsed.partImages || {});
             setCloudCurrent(null);
             saveHistory(null);
           }
@@ -661,6 +696,7 @@ function App() {
     setNotice(null);
     setExampleTitle(ex.title);
     setCloudCurrent(null);
+    setPartImages({});
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory(null);
@@ -688,6 +724,7 @@ function App() {
   const [shareState, setShareState] = useState(shareValue || sharedSlug ? 'pending' : 'none'); // none | pending | done | failed
   const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
     engine.setState({ components, wires });
+    setPartImages({});
     setNotice(null);
     setExampleTitle(null);
     setCloudCurrent(null);
@@ -710,11 +747,7 @@ function App() {
       return next;
     });
     engine.setState({ components, wires: data.wires || [], ...(data.cols ? { cols: data.cols, rows: data.rows } : {}) });
-    setPartImages(prev => {
-      const next = { ...prev };
-      for (const c of data.components) delete next[c.id];
-      return { ...next, ...(data.partImages || {}) };
-    });
+    setPartImages(data.partImages || {});
     setNotice(null);
     setExampleTitle(null);
     setCloudCurrent(current);

@@ -27,6 +27,12 @@ function Switch({ checked, onChange, label, disabled = false }) {
   );
 }
 
+// "Numbers" / "Letters" when the two axes differ, else "Columns" / "Rows"
+function axisName(view, axis) {
+  if (view.colStyle === view.rowStyle) return axis === 'col' ? 'Columns' : 'Rows';
+  return (axis === 'col' ? view.colStyle : view.rowStyle) === 'alpha' ? 'Letters' : 'Numbers';
+}
+
 /** "Board" settings: physical board size and how its holes are labelled. */
 export function BoardCard({ view, setView, components, wires }) {
   const set = (patch) => setView(prev => normalizeBoardView({ ...prev, ...patch }));
@@ -98,6 +104,11 @@ export function BoardCard({ view, setView, components, wires }) {
             ))}
           </div>
         </div>
+        <div className="bv-sub">Solder side (print on the back)</div>
+        <Switch checked={view.solderFlipCols} disabled={labelsOff} onChange={(v) => set({ solderFlipCols: v })}
+          label={`${axisName(view, 'col')} count the other way`} />
+        <Switch checked={view.solderFlipRows} disabled={labelsOff} onChange={(v) => set({ solderFlipRows: v })}
+          label={`${axisName(view, 'row')} count the other way`} />
       </div>
     </div>
   );
@@ -207,6 +218,7 @@ export function BoardSettingsStyles() {
         .bv-seg button:disabled { cursor: default; }
         .bv-seg.disabled button.active { background: var(--bg4); color: var(--txt1); }
 
+        .bv-sub { font-size: var(--fs-xs); font-weight: 700; color: var(--txt2); text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
         .bv-origin { display: grid; grid-template-columns: repeat(2, 22px); gap: 4px; }
         .bv-corner {
           width: 22px; height: 18px;

@@ -621,6 +621,11 @@ export const DEFAULT_BOARD_VIEW = {
   rowStyle: 'alpha',
   start: 1,          // numbers count from 1 or 0 (letters always start at A)
   origin: 'tl',      // corner of label 1/A: 'tl' | 'tr' | 'bl' | 'br'
+  // Many boards are printed on both sides, and the solder side's print need not name a hole the
+  // way the top does: an axis may count from the other end there (e.g. numbers the same, letters
+  // reversed). These apply to the solder-side view only.
+  solderFlipCols: false,
+  solderFlipRows: false,
 };
 
 export function normalizeBoardView(v) {
@@ -641,6 +646,8 @@ export function normalizeBoardView(v) {
     rowStyle: o.rowStyle === 'num' ? 'num' : 'alpha',
     start: Number(o.start) === 0 ? 0 : 1,
     origin: ['tl', 'tr', 'bl', 'br'].includes(o.origin) ? o.origin : 'tl',
+    solderFlipCols: !!o.solderFlipCols,
+    solderFlipRows: !!o.solderFlipRows,
   };
 }
 
@@ -696,11 +703,14 @@ function lettersFor(i) {
   return s;
 }
 
-/** Index along each axis counted from the origin corner (0-based), or null off the board. */
-function axisIndex(frame, view, col, row) {
+/**
+ * Index along each axis counted from the origin corner (0-based), or null off the board.
+ * side 'bottom': the solder side's own print (an axis may count the other way there).
+ */
+function axisIndex(frame, view, col, row, side = 'top') {
   let i = col - frame.c0, j = row - frame.r0;
-  if (view.origin[1] === 'r') i = frame.cols - 1 - i;
-  if (view.origin[0] === 'b') j = frame.rows - 1 - j;
+  if ((view.origin[1] === 'r') !== (side === 'bottom' && !!view.solderFlipCols)) i = frame.cols - 1 - i;
+  if ((view.origin[0] === 'b') !== (side === 'bottom' && !!view.solderFlipRows)) j = frame.rows - 1 - j;
   return {
     i: i >= 0 && i < frame.cols ? i : null,
     j: j >= 0 && j < frame.rows ? j : null,
@@ -713,9 +723,9 @@ function fmtAxis(idx, style, start) {
 }
 
 /** Label of one hole relative to the board frame, e.g. "C7"; null when off the board. */
-export function holeLabel(frame, view, col, row) {
+export function holeLabel(frame, view, col, row, side = 'top') {
   const v = normalizeBoardView(view);
-  const { i, j } = axisIndex(frame, v, col, row);
+  const { i, j } = axisIndex(frame, v, col, row, side);
   const c = fmtAxis(i, v.colStyle, v.start), r = fmtAxis(j, v.rowStyle, v.start);
   if (c === null || r === null) return null;
   if (v.colStyle !== v.rowStyle) return v.colStyle === 'alpha' ? c + r : r + c; // letters first
@@ -831,12 +841,12 @@ export function generateCoordinatesSVG({
   const tone = (idx, style) => (style === 'num' && (idx + v.start) % 5 === 0 ? '#f0f6fc' : '#8b949e');
 
   for (let c = frame.c0; c < frame.c0 + frame.cols; c++) {
-    const { i } = axisIndex(frame, v, c, frame.r0);
+    const { i } = axisIndex(frame, v, c, frame.r0, side);
     if (i === null || !shown(i, v.colStyle, colStep)) continue;
     for (const sy of colStripYs) labels += `<text x="${X(c) + SP / 2}" y="${sy + colStripH / 2}" font-size="${font}" fill="${tone(i, v.colStyle)}" ${textBase}>${fmtAxis(i, v.colStyle, v.start)}</text>`;
   }
   for (let r = frame.r0; r < frame.r0 + frame.rows; r++) {
-    const { j } = axisIndex(frame, v, frame.c0, r);
+    const { j } = axisIndex(frame, v, frame.c0, r, side);
     if (j === null || !shown(j, v.rowStyle, rowStep)) continue;
     for (const sx of rowStripXs) labels += `<text x="${sx + rowStripW / 2}" y="${Y(r) + SP / 2}" font-size="${font}" fill="${tone(j, v.rowStyle)}" ${textBase}>${fmtAxis(j, v.rowStyle, v.start)}</text>`;
   }
@@ -848,7 +858,7 @@ export function generateCoordinatesSVG({
     const ph = pf + 3;
     components.forEach(comp => comp.pins?.forEach(p => {
       if (!isFinite(p.col) || !isFinite(p.row)) return;
-      const lbl = holeLabel(frame, v, p.col, p.row) || 'off';
+      const lbl = holeLabel(frame, v, p.col, p.row, side) || 'off';
       const pw = lbl.length * pf * 0.66 + 4;
       const cx = X(p.col) + SP / 2, cy = Y(p.row) + SP / 2;
       const lx = cx + SP * 0.1, ly = cy - SP * 0.2 - ph; // pill's top-left

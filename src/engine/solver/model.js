@@ -2,6 +2,7 @@
 import { makeComp } from '../initial-placement.js';
 import { rotateComp90InPlace, moveComp } from '../placer.js';
 import { isJump } from './boxrouter.js';
+import { straightenWires } from '../straighten.js';
 
 // Interchangeable pins (def.swap): every permutation within each group is a variant of the
 // footprint where pin p sits in the hole of pin perm[p]. Variants x 4 rotations make up `rots`
@@ -106,5 +107,6 @@ export function toEngine(model, pl, routing, W, originCol = 0, originRow = 0) {
             }
         }
     }
-    return { components, wires };
+    // same length, fewer corners (a corner is harder to solder than a straight run)
+    return { components, wires: straightenWires(components, wires) };
 }

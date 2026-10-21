@@ -568,6 +568,16 @@ export class AutorouterEngine {
         }
     }
 
+    /** Resistor colour rings: 4, 5 or 0 (off); only how the part is drawn. */
+    setBands(id, n) {
+        const c = this.components.find(x => x.id === id);
+        if (!c || ![0, 4, 5].includes(n)) return;
+        c.bands = n;
+        this.components = [...this.components];
+        this.tick++;
+        this.notify();
+    }
+
     rotateComponent(id) {
         const c = this.components.find(x => x.id === id);
         if (c) {

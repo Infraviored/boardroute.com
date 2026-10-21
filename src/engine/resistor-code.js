@@ -1,6 +1,6 @@
 // Resistor colour code: the value ("10k", "4k7", "2.2 kΩ", "100") as colour rings.
 // 4 rings = 2 digits + multiplier + tolerance (gold, 5 %), 5 rings = 3 digits + multiplier +
-// tolerance (brown, 1 %). A part's `bands` is 4, 5 or 0 (no rings); resistors default to 4.
+// tolerance (brown, 1 %). A part's `bands` is 4, 5 or 0 (no rings); resistors default to 5.
 
 export const RING_COLORS = [
   ['black', '#111111'], ['brown', '#7a4a1e'], ['red', '#d1302f'], ['orange', '#f07c12'],
@@ -8,6 +8,11 @@ export const RING_COLORS = [
   ['grey', '#9a9a9a'], ['white', '#f4f4f4'],
 ];
 const GOLD = ['gold', '#c9a227'], SILVER = ['silver', '#c4c8cc'];
+
+export const DEFAULT_BANDS = 5;
+
+/** The part's ring count: 4, 5 or 0 (off). */
+export const bandsOf = (c) => ([0, 4, 5].includes(c?.bands) ? c.bands : DEFAULT_BANDS);
 
 export function isResistor(c) {
   return c?.pins?.length === 2 && /resist|^R_/i.test(String(c.name || ''));
@@ -51,7 +56,7 @@ export function ringsFor(ohms, n = 4) {
 /** Rings to draw for a part, or null (not a resistor, rings off, value not codable). */
 export function partRings(c) {
   if (!isResistor(c)) return null;
-  const n = c.bands === undefined || c.bands === null ? 4 : c.bands;
+  const n = bandsOf(c);
   if (!n) return null;
   return ringsFor(parseOhms(c.value), n);
 }

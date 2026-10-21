@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { isResistor, parseOhms, ringsFor } from '../engine/resistor-code.js';
+import { isResistor, parseOhms, ringsFor, bandsOf, DEFAULT_BANDS } from '../engine/resistor-code.js';
 import { Plus, Trash2, Camera, Undo2, X, Image as ImageIcon } from 'lucide-react';
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
 import { swapGroups } from '../engine/templates.js';
@@ -32,7 +32,7 @@ function fromComponent(component) {
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
     const sg = swapGroups(c);
     const swap = c.swap === true ? true : (sg ? sg.map(g => g.map(idx => pins[idx]?._id).filter(id => id !== undefined)) : null);
-    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap, edge: c.edge >= 0 ? c.edge : -1, bands: [0, 5].includes(c.bands) ? c.bands : 4, pins,
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap, edge: c.edge >= 0 ? c.edge : -1, bands: bandsOf(c), pins,
         body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
 }
 
@@ -208,7 +208,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             image: recordFromImage(data.image, foot, data.pins),
         };
         if (data.edge >= 0) saved.edge = data.edge; else delete saved.edge;
-        if (isResistor(data) && data.bands !== 4) saved.bands = data.bands; else delete saved.bands;
+        if (isResistor(data) && data.bands !== DEFAULT_BANDS) saved.bands = data.bands; else delete saved.bands;
         if (savedSwap) saved.swap = savedSwap; else delete saved.swap;
         onSave(saved);
     };
@@ -572,7 +572,7 @@ function RingsSection({ data, onChange }) {
             <div className="ce-label">Colour rings</div>
             <div className="ce-rings">
                 <div className="ce-seg">
-                    {[[4, '4 rings'], [5, '5 rings'], [0, 'Off']].map(([k, l]) => (
+                    {[[5, '5 rings'], [4, '4 rings'], [0, 'Off']].map(([k, l]) => (
                         <button key={k} className={n === k ? 'active' : ''} onClick={() => onChange(k)}>{l}</button>
                     ))}
                 </div>

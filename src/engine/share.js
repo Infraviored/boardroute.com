@@ -15,7 +15,7 @@
 //          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour,
 //                  { s: [[pinIndex, ...], ...] } for interchangeable pins,
 //                  { e: 0..3 } for the cable side that must face outward (top, right, bottom, left),
-//                  { r: 0 | 4 | 5 } resistor colour rings (absent = 4, 0 = none)
+//                  { r: 0 | 4 | 5 } resistor colour rings (absent = 5, 0 = none)
 //     w: [[net, flags, col, row, steps], ...]          flags: 1 = jumper, 2 = failed
 //          steps = run-length unit steps "r3d2l" (r/l/u/d), any other step as "~dc,dr;" }
 //

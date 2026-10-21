@@ -140,6 +140,7 @@ function App() {
         ...(c.routeUnder === false ? { routeUnder: false } : {}),
         ...(swapJSON(c) !== undefined ? { swap: swapJSON(c) } : {}),
         ...(c.edge >= 0 ? { edge: EDGE_SIDES[c.edge] } : {}),
+        ...([0, 4, 5].includes(c.bands) ? { bands: c.bands } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
           label: p.lbl,
@@ -464,6 +465,7 @@ function App() {
   const handleClearWires = useCallback(() => { engine.setState({ wires: [] }); saveHistory(); }, [engine, saveHistory]);
   const handleMoveComp = useCallback((id, ox, oy) => engine.moveComponent(id, ox, oy), [engine]);
   const handleRotateComp = useCallback((id) => { engine.rotateComponent(id); saveHistory(); }, [engine, saveHistory]);
+  const handleSetBands = useCallback((id, n) => { engine.setBands(id, n); saveHistory(); }, [engine, saveHistory]);
 
   const handleManualRoute = useCallback(async (start, end, path) => {
     if (!path) { setPreviewPath(null); return; }
@@ -929,7 +931,7 @@ function App() {
           />
         </div>
         <div className="resizer r" onMouseDown={(e) => { e.preventDefault(); setIsResizingR(true); }}></div>
-        <SidebarRight stats={stats} selectedComp={selectedComp} nets={netsMap}
+        <SidebarRight stats={stats} selectedComp={selectedComp} nets={netsMap} onSetBands={handleSetBands}
           hoveredNet={hoveredNet} setHoveredNet={setHoveredNet}
           selectedNet={selectedNet} setSelectedNet={setSelectedNet}
           activeNets={activeNets}

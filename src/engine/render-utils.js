@@ -512,13 +512,15 @@ function resistorBodySVG(c, rings) {
   const u0 = -L / 2 + T * .6, u1 = L / 2 - T * .6;
   const bw = Math.min(L * .09, 4), step = bw * 1.7;
   const at = (k) => (k === rings.length - 1 ? u1 - bw / 2 : u0 + bw / 2 + k * step);
-  // a little see-through: wires under the part (solder side) must stay visible
-  let g = `<g transform="translate(${cx} ${cy}) rotate(${ang})" opacity="0.78" style="pointer-events:none">`
-    + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="${five ? '#8db8e3' : '#dcbf8f'}" stroke="#0b0c0e" stroke-width="0.8"/>`;
+  // only the rings are solid; the body is a faint outline, so wires under the part (solder side)
+  // stay clearly visible
+  const tint = five ? '#8db8e3' : '#dcbf8f';
+  let g = `<g transform="translate(${cx} ${cy}) rotate(${ang})" style="pointer-events:none">`
+    + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="${tint}" fill-opacity="0.16" stroke="${tint}" stroke-opacity="0.75" stroke-width="1"/>`;
   rings.forEach(([, hex], k) => {
-    g += `<rect x="${(at(k) - bw / 2).toFixed(2)}" y="${-T / 2}" width="${bw.toFixed(2)}" height="${T}" fill="${hex}"/>`;
+    g += `<rect x="${(at(k) - bw / 2).toFixed(2)}" y="${(-T / 2 + 0.5).toFixed(2)}" width="${bw.toFixed(2)}" height="${(T - 1).toFixed(2)}" rx="0.8" fill="${hex}" stroke="#0b0c0e" stroke-width="0.5" stroke-opacity="0.7"/>`;
   });
-  return g + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="none" stroke="#0b0c0e" stroke-opacity="0.5" stroke-width="0.8"/></g>`;
+  return g + '</g>';
 }
 
 // opts.photoOpacity: how strongly the part's photo shows (board 0.3: wires under it stay visible);

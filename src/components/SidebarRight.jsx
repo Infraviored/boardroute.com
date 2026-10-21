@@ -1,4 +1,5 @@
 import React from 'react';
+import { isResistor, bandsOf, parseOhms, ringsFor } from '../engine/resistor-code.js';
 import { netColor, normalizeBoardView, computeBoardFrame } from '../engine/render-utils.js';
 import {
   Settings2,
@@ -36,6 +37,28 @@ function BoardSizeRow({ view, setView, components, wires }) {
   );
 }
 
+// Resistor colour rings, switchable right where the selected part is shown: 5 / 4 / off.
+function RingsRow({ comp, onSet }) {
+  const n = bandsOf(comp);
+  const ohms = parseOhms(comp.value);
+  const coded = n && ohms !== null && !ringsFor(ohms, n);
+  return (
+    <div className="rs-rings">
+      <div className="rs-rings-head">
+        <span>Colour rings</span>
+        <div className="rs-seg" role="group" aria-label="Colour rings">
+          {[[5, '5'], [4, '4'], [0, 'Off']].map(([k, l]) => (
+            <button key={k} type="button" className={n === k ? 'active' : ''} aria-pressed={n === k} onClick={() => onSet(k)}
+              title={k === 5 ? '4 colour rings + tolerance (1 %)' : k === 4 ? '3 colour rings + tolerance (5 %)' : 'No rings on the board'}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {ohms === null && n > 0 && <div className="rs-rings-hint">Value is not a resistance (10k, 4k7, 220)</div>}
+      {coded && <div className="rs-rings-hint">{comp.value} needs {n === 4 ? '5' : 'other'} rings</div>}
+    </div>
+  );
+}
+
 export function SidebarRight({
   stats,
   selectedComp,
@@ -51,6 +74,7 @@ export function SidebarRight({
   setBoardView = null,
   components = [],
   wires = [],
+  onSetBands = null,
 }) {
   // Which accordion sections are open. Component and Network also open on their own when
   // something gets selected.
@@ -146,6 +170,7 @@ export function SidebarRight({
                 <div className="prop-label">Value</div>
                 <div className="prop-value">{selectedComp.value}</div>
               </div>
+              {onSetBands && isResistor(selectedComp) && <RingsRow comp={selectedComp} onSet={n => onSetBands(selectedComp.id, n)} />}
               <div className="prop-item">
                 <MapPin size={12} className="prop-icon" />
                 <div className="prop-label">Origin</div>
@@ -444,6 +469,12 @@ export function SidebarRight({
           min-width: 0;
           overflow: hidden;
         }
+        .rs-rings { padding: 6px 0; border-bottom: 1px solid var(--border); }
+        .rs-rings-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); color: var(--txt1); font-weight: 600; }
+        .rs-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
+        .rs-seg button { background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 700; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+        .rs-seg button.active { background: var(--ui-accent); color: #fff; }
+        .rs-rings-hint { margin-top: 4px; font-size: var(--fs-xs); color: var(--txt2); }
         .prop-icon { color: var(--txt2); flex-shrink: 0; }
         .prop-label { font-size: var(--fs-xs); color: var(--txt1); font-weight: 600; width: 45px; flex-shrink: 0; }
         .prop-value { 

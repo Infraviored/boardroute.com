@@ -9,7 +9,7 @@ import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink, partImages = null }) {
     const [copied, setCopied] = useState(false);
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
-    const [side, setSide] = useState('top');     // 'top' | 'bottom' | 'both'
+    const [side, setSide] = useState('both');    // 'top' | 'bottom' | 'both' (both by default)
     const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing) | 'mono' (black & white printer)
     const [actualSize, setActualSize] = useState(true);
     const [pictures, setPictures] = useState(true); // the parts' photos in the export

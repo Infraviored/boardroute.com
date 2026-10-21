@@ -682,6 +682,7 @@ export class AutorouterEngine {
                 oldComp.routeUnder = def.routeUnder;
                 if (def.swap) oldComp.swap = def.swap; else delete oldComp.swap;
                 if (def.edge >= 0) oldComp.edge = def.edge; else delete oldComp.edge;
+                if (def.bands !== undefined) oldComp.bands = def.bands; else delete oldComp.bands;
 
                 const incomingPins = def.offsets.map((off, idx) => ({
                     dCol: off[0],

@@ -39,6 +39,7 @@ export function makeComp(cd, ox, oy) {
     routeUnder: !!cd.routeUnder,
     ...(cd.swap ? { swap: cd.swap } : {}),
     ...(cd.edge >= 0 ? { edge: cd.edge } : {}),
+    ...(cd.bands !== undefined ? { bands: cd.bands } : {}),
     w: cd.w, h: cd.h, ox, oy,
     pins: cd.offsets.map((off, i) => ({
       col: ox + off[0], row: oy + off[1],

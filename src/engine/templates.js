@@ -79,6 +79,7 @@ export function processTemplate(data) {
         return {
             ...(swapGroups(cd) ? { swap: swapGroups(cd) } : {}),
             ...(edgeSide(cd.edge) >= 0 ? { edge: edgeSide(cd.edge) } : {}),
+            ...([0, 4, 5].includes(cd.bands) ? { bands: cd.bands } : {}),
             id: cd.id || ('C' + (idx + 1)),
             name: cd.name || '?',
             value: cd.value || '',
@@ -160,6 +161,7 @@ export function generateJSONFromState(components) {
         if (c.routeUnder === false) compJson.routeUnder = false;
         if (swapJSON(c) !== undefined) compJson.swap = swapJSON(c);
         if (c.edge >= 0) compJson.edge = EDGE_SIDES[c.edge];
+        if ([0, 4, 5].includes(c.bands)) compJson.bands = c.bands;
         const body = bodyOf(c);
         if (body) compJson.body = body;
         json.components.push(compJson);

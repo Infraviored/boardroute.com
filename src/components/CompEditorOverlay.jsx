@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { isResistor, parseOhms, ringsFor } from '../engine/resistor-code.js';
 import { Plus, Trash2, Camera, Undo2, X, Image as ImageIcon } from 'lucide-react';
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
 import { swapGroups } from '../engine/templates.js';
@@ -31,7 +32,7 @@ function fromComponent(component) {
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
     const sg = swapGroups(c);
     const swap = c.swap === true ? true : (sg ? sg.map(g => g.map(idx => pins[idx]?._id).filter(id => id !== undefined)) : null);
-    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap, edge: c.edge >= 0 ? c.edge : -1, pins,
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap, edge: c.edge >= 0 ? c.edge : -1, bands: [0, 5].includes(c.bands) ? c.bands : 4, pins,
         body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
 }
 
@@ -207,6 +208,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             image: recordFromImage(data.image, foot, data.pins),
         };
         if (data.edge >= 0) saved.edge = data.edge; else delete saved.edge;
+        if (isResistor(data) && data.bands !== 4) saved.bands = data.bands; else delete saved.bands;
         if (savedSwap) saved.swap = savedSwap; else delete saved.swap;
         onSave(saved);
     };
@@ -365,6 +367,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                             </div>
                         </section>
 
+                        {isResistor(data) && <RingsSection data={data} onChange={n => handleUpdate('bands', n)} />}
+
                         <section className="ce-bodysec">
                             <div className="ce-label">Body</div>
                             <div className="ce-seg">
@@ -453,6 +457,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
                 .ce-seg button.active { background: var(--ui-accent); color: #fff; }
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
+                .ce-rings { display: flex; align-items: center; gap: 10px; }
+                .ce-rings .ce-seg { flex: 1; }
+                .ce-rings svg { flex: none; }
                 .ce-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
                 .ce-side label.ce-check { flex-direction: row; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--txt1); cursor: pointer; white-space: nowrap; }
                 .ce-side .ce-check input[type=checkbox] { width: 14px; height: 14px; padding: 0; margin: 0; flex: none; accent-color: var(--ui-accent); }
@@ -548,4 +555,38 @@ function toHex(c) {
     const k = (n) => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
     const f = (n) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
     return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+// Colour rings of a resistor: 4 / 5 / off, with a preview of the rings its value gives.
+function RingsSection({ data, onChange }) {
+    const n = data.bands;
+    const ohms = parseOhms(data.value);
+    const rings = n ? ringsFor(ohms, n) : null;
+    const hint = !n ? 'No rings on the board.'
+        : ohms === null ? 'Enter the value as a resistance (10k, 4k7, 220) to see the rings.'
+            : !rings ? `${data.value} needs ${n === 4 ? '5 rings' : 'other rings'}; with ${n} it has no colour code.`
+                : rings.map(r => r[0]).join(' · ');
+    const W = 76, H = 18, bw = 6;
+    return (
+        <section>
+            <div className="ce-label">Colour rings</div>
+            <div className="ce-rings">
+                <div className="ce-seg">
+                    {[[4, '4 rings'], [5, '5 rings'], [0, 'Off']].map(([k, l]) => (
+                        <button key={k} className={n === k ? 'active' : ''} onClick={() => onChange(k)}>{l}</button>
+                    ))}
+                </div>
+                {rings && (
+                    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+                        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#9aa4ad" strokeWidth="2" />
+                        <rect x="8" y="1" width={W - 16} height={H - 2} rx={(H - 2) / 2} fill={n === 5 ? '#8db8e3' : '#dcbf8f'} stroke="#0b0c0e" strokeWidth="0.8" />
+                        {rings.map(([name, hex], k) => (
+                            <rect key={k} x={k === rings.length - 1 ? W - 8 - 9 - bw / 2 : 8 + 9 + k * bw * 1.7 - bw / 2} y="1" width={bw} height={H - 2} fill={hex}><title>{name}</title></rect>
+                        ))}
+                    </svg>
+                )}
+            </div>
+            <p className="ce-hint">{hint}</p>
+        </section>
+    );
 }

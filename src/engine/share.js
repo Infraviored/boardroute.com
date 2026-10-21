@@ -14,7 +14,8 @@
 //                  net = index into n plus 1, 0 = unconnected
 //          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour,
 //                  { s: [[pinIndex, ...], ...] } for interchangeable pins,
-//                  { e: 0..3 } for the cable side that must face outward (top, right, bottom, left)
+//                  { e: 0..3 } for the cable side that must face outward (top, right, bottom, left),
+//                  { r: 0 | 4 | 5 } resistor colour rings (absent = 4, 0 = none)
 //     w: [[net, flags, col, row, steps], ...]          flags: 1 = jumper, 2 = failed
 //          steps = run-length unit steps "r3d2l" (r/l/u/d), any other step as "~dc,dr;" }
 //
@@ -97,6 +98,7 @@ export function packBoard(components, wires) {
     const swap = swapGroups(comp);
     if (swap?.length) extra.s = swap;
     if (comp.edge >= 0) extra.e = comp.edge;
+    if ([0, 4, 5].includes(comp.bands)) extra.r = comp.bands;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
     return row;
@@ -152,6 +154,10 @@ export function unpackBoard(data) {
       if (extra.e !== undefined) {
         if (!isInt(extra.e, 0, 3)) throw new ShareError(`bad cable side on ${id}`);
         comp.edge = extra.e;
+      }
+      if (extra.r !== undefined) {
+        if (![0, 4, 5].includes(extra.r)) throw new ShareError(`bad colour rings on ${id}`);
+        comp.bands = extra.r;
       }
     }
     const seen = new Set();
@@ -317,6 +323,7 @@ export function validateBoardData(data) {
     }
     const s = swapGroups(c);
     if (s) comp.swap = s; else delete comp.swap;
+    if ([0, 4, 5].includes(c.bands)) comp.bands = c.bands;
     cleanComps.push(comp);
   }
   const cleanWires = [];

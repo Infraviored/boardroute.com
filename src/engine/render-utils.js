@@ -1,6 +1,7 @@
 import { getAllNets } from './router.js';
 
 import { NET_PAL, compColor } from './colors.js';
+import { partRings } from './resistor-code.js';
 
 export const SP = 28; // Standard pitch - 28px
 
@@ -497,6 +498,29 @@ export function edgeArrowPath(x, y, w, h, e, size = SP) {
   return `M${sx} ${sy}L${tx} ${ty}M${bx + px} ${by + py}L${tx} ${ty}L${bx - px} ${by - py}`;
 }
 
+// Resistor body between the two pins with its colour rings (the last one, the tolerance, at the
+// second pin's end, set off by a gap). Only for pins in one row or column at least 2 holes apart.
+function resistorBodySVG(c, rings) {
+  const [a, b] = c.pins;
+  if (a.col !== b.col && a.row !== b.row) return '';
+  const dist = Math.abs(b.col - a.col) + Math.abs(b.row - a.row);
+  if (dist < 2) return '';
+  const L = dist * SP - 2 * (SP * .22 + 2.5), T = SP * .42;
+  const cx = (a.col + b.col + 1) * SP / 2, cy = (a.row + b.row + 1) * SP / 2;
+  const ang = Math.atan2(b.row - a.row, b.col - a.col) * 180 / Math.PI;
+  const five = rings.length === 5;
+  const u0 = -L / 2 + T * .6, u1 = L / 2 - T * .6;
+  const bw = Math.min(L * .09, 4), step = bw * 1.7;
+  const at = (k) => (k === rings.length - 1 ? u1 - bw / 2 : u0 + bw / 2 + k * step);
+  // a little see-through: wires under the part (solder side) must stay visible
+  let g = `<g transform="translate(${cx} ${cy}) rotate(${ang})" opacity="0.78" style="pointer-events:none">`
+    + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="${five ? '#8db8e3' : '#dcbf8f'}" stroke="#0b0c0e" stroke-width="0.8"/>`;
+  rings.forEach(([, hex], k) => {
+    g += `<rect x="${(at(k) - bw / 2).toFixed(2)}" y="${-T / 2}" width="${bw.toFixed(2)}" height="${T}" fill="${hex}"/>`;
+  });
+  return g + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="none" stroke="#0b0c0e" stroke-opacity="0.5" stroke-width="0.8"/></g>`;
+}
+
 // opts.photoOpacity: how strongly the part's photo shows (board 0.3: wires under it stay visible);
 // opts.mirrorPhoto: the solder-side view (the part's box is mirrored, the photo with it);
 // opts.text: BOARD_TEXT (default) or EXPORT_TEXT
@@ -532,6 +556,9 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)
   if (!pic) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
+  // a resistor shows its colour code: the body between its two pins with the rings on it
+  const rings = pic ? null : partRings(c);
+  if (rings) out += resistorBodySVG(c, rings);
 
   // the side that faces out: a small arrow just outside the middle of that edge
   if (c.edge >= 0) out += `<path d="${edgeArrowPath(bx, by, bw, bh, c.edge)}" fill="none" stroke="${mainColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"/>`;

@@ -512,11 +512,14 @@ function resistorBodySVG(c, rings) {
   const u0 = -L / 2 + T * .6, u1 = L / 2 - T * .6;
   const bw = Math.min(L * .09, 4), step = bw * 1.7;
   const at = (k) => (k === rings.length - 1 ? u1 - bw / 2 : u0 + bw / 2 + k * step);
-  // only the rings are solid; the body is a faint outline, so wires under the part (solder side)
-  // stay clearly visible
+  // the rings solid, the body half see-through, so wires under the part (solder side) stay visible
   const tint = five ? '#8db8e3' : '#dcbf8f';
   let g = `<g transform="translate(${cx} ${cy}) rotate(${ang})" style="pointer-events:none">`
-    + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="${tint}" fill-opacity="0.16" stroke="${tint}" stroke-opacity="0.75" stroke-width="1"/>`;
+    + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="${tint}" fill-opacity="0.5" stroke="${tint}" stroke-opacity="0.9" stroke-width="1"/>`;
+  // a light glow around each ring so it reads on any background
+  rings.forEach((_, k) => {
+    g += `<rect x="${(at(k) - bw / 2 - 1.4).toFixed(2)}" y="${(-T / 2 + 0.5).toFixed(2)}" width="${(bw + 2.8).toFixed(2)}" height="${(T - 1).toFixed(2)}" rx="1.5" fill="#fff" fill-opacity="0.55"/>`;
+  });
   rings.forEach(([, hex], k) => {
     g += `<rect x="${(at(k) - bw / 2).toFixed(2)}" y="${(-T / 2 + 0.5).toFixed(2)}" width="${bw.toFixed(2)}" height="${(T - 1).toFixed(2)}" rx="0.8" fill="${hex}" stroke="#0b0c0e" stroke-width="0.5" stroke-opacity="0.7"/>`;
   });
@@ -530,7 +533,8 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   const T = opts.text || BOARD_TEXT;
   const bx = c.ox * SP + SP * .08, by = c.oy * SP + SP * .08;
   const bw = c.w * SP - SP * .16, bh = c.h * SP - SP * .16;
-  const mainColor = boostColor(compColor(c));
+  const mono = !!opts.mono; // black & white print: no colours, nets told apart by line style
+  const mainColor = mono ? '#8a8a8a' : boostColor(compColor(c));
 
   // Use deterministic hash for "random" animation timing
   const hash = (hashString(c.id) % 1000) / 1000;
@@ -557,9 +561,9 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   // Rim: Drawn with fill="none" to ensure uniform wire visibility through the stroke
   out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)
-  if (!pic) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
+  if (!pic && !mono) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
   // a resistor shows its colour code: the body between its two pins with the rings on it
-  const rings = pic ? null : partRings(c);
+  const rings = pic || mono ? null : partRings(c);
   if (rings) out += resistorBodySVG(c, rings);
 
   // the side that faces out: a small arrow just outside the middle of that edge
@@ -570,13 +574,13 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   c.pins.forEach((p, idx) => {
     const px = p.col * SP + SP / 2, py = p.row * SP + SP / 2;
     const isActive = activePin && activePin.compId === c.id && activePin.pinIdx === idx;
-    const pinColor = netColor(p.net);
+    const pinColor = mono ? '#ffffff' : netColor(p.net);
     // Active pin: soft outer halo ring behind the pad (glow only, no size change)
     if (isActive) {
       out += `<circle cx="${px}" cy="${py}" r="${SP * .38}" fill="${pinColor}" opacity="0.15" style="pointer-events:none"/>`;
     }
     // Centered pin design: Label inside the colored pad (always same size)
-    out += `<circle cx="${px}" cy="${py}" r="${SP * .22}" fill="${pinColor}" class="${isActive ? 'active-pin' : ''}" style="${isActive ? `--active-color: ${pinColor}` : ''}"/>`;
+    out += `<circle cx="${px}" cy="${py}" r="${SP * .22}" fill="${pinColor}"${mono ? ' stroke="#000" stroke-width="0.9"' : ''} class="${isActive ? 'active-pin' : ''}" style="${isActive ? `--active-color: ${pinColor}` : ''}"/>`;
 
 
     const textAttrs = `x="${px}" y="${py}" dy=".35em" fill="#fff" font-family="'Outfit', sans-serif" font-weight="900" font-size="${String(p.lbl ?? '').length > 3 ? T.pinLong : T.pin}" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
@@ -857,7 +861,9 @@ export function generateCoordinatesSVG({
 }
 
 // photos: { [part id]: picture record } (App's partImages) to draw the parts' photos
-export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null, photos = null }) {
+// mono: black & white printer -- every net gets its own line style (solid, dashed, dotted, in black
+// and grey) and a legend below the board says which is which
+export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null, photos = null, mono = false }) {
   if (!components?.length) return null;
 
   let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
@@ -939,8 +945,26 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   maxC += padding / SP; maxR += padding / SP;
 
   const W = Math.round((maxC - minC) * SP);
-  const H = Math.round((maxR - minR) * SP);
+  let H = Math.round((maxR - minR) * SP);
   if (W <= 0 || H <= 0) return null;
+
+  // Black & white: the nets that have wires, GND first, each with its line style
+  const monoNets = mono ? [...new Set(wires.filter(w => !w.failed && w.path?.length).map(w => w.net).filter(Boolean))]
+    .sort((a, b) => (/^gnd$/i.test(b) - /^gnd$/i.test(a)) || a.localeCompare(b)) : [];
+  const monoStyle = (net) => MONO_STYLES[Math.max(0, monoNets.indexOf(net)) % MONO_STYLES.length];
+  let legend = '';
+  if (monoNets.length) {
+    const fs = 10, rowH = 16, gap = 14, x0 = 10;
+    let x = x0, y = H + 6;
+    monoNets.forEach(net => {
+      const m = monoStyle(net), iw = 26 + 5 + textWidth(net, fs);
+      if (x > x0 && x + iw > W - x0) { x = x0; y += rowH; }
+      legend += `<line x1="${x}" y1="${y + rowH / 2}" x2="${x + 26}" y2="${y + rowH / 2}" stroke="${m.c}" stroke-width="2"${m.dash ? ` stroke-dasharray="${m.dash}"` : ''} stroke-linecap="round"/>`
+        + `<text x="${x + 31}" y="${y + rowH / 2}" dy=".35em" fill="#fff" font-family="'Outfit', sans-serif" font-weight="700" font-size="${fs}">${escXml(net)}</text>`;
+      x += iw + gap;
+    });
+    H = y + rowH + 6;
+  }
 
   let inner = '';
   // Background
@@ -959,10 +983,14 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   const px = (pt) => [Math.round((pt.col - minC) * SP + SP / 2), Math.round((pt.row - minR) * SP + SP / 2)];
   // Jumpers are on the component side: arcs on top in the top view, faint in the solder-side view
   const jumpersContent = displayWires.filter(w => w.jumper && !w.failed && w.path?.length === 2)
-    .map(w => jumperSVG(...px(w.path[0]), ...px(w.path[1]), netColor(w.net), { width: 2, hidden: isBottom })).join('');
+    .map(w => jumperSVG(...px(w.path[0]), ...px(w.path[1]), mono ? monoStyle(w.net).c : netColor(w.net), { width: 2, hidden: isBottom })).join('');
   const wiresContent = displayWires.map(w => {
     if (!w.path?.length || w.failed || w.jumper) return '';
     const pts = w.path.map(pt => `${Math.round((pt.col - minC) * SP + SP / 2)},${Math.round((pt.row - minR) * SP + SP / 2)}`).join(' ');
+    if (mono) {
+      const m = monoStyle(w.net);
+      return `<polyline points="${pts}" fill="none" stroke="${m.c}" stroke-width="2"${m.dash ? ` stroke-dasharray="${m.dash}"` : ''} stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
     return `<polyline points="${pts}" fill="none" stroke="${netColor(w.net)}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
   }).join('');
 
@@ -999,7 +1027,7 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   shifted.forEach(sc => {
     // the solder-side copies keep their pins' offsets (only the holes are mirrored), so the photo
     // is matched unmirrored and mirrored around the part
-    const rendered = renderCompSVG(sc, 'split', null, photos?.[sc.id] || null, partLabels[sc.id], { photoOpacity: 0.55, mirrorPhoto: isBottom, text: EXPORT_TEXT });
+    const rendered = renderCompSVG(sc, 'split', null, photos?.[sc.id] || null, partLabels[sc.id], { photoOpacity: 0.55, mirrorPhoto: isBottom, text: EXPORT_TEXT, mono });
     compsBases.push(rendered.base);
     compsLabels.push(rendered.labels);
   });
@@ -1014,7 +1042,7 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
   }
 
   const coords = generateCoordinatesSVG({ frame, view: bv, components, side, mCenter, offC: minC, offR: minR, allEdges: true, outset, pinFont: EXPORT_TEXT.pinCoord });
-  inner += `${coords.board}<g>${content}</g>${coords.labels}`;
+  inner += `${coords.board}<g>${content}</g>${coords.labels}${legend}`;
 
   // Border
   const strokeWidth = 2;
@@ -1022,6 +1050,12 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
 
   return { W, H, inner };
 }
+
+// line styles for the nets in a black & white export: [colour, dash pattern]
+const MONO_STYLES = [
+  { c: '#000000', dash: '' }, { c: '#000000', dash: '6 3.5' }, { c: '#000000', dash: '0.1 4' }, { c: '#000000', dash: '9 3 0.1 3' },
+  { c: '#777777', dash: '' }, { c: '#777777', dash: '6 3.5' }, { c: '#777777', dash: '0.1 4' }, { c: '#777777', dash: '9 3 0.1 3' },
+];
 
 export function generateBoundingBoxSVG(components, wires = []) {
   if (!components.length) return '';
@@ -1064,7 +1098,8 @@ export function generateBoardSVG(components, wires = [], options = {}) {
     side: options.side || 'top',
     padding: 3,
     view: options.view || null,
-    photos: options.photos || null
+    photos: options.photos || null,
+    mono: !!options.mono
   });
   if (!result) return '';
   const { W, H, inner } = result;
@@ -1149,7 +1184,7 @@ export function hitWire(col, row, wires) {
  * into dark ink on white. Copper pads stay as faint shapes, wires keep their net colours but
  * darker, text loses its halo. Works on the finished string so the screen renderer stays as is.
  */
-export function printThemeSVG(svg) {
+export function printThemeSVG(svg, { mono = false } = {}) {
   if (!svg) return svg;
   const swaps = [
     ['#1a1208', '#ffffff'],          // board
@@ -1158,6 +1193,8 @@ export function printThemeSVG(svg) {
     ['#080808', '#ffffff'],          // part body
     ['#0d1117', '#f6f8fa'],          // coordinate gutters
     ['#050706', '#ffffff'],
+    ['#05070a', '#ffffff'],          // pin-coordinate pills
+    ['#0b0c0e', '#ffffff'],          // part tags
     ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.35)'],
     ['rgba(255,255,255,0.08)', 'rgba(0,0,0,0.12)'],
     ['rgba(240,246,252,0.55)', 'rgba(0,0,0,0.55)'],
@@ -1166,7 +1203,7 @@ export function printThemeSVG(svg) {
   for (const [a, b] of swaps) out = out.split(a).join(b);
   const css = `<style>
     text { fill: #111 !important; stroke: none !important; }
-    polyline, line, path { filter: brightness(0.72) saturate(1.5); }
+    polyline, line, path { filter: brightness(0.72) saturate(1.5); }${mono ? '\n    image { filter: grayscale(1) contrast(1.2); }' : ''}
   </style>`;
   return out.replace(/(<svg[^>]*>)/, `$1${css}`);
 }

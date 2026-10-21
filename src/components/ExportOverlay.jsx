@@ -10,7 +10,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     const [copied, setCopied] = useState(false);
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
     const [side, setSide] = useState('top');     // 'top' | 'bottom' | 'both'
-    const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing)
+    const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing) | 'mono' (black & white printer)
     const [actualSize, setActualSize] = useState(true);
     const [pictures, setPictures] = useState(true); // the parts' photos in the export
 
@@ -23,11 +23,11 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     }, [source.components, partImages]);
     const svg = useMemo(() => {
         if (!isOpen || !source.components?.length) return '';
-        const opts = { padding: 3, view: boardView, photos: pictures ? photos : null };
+        const opts = { padding: 3, view: boardView, photos: pictures ? photos : null, mono: look === 'mono' };
         const raw = side === 'both'
             ? generateCombinedSVG(source.components, source.wires, opts)
             : generateBoardSVG(source.components, source.wires, { ...opts, side });
-        return look === 'paper' ? printThemeSVG(raw) : raw;
+        return look === 'screen' ? raw : printThemeSVG(raw, { mono: look === 'mono' });
     }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures]);
 
     const previewUrl = useMemo(() => (svg ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) : ''), [svg]);
@@ -57,7 +57,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     const print = () => {
         if (!svg) return;
         // paper always gets the light colours, whatever the preview shows
-        const light = look === 'paper' ? svg : printThemeSVG(svg);
+        const light = look === 'screen' ? printThemeSVG(svg) : svg;
         const out = actualSize ? realSizeSVG(light) : light;
         const frame = document.createElement('iframe');
         frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
@@ -115,10 +115,11 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                         <div className="ex-seg">
                             <button className={look === 'screen' ? 'active' : ''} onClick={() => setLook('screen')}>Dark (screen)</button>
                             <button className={look === 'paper' ? 'active' : ''} onClick={() => setLook('paper')}>Light (paper)</button>
+                            <button className={look === 'mono' ? 'active' : ''} onClick={() => setLook('mono')} title="For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend">Black &amp; white</button>
                         </div>
                         {photos && <label className="ex-check"><input type="checkbox" checked={pictures} onChange={e => setPictures(e.target.checked)} /> Part pictures (photos)</label>}
                         <label className="ex-check"><input type="checkbox" checked={actualSize} onChange={e => setActualSize(e.target.checked)} /> Print at actual size (1 hole = 2.54 mm)</label>
-                        <div className="ex-hint">Print always uses the light colours.</div>
+                        <div className="ex-hint">{look === 'mono' ? 'Connections are told apart by line style; the legend is below the board.' : 'Print always uses the light colours. Black & white printer? Pick Black & white.'}</div>
                     </div>
 
                     <div className="ex-group">

@@ -21,7 +21,7 @@ import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
 import { useBoardView } from './hooks/useBoardView.js';
-import { normalizeBoardView } from './engine/render-utils.js';
+import { normalizeBoardView, photoTurn } from './engine/render-utils.js';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function App() {
@@ -728,7 +728,13 @@ function App() {
   const [shareState, setShareState] = useState(shareValue || sharedSlug ? 'pending' : 'none'); // none | pending | done | failed
   const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
     engine.setState({ components, wires });
-    setPartImages({});
+    // Pictures are not in share links. Keep the ones that still fit a part of the same id and
+    // footprint (opening a link to your own board must not throw its photos away), drop the rest.
+    setPartImages(prev => {
+      const next = {};
+      for (const c of components) if (prev[c.id] && photoTurn(c, prev[c.id]) >= 0) next[c.id] = prev[c.id];
+      return next;
+    });
     setNotice(null);
     setExampleTitle(null);
     setCloudCurrent(null);

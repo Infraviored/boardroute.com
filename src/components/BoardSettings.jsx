@@ -69,8 +69,7 @@ export function BoardCard({ view, setView, components, wires }) {
         <div className="bv-note warn" role="alert">
           <AlertTriangle size={14} />
           <span>
-            Layout doesn't fit: it needs {frame.need.cols} × {frame.need.rows} holes
-, the board has {frame.cols} × {frame.rows}.
+            Layout doesn't fit: it needs {frame.need.cols} × {frame.need.rows} holes, the board has {frame.cols} × {frame.rows}.
           </span>
         </div>
       ) : (
@@ -181,7 +180,7 @@ export function BoardSettingsStyles() {
         .bv-size input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .bv-size input::placeholder { color: var(--txt2); font-weight: 600; }
         .bv-size input:focus { outline: none; border-color: var(--blu-bright); }
-        .bv-x, .bv-unit { font-size: var(--fs-xs); color: var(--txt1); }
+        .bv-x { font-size: var(--fs-xs); color: var(--txt1); }
         .bv-mini {
           margin-left: 4px;
           padding: 3px 8px;

@@ -24,7 +24,21 @@ import {
     Hash
 } from 'lucide-react';
 const TRACKING_MODES = { NONE: 'none', SNAP: 'snap', LIVE: 'live' };
-const { SNAP } = TRACKING_MODES;
+const clampZoom = (z) => Math.min(Math.max(z, 0.1), 10.0);
+
+// Centre and zoom that fit bounds b into the viewport
+function fitView(b, viewport) {
+    const bbW = (b.maxCol - b.minCol + 1) * SP;
+    const bbH = (b.maxRow - b.minRow + 1) * SP;
+    const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
+    const targetCoverageX = isMobilePortrait ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE;
+    const targetCoverageY = isMobilePortrait ? 0.70 : CAMERA_CONFIG.TARGET_COVERAGE;
+    return {
+        targetCX: (b.minCol + b.maxCol + 1) / 2 * SP,
+        targetCY: (b.minRow + b.maxRow + 1) / 2 * SP,
+        fitZoom: Math.min((viewport.width * targetCoverageX) / bbW, (viewport.height * targetCoverageY) / bbH, CAMERA_CONFIG.MAX_ZOOM_FIT),
+    };
+}
 
 export function PcbCanvas({
     components,
@@ -53,7 +67,6 @@ export function PcbCanvas({
     onToggleSide,
     onToggleCoords,     // 'bottom': solder side, mirrored left/right like the board turned over (view only)
     conflicts = null, // live search state: { cells: [{col,row}], parts: [id] } to draw in red
-    customComponentsSvg // Optional prop if we want to override
 }) {
     const svgRef = useRef(null);
     const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -62,7 +75,7 @@ export function PcbCanvas({
         if (saved) {
             try {
                 const s = JSON.parse(saved);
-                s.z = Math.min(Math.max(s.z || 1, 0.1), 10.0);
+                s.z = clampZoom(s.z || 1);
                 return s;
             } catch (e) {
                 console.warn("Failed to parse camera state:", e);
@@ -231,7 +244,7 @@ export function PcbCanvas({
             const curMid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
             const { dist: startDist, camStart, worldMid } = pinchRef.current;
             const scale = curDist / startDist;
-            const newZ = Math.min(Math.max(camStart.z * scale, 0.1), 10.0);
+            const newZ = clampZoom(camStart.z * scale);
             const newX = curMid.x - worldMid.x * newZ;
             const newY = curMid.y - worldMid.y * newZ;
             applyCamera({ x: newX, y: newY, z: newZ });
@@ -293,27 +306,7 @@ export function PcbCanvas({
         }
     };
 
-    const handlePointerCancel = (e) => {
-        activePointers.current.delete(e.pointerId);
-        if (activePointers.current.size < 2) {
-            pinchRef.current = null;
-        }
-        if (activePointers.current.size === 1) {
-            const remaining = Array.from(activePointers.current.values())[0];
-            lastPos.current = remaining;
-        }
-        if ((draggingId || draggingRef.current) && dragMoved.current) onMoveEnd?.();
-        dragMoved.current = false;
-        draggingRef.current = null;
-        setDraggingId(null);
-        setIsPanning(false);
-        const target = e.currentTarget;
-        if (target && target.hasPointerCapture && target.hasPointerCapture(e.pointerId)) {
-            target.releasePointerCapture(e.pointerId);
-        }
-    };
-
-    // Keyboard ESC to cancel routing
+// Keyboard ESC to cancel routing
     useEffect(() => {
         const handleEsc = (e) => {
             if (e.key === 'Escape' && activePin) {
@@ -399,26 +392,9 @@ export function PcbCanvas({
 
     const startSnap = useCallback(() => {
         if (!bounds) return;
-        const targetCX = (bounds.minCol + bounds.maxCol + 1) / 2 * SP;
-        const targetCY = (bounds.minRow + bounds.maxRow + 1) / 2 * SP;
-        const bbW = (bounds.maxCol - bounds.minCol + 1) * SP;
-        const bbH = (bounds.maxRow - bounds.minRow + 1) * SP;
-
-        const viewport = viewportSize;
-        if (viewport.width === 0) return; // Prevent infinity zoom on initial load
-
-        // Normalize: Match updatePhysics behavior by using full height for consistent centering
-        const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
-        const targetCoverageX = isMobilePortrait ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE;
-        const targetCoverageY = isMobilePortrait ? 0.70 : CAMERA_CONFIG.TARGET_COVERAGE;
-        const fitZoom = Math.min(
-            (viewport.width * targetCoverageX) / bbW,
-            (viewport.height * targetCoverageY) / bbH,
-            CAMERA_CONFIG.MAX_ZOOM_FIT
-        );
-
-        snapLockRef.current = { targetCX, targetCY, fitZoom };
-        setTrackingMode(SNAP);
+        if (viewportSize.width === 0) return; // Prevent infinity zoom on initial load
+        snapLockRef.current = fitView(bounds, viewportSize);
+        setTrackingMode(TRACKING_MODES.SNAP);
     }, [bounds, viewportSize]);
 
     useEffect(() => {
@@ -494,27 +470,9 @@ export function PcbCanvas({
             let targetCX, targetCY, fitZoom;
             const b = targetBoundsRef.current;
 
-            if (isSnap && snapLockRef.current) {
-                targetCX = snapLockRef.current.targetCX;
-                targetCY = snapLockRef.current.targetCY;
-                fitZoom = snapLockRef.current.fitZoom;
-            } else if (b) {
-                targetCX = (b.minCol + b.maxCol + 1) / 2 * SP;
-                targetCY = (b.minRow + b.maxRow + 1) / 2 * SP;
-                const bbW = (b.maxCol - b.minCol + 1) * SP;
-                const bbH = (b.maxRow - b.minRow + 1) * SP;
-                // Normalize: Always use full viewport height for camera math to keep LOAD/ROUTE identical
-                const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
-                const targetCoverageX = isMobilePortrait ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE;
-                const targetCoverageY = isMobilePortrait ? 0.70 : CAMERA_CONFIG.TARGET_COVERAGE;
-                fitZoom = Math.min(
-                    (viewport.width * targetCoverageX) / bbW,
-                    (viewport.height * targetCoverageY) / bbH,
-                    CAMERA_CONFIG.MAX_ZOOM_FIT
-                );
-            } else {
-                return;
-            }
+            if (isSnap && snapLockRef.current) ({ targetCX, targetCY, fitZoom } = snapLockRef.current);
+            else if (b) ({ targetCX, targetCY, fitZoom } = fitView(b, viewport));
+            else return;
 
             const curZ = simZoom.current;
             let nextZ = curZ;
@@ -623,8 +581,6 @@ export function PcbCanvas({
     // Keep the vignette centred on the board; repaint whenever React renders (data changed).
     useLayoutEffect(() => { boundsRef.current = bounds; paintCamera(); });
     // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
-    // bumps tick, so the array references alone don't change when the board does.
-    // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
     // bumps tick, so the array references alone don't change when the board does. Each memo
     // reads tick explicitly so the dependency is real (an exhaustive-deps suppression would
     // also switch off the React Compiler lint rules for this whole component).
@@ -691,12 +647,11 @@ export function PcbCanvas({
 
     const compsSplit = useMemo(() => {
         void tick;
-        if (customComponentsSvg) return { base: customComponentsSvg, labels: '' };
-        if (!solder) return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id], partLabels[c.id])).join(''), labels: '' };
+        if (!solder)return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id], partLabels[c.id])).join(''), labels: '' };
         // solder side: part outlines under the copper, labels on top
         const parts = view.components.map(c => renderCompSVG(c, 'split', null, null, partLabels[c.id]));
         return { base: parts.map(r => r.base).join(''), labels: parts.map(r => r.labels).join('') };
-    }, [solder, view.components, components, selectedId, activePin, tick, customComponentsSvg, partImages, partLabels]);
+    }, [solder, view.components, components, selectedId, activePin, tick, partImages, partLabels]);
     const conflictsSvg = useMemo(() => {
         if (!conflicts || solder) return '';
         const ids = new Set(conflicts.parts);
@@ -724,6 +679,20 @@ export function PcbCanvas({
     // passive listener, so preventDefault() there only logs an error and the page (or the
     // stacked phone layout) scrolls along while zooming.
     const containerRef = useRef(null);
+    // zoom by `factor` keeping screen point `pos` fixed (default: the canvas centre)
+    const zoomAt = useCallback((factor, pos) => {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const { x, y } = pos || { x: rect.width / 2, y: rect.height / 2 };
+        const curZ = simZoom.current || 1;
+        const curP = simPan.current;
+        const newZ = clampZoom(curZ * factor);
+        /* eslint-disable react-hooks/immutability */
+        simPan.current = { x: x - (x - curP.x) * (newZ / curZ), y: y - (y - curP.y) * (newZ / curZ) };
+        simZoom.current = newZ;
+        /* eslint-enable react-hooks/immutability */
+        applyCamera({ ...simPan.current, z: newZ });
+    }, [applyCamera]);
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -731,26 +700,15 @@ export function PcbCanvas({
             e.preventDefault();
             const rect = svgRef.current?.getBoundingClientRect();
             if (!rect) return;
-            const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            const curZ = simZoom.current || 1;
-            const curP = simPan.current;
-            const newZ = Math.min(Math.max(curZ * delta, 0.1), 10.0);
-            const newP = {
-                x: pos.x - (pos.x - curP.x) * (newZ / curZ),
-                y: pos.y - (pos.y - curP.y) * (newZ / curZ)
-            };
-            applyCamera({ x: newP.x, y: newP.y, z: newZ });
-            simPan.current = { ...newP };
-            simZoom.current = newZ;
+            zoomAt(e.deltaY > 0 ? 0.9 : 1.1, { x: e.clientX - rect.left, y: e.clientY - rect.top });
         };
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => el.removeEventListener('wheel', onWheel);
-    }, [applyCamera]);
+    }, [zoomAt]);
 
 
     return (
-        <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
+        <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
             <div ref={holesRef} className="holes-layer" />
             <div ref={vignetteRef} className="vignette-layer" />
             <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block', position: 'relative', textRendering: 'geometricPrecision' }}>
@@ -830,40 +788,10 @@ export function PcbCanvas({
                 <button className={`cbtn side-btn ${solder ? 'on' : ''}`} onClick={onToggleSide} title={solder ? 'Show the component side (B)' : 'Show the solder side, mirrored (B)'}>
                     <FlipHorizontal2 size={18} />
                 </button>
-                <button className="cbtn" onClick={() => {
-                    const nextZ = Math.min(Math.max(simZoom.current * 1.15, 0.1), 10.0);
-                    const rect = svgRef.current.getBoundingClientRect();
-                    const cx = rect.width / 2;
-                    const cy = rect.height / 2;
-                    const curZ = simZoom.current;
-                    const curP = simPan.current;
-                    /* eslint-disable react-hooks/immutability */
-                    simPan.current = {
-                        x: cx - (cx - curP.x) * (nextZ / curZ),
-                        y: cy - (cy - curP.y) * (nextZ / curZ)
-                    };
-                    simZoom.current = nextZ;
-                    /* eslint-enable react-hooks/immutability */
-                    applyCamera({ ...simPan.current, z: nextZ });
-                }} title="Zoom in">
+                <button className="cbtn" onClick={() => zoomAt(1.15)} title="Zoom in">
                     <Plus size={18} />
                 </button>
-                <button className="cbtn" onClick={() => {
-                    const nextZ = Math.min(Math.max(simZoom.current * 0.87, 0.1), 10.0);
-                    const rect = svgRef.current.getBoundingClientRect();
-                    const cx = rect.width / 2;
-                    const cy = rect.height / 2;
-                    const curZ = simZoom.current;
-                    const curP = simPan.current;
-                    /* eslint-disable react-hooks/immutability */
-                    simPan.current = {
-                        x: cx - (cx - curP.x) * (nextZ / curZ),
-                        y: cy - (cy - curP.y) * (nextZ / curZ)
-                    };
-                    simZoom.current = nextZ;
-                    /* eslint-enable react-hooks/immutability */
-                    applyCamera({ ...simPan.current, z: nextZ });
-                }} title="Zoom out">
+                <button className="cbtn" onClick={() => zoomAt(0.87)} title="Zoom out">
                     <Minus size={18} />
                 </button>
                 <button className="cbtn" onClick={() => setTrackingMode(TRACKING_MODES.SNAP)} title="Center board">

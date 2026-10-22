@@ -22,7 +22,7 @@
 // The circuit JSON in the Circuit Definition box is derived from the placed components (their
 // pins in the current rotation, body = w x h box), so the components carry the circuit too.
 
-import { swapGroups, edgeSide } from './templates.js';
+import { swapGroups, edgeSide, isBands } from './templates.js';
 
 const VERSION = '1';
 const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
@@ -98,7 +98,7 @@ export function packBoard(components, wires) {
     const swap = swapGroups(comp);
     if (swap?.length) extra.s = swap;
     if (comp.edge >= 0) extra.e = comp.edge;
-    if ([0, 4, 5].includes(comp.bands)) extra.r = comp.bands;
+    if (isBands(comp.bands)) extra.r = comp.bands;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
     return row;
@@ -156,7 +156,7 @@ export function unpackBoard(data) {
         comp.edge = extra.e;
       }
       if (extra.r !== undefined) {
-        if (![0, 4, 5].includes(extra.r)) throw new ShareError(`bad colour rings on ${id}`);
+        if (!isBands(extra.r)) throw new ShareError(`bad colour rings on ${id}`);
         comp.bands = extra.r;
       }
     }
@@ -291,12 +291,12 @@ export function validateBoardData(data) {
       oy,
       pins: []
     };
-    if (edge !== undefined && edge !== null && edge !== -1) {
+    if (edge != null && edge !== -1) {
       const e = typeof edge === 'string' ? edgeSide(edge) : edge;
       if (!isInt(e, 0, 3)) return null;
       comp.edge = e;
     }
-    if (c.swap !== undefined && c.swap !== null && c.swap !== true) {
+    if (c.swap != null && c.swap !== true) {
       if (!Array.isArray(c.swap) || !c.swap.every(g => Array.isArray(g))) return null;
     }
     const seen = new Set();
@@ -315,15 +315,15 @@ export function validateBoardData(data) {
       comp.pins.push({
         dCol,
         dRow,
-        col: p.col !== undefined && isInt(p.col) ? p.col : ox + dCol,
-        row: p.row !== undefined && isInt(p.row) ? p.row : oy + dRow,
+        col: isInt(p.col) ? p.col : ox + dCol,
+        row: isInt(p.row) ? p.row : oy + dRow,
         net,
         lbl
       });
     }
     const s = swapGroups(c);
     if (s) comp.swap = s; else delete comp.swap;
-    if ([0, 4, 5].includes(c.bands)) comp.bands = c.bands;
+    if (isBands(c.bands)) comp.bands = c.bands;
     cleanComps.push(comp);
   }
   const cleanWires = [];

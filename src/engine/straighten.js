@@ -5,6 +5,7 @@
 // fixed points (pins, the ends of other wires of its net = branch points) is replaced by the
 // route with the fewest bends that is not longer, through holes nothing else uses, inside the
 // layout's footprint. Exact: Dijkstra over (hole, direction) with cost = length * 1000 + bends.
+import { Heap } from './solver/boxrouter.js';
 
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const key = (c, r) => c * 100003 + r; // engine coordinates stay well inside +-1e6
@@ -58,37 +59,19 @@ export function straightenWires(components, wires) {
   }
 
   // Fewest-bend route from a to b, not longer than maxLen, with fewer than maxBends bends.
-  const best = (net, a, b, maxLen, maxBends) => {
+  const best = (a, b, maxLen, maxBends) => {
     const W = c1 - c0 + 1, H = r1 - r0 + 1, N = W * H;
     const idx = (c, r) => (r - r0) * W + (c - c0);
     const dist = new Float64Array(N * 4).fill(Infinity);
     const prev = new Int32Array(N * 4).fill(-1);
     const limit = maxLen * 1000 + maxBends - 1;
     const tgt = idx(b.col, b.row);
-    // small binary heap of [cost, state]
-    const heap = [];
-    const push = (cost, s) => {
-      heap.push([cost, s]);
-      for (let i = heap.length - 1; i > 0;) { const pI = (i - 1) >> 1; if (heap[pI][0] <= heap[i][0]) break; [heap[pI], heap[i]] = [heap[i], heap[pI]]; i = pI; }
-    };
-    const pop = () => {
-      const top = heap[0], last = heap.pop();
-      if (heap.length) {
-        heap[0] = last;
-        for (let i = 0; ;) {
-          const l = 2 * i + 1, r = l + 1; let m = i;
-          if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
-          if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
-          if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m;
-        }
-      }
-      return top;
-    };
+    const heap = new Heap(64);
     const s0 = idx(a.col, a.row);
-    for (let d = 0; d < 4; d++) { dist[s0 * 4 + d] = 0; push(0, s0 * 4 + d); }
+    for (let d = 0; d < 4; d++) { dist[s0 * 4 + d] = 0; heap.push(s0 * 4 + d, 0); }
     let end = -1;
-    while (heap.length) {
-      const [cost, s] = pop();
+    while (heap.n > 0) {
+      const cost = heap.f[0], s = heap.pop();
       if (cost > dist[s]) continue;
       const cell = s >> 2, d = s & 3;
       if (cell === tgt) { end = s; break; }
@@ -101,12 +84,12 @@ export function straightenWires(components, wires) {
         const ncost = cost + 1000 + (cell !== s0 && nd !== d ? 1 : 0);
         if (ncost > limit) continue;
         const ns = nCell * 4 + nd;
-        if (ncost < dist[ns]) { dist[ns] = ncost; prev[ns] = s; push(ncost, ns); }
+        if (ncost < dist[ns]) { dist[ns] = ncost; prev[ns] = s; heap.push(ns, ncost); }
       }
     }
     if (end < 0) return null;
     const out = [];
-    for (let s = end; s >= 0; s = prev[s]) { const cell = s >> 2; out.push({ col: (cell % W) + c0, row: Math.floor(cell / W) + r0 }); if ((s >> 2) === s0) break; }
+    for (let s = end; s >= 0; s = prev[s]) { const cell = s >> 2; out.push({ col: (cell % W) + c0, row: Math.floor(cell / W) + r0 }); if (cell === s0) break; }
     out.reverse();
     if (out[0].col !== a.col || out[0].row !== a.row) return null;
     return out;
@@ -131,7 +114,7 @@ export function straightenWires(components, wires) {
         // free this run's own holes while searching
         const inner = seg.slice(1, -1).filter(p => use.get(key(p.col, p.row)) === w.net && !fixed.has(key(p.col, p.row)));
         for (const p of inner) use.delete(key(p.col, p.row));
-        const alt = best(w.net, seg[0], seg[seg.length - 1], seg.length - 1, bends);
+        const alt = best(seg[0], seg[seg.length - 1], seg.length - 1, bends);
         if (alt && bendsOf(alt) < bends) { use_ = alt; any = true; }
         for (const p of use_.slice(1, -1)) use.set(key(p.col, p.row), w.net);
       }

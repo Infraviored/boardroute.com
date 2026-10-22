@@ -1,3 +1,5 @@
+import { isBands } from './resistor-code.js';
+
 export const TEMPLATE = {
     components: [
         {
@@ -75,11 +77,12 @@ export function processTemplate(data) {
         }
 
         const normalizedOffsets = offsets.map(off => [off[0] - minCol, off[1] - minRow]);
+        const swap = swapGroups(cd), edge = edgeSide(cd.edge);
 
         return {
-            ...(swapGroups(cd) ? { swap: swapGroups(cd) } : {}),
-            ...(edgeSide(cd.edge) >= 0 ? { edge: edgeSide(cd.edge) } : {}),
-            ...([0, 4, 5].includes(cd.bands) ? { bands: cd.bands } : {}),
+            ...(swap ? { swap } : {}),
+            ...(edge >= 0 ? { edge } : {}),
+            ...(isBands(cd.bands) ? { bands: cd.bands } : {}),
             id: cd.id || ('C' + (idx + 1)),
             name: cd.name || '?',
             value: cd.value || '',
@@ -135,6 +138,8 @@ export function swapGroups(cd) {
 // front of it (wires entering a screw terminal). Which way it ends up pointing is free.
 export const EDGE_SIDES = ['top', 'right', 'bottom', 'left'];
 export const edgeSide = (e) => (Number.isInteger(e) && e >= 0 && e < 4 ? e : EDGE_SIDES.indexOf(String(e ?? '').toLowerCase()));
+// Resistor colour rings: 4, 5 or 0 (off) are the valid settings.
+export { isBands };
 
 // the JSON form: true when one group holds every pin, else the index groups
 export function swapJSON(c) {
@@ -159,9 +164,10 @@ export function generateJSONFromState(components) {
             }))
         };
         if (c.routeUnder === false) compJson.routeUnder = false;
-        if (swapJSON(c) !== undefined) compJson.swap = swapJSON(c);
+        const swap = swapJSON(c);
+        if (swap !== undefined) compJson.swap = swap;
         if (c.edge >= 0) compJson.edge = EDGE_SIDES[c.edge];
-        if ([0, 4, 5].includes(c.bands)) compJson.bands = c.bands;
+        if (isBands(c.bands)) compJson.bands = c.bands;
         const body = bodyOf(c);
         if (body) compJson.body = body;
         json.components.push(compJson);

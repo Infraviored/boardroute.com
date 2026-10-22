@@ -16,7 +16,7 @@ import { ResultCard } from './components/ResultCard.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
 import { decodeShare, shareFromHash, shareUrl, validateBoardData } from './engine/share.js';
-import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES } from './engine/templates.js';
+import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES, isBands } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
@@ -24,23 +24,31 @@ import { useBoardView } from './hooks/useBoardView.js';
 import { normalizeBoardView, photoTurn } from './engine/render-utils.js';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-function App() {
-  // --- ENGINE ---
-  const engine = useMemo(() => {
-    const saved = localStorage.getItem('pcb_board_state');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return new AutorouterEngine(parsed.cols || 30, parsed.rows || 20);
-      } catch (e) {
-        console.warn("Failed to parse saved board state for engine", e);
-      }
-    }
-    return new AutorouterEngine(30, 20);
-  }, []);
+// localStorage write that never throws; null/undefined removes the key
+function persist(key, value) {
+  try {
+    if (value == null) localStorage.removeItem(key); else localStorage.setItem(key, value);
+  } catch { /* storage unavailable */ }
+}
 
+const CONFIRM_CLOSED = { isOpen: false, type: null, targetId: null };
+const CONFIRM_TEXT = {
+  pin: ['Disconnect Pin', id => `Are you sure you want to disconnect ${id}?`],
+  comp: ['Delete Component', id => `Are you sure you want to delete ${id}?`],
+  net: ['Delete Net', id => `Are you sure you want to clear wires for net ${id}?`],
+  reset: ['Reset Workspace', () => 'Clear all components and wires?'],
+};
+
+// first free id of the form <prefix><n>, counting up from `start`
+function freeId(components, prefix, start = 1) {
+  const ids = new Set(components.map(c => c.id));
+  let n = start; while (ids.has(`${prefix}${n}`)) n++;
+  return `${prefix}${n}`;
+}
+
+function App() {
   // --- STATE ---
-  const [board, setBoard] = useState(() => {
+const [board, setBoard] = useState(() => {
     const saved = localStorage.getItem('pcb_board_state');
     if (saved) {
       try {
@@ -69,6 +77,8 @@ function App() {
     }
     return { components: [], wires: [], cols: 30, rows: 20, tick: 0 };
   });
+
+  const [engine] = useState(() => new AutorouterEngine(board.cols, board.rows));
 
   const [workflowStep, setWorkflowStep] = useState(() => {
     const saved = localStorage.getItem('pcb_workflow_step');
@@ -109,23 +119,9 @@ function App() {
     return () => clearTimeout(timer);
   }, [board.components, board.wires, board.cols, board.rows]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('pcb_json_input', jsonInput);
-    } catch { /* storage unavailable */ }
-  }, [jsonInput]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('pcb_model_version', '2');
-    } catch { /* storage unavailable */ }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('pcb_workflow_step', workflowStep.toString());
-    } catch { /* storage unavailable */ }
-  }, [workflowStep]);
+  useEffect(() => persist('pcb_json_input', jsonInput), [jsonInput]);
+  useEffect(() => persist('pcb_model_version', '2'), []);
+  useEffect(() => persist('pcb_workflow_step', workflowStep.toString()), [workflowStep]);
 
   // Sync board components back to JSON
   useEffect(() => {
@@ -140,7 +136,7 @@ function App() {
         ...(c.routeUnder === false ? { routeUnder: false } : {}),
         ...(swapJSON(c) !== undefined ? { swap: swapJSON(c) } : {}),
         ...(c.edge >= 0 ? { edge: EDGE_SIDES[c.edge] } : {}),
-        ...([0, 4, 5].includes(c.bands) ? { bands: c.bands } : {}),
+        ...(isBands(c.bands) ? { bands: c.bands } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
           label: p.lbl,
@@ -171,9 +167,7 @@ function App() {
   useEffect(() => { accountRef.current = account; }, [account]);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [cloudCurrent, setCloudCurrent] = useState(() => { try { return JSON.parse(localStorage.getItem('pcb_cloud_current')) || null; } catch { return null; } });
-  useEffect(() => {
-    try { if (cloudCurrent) localStorage.setItem('pcb_cloud_current', JSON.stringify(cloudCurrent)); else localStorage.removeItem('pcb_cloud_current'); } catch { /* private mode */ }
-  }, [cloudCurrent]);
+  useEffect(() => persist('pcb_cloud_current', cloudCurrent ? JSON.stringify(cloudCurrent) : null), [cloudCurrent]);
   // Summary card after a finished Wire/Compact run; shown only while the board is unchanged
   // since (its tick matches the board's), so any edit, undo or new run hides it.
   const [resultCard, setResultCard] = useState(null);
@@ -214,9 +208,7 @@ function App() {
   const [examplesOpen, setExamplesOpen] = useState(null); // null | 'first' | 'browse'
   // Shown in the Circuit card while an example is loaded; kept across reloads.
   const [exampleTitle, setExampleTitle] = useState(() => { try { return localStorage.getItem('pcb_example_title'); } catch { return null; } });
-  useEffect(() => {
-    try { if (exampleTitle) localStorage.setItem('pcb_example_title', exampleTitle); else localStorage.removeItem('pcb_example_title'); } catch { /* storage unavailable */ }
-  }, [exampleTitle]);
+  useEffect(() => persist('pcb_example_title', exampleTitle || null), [exampleTitle]);
   const [editingComp, setEditingComp] = useState(null);
   const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'add' (from the Library)
   // part pictures (from "Footprint from a photo"), by component id; kept out of the circuit JSON
@@ -250,7 +242,7 @@ function App() {
     });
   }, [board.components]);
   const [editorPhoto, setEditorPhoto] = useState(null);  // 'pick': open the editor with the photo dialog
-  const [confirmData, setConfirmData] = useState({ isOpen: false, type: null, targetId: null });
+  const [confirmData, setConfirmData] = useState(CONFIRM_CLOSED);
   const [activePin, setActivePin] = useState(null);
   const [previewPath, setPreviewPath] = useState(null);
 
@@ -270,46 +262,27 @@ function App() {
     const saved = localStorage.getItem('pcb_rsb_width');
     return saved ? parseInt(saved, 10) : 240;
   });
-  const [isResizingL, setIsResizingL] = useState(false);
-  const [isResizingR, setIsResizingR] = useState(false);
+  const [resizing, setResizing] = useState(null); // null | 'l' | 'r'
+
+  useEffect(() => persist('pcb_lsb_width', lsbWidth.toString()), [lsbWidth]);
+  useEffect(() => persist('pcb_rsb_width', rsbWidth.toString()), [rsbWidth]);
 
   useEffect(() => {
-    try { localStorage.setItem('pcb_lsb_width', lsbWidth.toString()); } catch { /* storage unavailable */ }
-  }, [lsbWidth]);
-  useEffect(() => {
-    try { localStorage.setItem('pcb_rsb_width', rsbWidth.toString()); } catch { /* storage unavailable */ }
-  }, [rsbWidth]);
-
-  const handlePointerMove = useCallback((e) => {
-    if (isResizingL) {
-      setLsbWidth(Math.max(180, Math.min(600, e.clientX)));
-    } else if (isResizingR) {
-      setRsbWidth(Math.max(180, Math.min(600, window.innerWidth - e.clientX)));
-    }
-  }, [isResizingL, isResizingR]);
-
-  const handlePointerUp = useCallback(() => {
-    setIsResizingL(false); setIsResizingR(false);
-    document.body.style.cursor = 'default';
-    document.body.style.userSelect = 'auto';
-  }, []);
-
-  useEffect(() => {
-    if (isResizingL || isResizingR) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    }
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+    document.body.style.cursor = resizing ? 'col-resize' : 'default';
+    document.body.style.userSelect = resizing ? 'none' : 'auto';
+    if (!resizing) return;
+    const move = (e) => {
+      if (resizing === 'l') setLsbWidth(Math.max(180, Math.min(600, e.clientX)));
+      else setRsbWidth(Math.max(180, Math.min(600, window.innerWidth - e.clientX)));
     };
-  }, [isResizingL, isResizingR, handlePointerMove, handlePointerUp]);
+    const up = () => setResizing(null);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+  }, [resizing]);
 
   const saveHistory = useCallback((current = cloudCurrent) => {
     const snap = JSON.stringify({ components: engine.components, wires: engine.wires, cols: engine.cols, rows: engine.rows, cloudCurrent: current });
@@ -321,7 +294,6 @@ function App() {
   }, [engine, history, historyIndex, cloudCurrent]);
 
   const handleLoadTemplate = useCallback(() => {
-    setWorkflowStep(0);
     setExampleTitle(null);
     setCloudCurrent(null);
     setPartImages({});
@@ -438,23 +410,16 @@ function App() {
     else if (step === 3) runLayout(true);
   }, [handleLoadCircuit, runLayout, engine]);
 
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prev = JSON.parse(history[historyIndex - 1]);
-      engine.setState(prev);
-      setCloudCurrent(prev.cloudCurrent || null);
-      setHistoryIndex(historyIndex - 1);
-    }
+  const goHistory = useCallback((delta) => {
+    const i = historyIndex + delta;
+    if (i < 0 || i >= history.length) return;
+    const snap = JSON.parse(history[i]);
+    engine.setState(snap);
+    setCloudCurrent(snap.cloudCurrent || null);
+    setHistoryIndex(i);
   }, [history, historyIndex, engine]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const next = JSON.parse(history[historyIndex + 1]);
-      engine.setState(next);
-      setCloudCurrent(next.cloudCurrent || null);
-      setHistoryIndex(historyIndex + 1);
-    }
-  }, [history, historyIndex, engine]);
+  const handleUndo = useCallback(() => goHistory(-1), [goHistory]);
+  const handleRedo = useCallback(() => goHistory(1), [goHistory]);
 
   const handleRouteOnly = useCallback(async () => {
     setStatus(prev => ({ ...prev, isProcessing: true }));
@@ -508,16 +473,14 @@ function App() {
     else if (confirmData.type === 'comp') { engine.deleteComponent(confirmData.targetId); setSelectedId(null); }
     else if (confirmData.type === 'net') { engine.deleteWire(confirmData.targetId); setSelectedNet(null); }
     else if (confirmData.type === 'reset') handleLoadTemplate();
-    setConfirmData({ isOpen: false, type: null, targetId: null }); saveHistory();
+    setConfirmData(CONFIRM_CLOSED); saveHistory();
   }, [confirmData, engine, handleRouteOnly, handleLoadTemplate, saveHistory]);
 
   const handleReset = useCallback(() => setConfirmData({ isOpen: true, type: 'reset', targetId: 'board' }), []);
   const handleAddFromLibrary = useCallback((compDef, photo = null) => {
     // a free id: name initial + number (R3, C2, U1, ...)
     const prefix = (compDef.name || 'P').replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase() || 'P';
-    const ids = new Set(board.components.map(c => c.id));
-    let n = 1; while (ids.has(`${prefix}${n}`)) n++;
-    const newId = `${prefix}${n}`;
+    const newId = freeId(board.components, prefix);
     // footprint = pins + optional body, pin offsets relative to its origin
     const def = processTemplate({ components: [{ ...compDef, id: newId }] })?.[0];
     if (!def) return;
@@ -639,24 +602,16 @@ function App() {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'z') { e.preventDefault(); handleUndo(); }
       if (e.ctrlKey && e.key === 'y') { e.preventDefault(); handleRedo(); }
-      if (e.key === 'Delete' || e.key === 'Backspace') { 
-          if (document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { 
-              e.preventDefault(); 
-              if (activePin) {
-                  // Open confirm dialog
-                  requestDelete(); 
-                  // Instantly exit routing mode visually
-                  setActivePin(null); 
-                  setPreviewPath(null);
-              } else {
-                  requestDelete(); 
-              }
-          } 
+      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        requestDelete();
+        // leave routing mode at once; the confirm dialog keeps the pin
+        if (activePin) { setActivePin(null); setPreviewPath(null); }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo, requestDelete, activePin, engine, handleRouteOnly]);
+  }, [handleUndo, handleRedo, requestDelete, activePin]);
 
   // Single-key shortcuts: W wire, C compact, R rotate the selected part, F fit the board into
   // view, B flip to the solder side. Ignored while typing and with modifier keys.
@@ -694,18 +649,23 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [toggleSide, toggleCoords, status.isProcessing, workflowStep, runLayout, selectedId, viewSide, handleRotateComp]);
 
+  // after a whole board was put on the engine (example, share link, saved circuit)
+  const boardLoaded = useCallback((step, { title = null, current = null } = {}) => {
+    setNotice(null);
+    setExampleTitle(title);
+    setCloudCurrent(current);
+    setWorkflowStep(step); setSnapCounter(c => c + 1); saveHistory(current);
+  }, [saveHistory]);
+
   // Example circuits load bare (no wires): placed on the board, all three steps still to do.
   const loadExample = useCallback((ex) => {
     setExamplesOpen(null);
-    setNotice(null);
-    setExampleTitle(ex.title);
-    setCloudCurrent(null);
     setPartImages({});
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
-    setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory(null);
+    boardLoaded(1, { title: ex.title });
     window.goatcounter?.count?.({ path: `example-${ex.id}`, title: ex.title, event: true });
-  }, [engine, saveHistory]);
+  }, [engine, boardLoaded]);
 
   const closeExamples = useCallback(() => {
     // Skipping the first-visit picker still leaves a circuit to edit
@@ -735,10 +695,7 @@ function App() {
       for (const c of components) if (prev[c.id] && photoTurn(c, prev[c.id]) >= 0) next[c.id] = prev[c.id];
       return next;
     });
-    setNotice(null);
-    setExampleTitle(null);
-    setCloudCurrent(null);
-    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory(null);
+    boardLoaded(wires.length ? 2 : 1);
     setShareState('done');
     window.goatcounter?.count?.({ path: 'share-open', title: `${components.length} parts`, event: true });
   }).catch(err => {
@@ -747,8 +704,8 @@ function App() {
     setShareState('failed');
   }).finally(() => {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
-  }), [engine, saveHistory]);
-  // a saved circuit (from the account dialog or a /?c= link) onto the board
+  }), [engine, boardLoaded]);
+  // a saved circuit(from the account dialog or a /?c= link) onto the board
   const applySaved = useCallback((rawData, current = null) => {
     const data = validateBoardData(rawData);
     if (!data) {
@@ -758,12 +715,9 @@ function App() {
     const { components, wires, cols, rows, partImages } = data;
     engine.setState({ components, wires, ...(cols ? { cols, rows } : {}) });
     setPartImages(partImages || {});
-    setNotice(null);
-    setExampleTitle(null);
-    setCloudCurrent(current);
-    setWorkflowStep(wires.length ? 2 : 1); setSnapCounter(c => c + 1); saveHistory(current);
+    boardLoaded(wires.length ? 2 : 1, { current });
     return true;
-  }, [engine, saveHistory]);
+  }, [engine, boardLoaded]);
   const shareStarted = useRef(false);
   useEffect(() => {
     if (shareStarted.current) return;
@@ -791,10 +745,7 @@ function App() {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       cloud.verify(t).then(r => {
         const prev = accountRef.current;
-        if (!prev || prev.email !== r.email) {
-          setCloudCurrent(null);
-          try { localStorage.removeItem('pcb_cloud_current'); } catch { /* private mode */ }
-        }
+        if (!prev || prev.email !== r.email) setCloudCurrent(null);
         setAccount(r);
         setIsAccountOpen(true);
       })
@@ -827,18 +778,20 @@ function App() {
     }
   }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate, shareState]);
 
-  const stats = useMemo(() => {
-    const nets = getAllNets(board.components); const score = scoreState(board.components, board.wires);
-    const nc = netCompletion(board.components, board.wires);
-    const routedNum = board.wires.filter(w => !w.failed).length;
-    const jumpers = board.wires.filter(w => w.jumper && !w.failed).length;
-    return { components: board.components.length, nets: nets.length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 && nc.total > 0 ? Math.round((nc.done / nc.total) * 100) : null, jumpers };
-  }, [board]);
-
   const netsMap = useMemo(() => {
     const m = {}; board.components.forEach(c => c.pins.forEach(p => { if (p.net) { if (!m[p.net]) m[p.net] = []; m[p.net].push(p); } }));
     return m;
   }, [board.components]);
+
+  const stats = useMemo(() => {
+    const score = scoreState(board.components, board.wires);
+    const nc = netCompletion(board.components, board.wires);
+    const routedNum = board.wires.filter(w => !w.failed).length;
+    const jumpers = board.wires.filter(w => w.jumper && !w.failed).length;
+    return { components: board.components.length, nets: Object.keys(netsMap).length, routed: routedNum, failed: board.wires.filter(w => w.failed).length, wireLength: score.wl, footprint: `${score.width}×${score.height}`, area: score.area, completion: board.wires.length > 0 && nc.total > 0 ? Math.round((nc.done / nc.total) * 100) : null, jumpers };
+  }, [board, netsMap]);
+
+  const selectComp = useCallback((id) => { setSelectedId(id); if (id) setSelectedNet(null); }, []);
 
   const selectedComp = useMemo(() => board.components.find(c => c.id === selectedId), [board.components, selectedId]);
   const activeNets = useMemo(() => {
@@ -864,15 +817,13 @@ function App() {
           exampleTitle={exampleTitle}
           onLoadCircuit={(edited) => { const ok = handleLoadCircuit(); if (ok && edited) setExampleTitle(null); return ok; }}
           components={board.components} selectedId={selectedId}
-          onSelectComponent={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
+          onSelectComponent={selectComp}
           onOpenLibrary={() => setIsLibraryOpen(true)}
           onAddNewComponent={() => {
             setEditorPhoto(null);
             setEditorMode('edit');
             // The editor needs a component to edit; start from a blank 2-pin part with a free id.
-            const ids = new Set(board.components.map(c => c.id));
-            let n = board.components.length + 1; while (ids.has(`C${n}`)) n++;
-            setEditingComp({ id: `C${n}`, name: 'New part', value: '', w: 2, h: 1, routeUnder: true,
+            setEditingComp({ id: freeId(board.components, 'C', board.components.length + 1), name: 'New part', value: '', w: 2, h: 1, routeUnder: true,
               pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
             setIsEditorOpen(true);
           }}
@@ -880,7 +831,7 @@ function App() {
           mobileOpen={mobileDrawer === 'parts'}
           onCloseDrawer={() => setMobileDrawer(null)}
         />
-        <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setIsResizingL(true); }}></div>
+        <div className="resizer l" onMouseDown={(e) => { e.preventDefault(); setResizing('l'); }}></div>
         <div id="ca-col">
           {notice && (
             <div className={`notice-banner ${notice.kind}`} role="alert">
@@ -894,7 +845,7 @@ function App() {
           <main id="ca">
             <PcbCanvas
               components={board.components} wires={board.wires} cols={board.cols} rows={board.rows} partImages={partImages}
-              selectedId={selectedId} onSelect={(id) => { setSelectedId(id); if (id) setSelectedNet(null); }}
+              selectedId={selectedId} onSelect={selectComp}
               onSelectNet={(net) => { setSelectedNet(net); if (net) setSelectedId(null); }}
               activeNets={activeNets} activePin={activePin} onMove={handleMoveComp} onRotate={handleRotateComp} onMoveEnd={saveHistory}
               onManualRoute={handleManualRoute} onPreviewRoute={handlePreviewRoute} previewPath={previewPath}
@@ -936,7 +887,7 @@ function App() {
             }}
           />
         </div>
-        <div className="resizer r" onMouseDown={(e) => { e.preventDefault(); setIsResizingR(true); }}></div>
+        <div className="resizer r" onMouseDown={(e) => { e.preventDefault(); setResizing('r'); }}></div>
         <SidebarRight stats={stats} selectedComp={selectedComp} nets={netsMap} onSetBands={handleSetBands}
           hoveredNet={hoveredNet} setHoveredNet={setHoveredNet}
           selectedNet={selectedNet} setSelectedNet={setSelectedNet}
@@ -963,9 +914,9 @@ function App() {
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay
         isOpen={confirmData.isOpen}
-        title={confirmData.type === 'pin' ? 'Disconnect Pin' : confirmData.type === 'comp' ? 'Delete Component' : confirmData.type === 'net' ? 'Delete Net' : confirmData.type === 'reset' ? 'Reset Workspace' : 'Confirm Action'}
-        message={confirmData.type === 'pin' ? `Are you sure you want to disconnect ${confirmData.targetId}?` : confirmData.type === 'comp' ? `Are you sure you want to delete ${confirmData.targetId}?` : confirmData.type === 'net' ? `Are you sure you want to clear wires for net ${confirmData.targetId}?` : confirmData.type === 'reset' ? 'Clear all components and wires?' : 'Proceed?'}
-        onConfirm={handleConfirmDelete} onCancel={() => setConfirmData({ isOpen: false, type: null, targetId: null })}
+        title={CONFIRM_TEXT[confirmData.type]?.[0] ?? 'Confirm Action'}
+        message={CONFIRM_TEXT[confirmData.type]?.[1](confirmData.targetId) ?? 'Proceed?'}
+        onConfirm={handleConfirmDelete} onCancel={() => setConfirmData(CONFIRM_CLOSED)}
       />
       <AccountOverlay isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} account={account} setAccount={setAccount}
         current={cloudCurrent} setCurrent={setCloudCurrent} hasBoard={board.components.length > 0} getBoardData={boardData}

@@ -1,18 +1,18 @@
 import { route, incrementalReroute } from './router.js';
 import { Grid, BLOCKED_WIRE } from './grid.js';
-import { scoreState, recenterComponents } from './metrics.js';
+import { scoreState, recenterComponents, calculateComponentBounds } from './metrics.js';
 import { netCompletion } from './net-completion.js';
 import { areaLowerBound, isPerfect, targetExcess } from './lower-bound.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
-import { placeInitial } from './initial-placement.js';
-import { anneal, moveComp, rotateComp90InPlace } from './placer.js';
+import { placeInitial, compOptions } from './initial-placement.js';
+import { anneal, moveComp, rotateComp90InPlace, hasOverlap, anyOverlap } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
 import { analyzeTopology } from './topology.js';
 import { solveBox } from './solver/boxsolver.js';
 import { buildModel, toEngine } from './solver/model.js';
 import { BoxRouter } from './solver/boxrouter.js';
-import { processTemplate, generateJSONFromState } from './templates.js';
+import { processTemplate, generateJSONFromState, isBands } from './templates.js';
 
 /**
  * AutorouterEngine - A "Headless" wrapper for the PCB autorouting logic.
@@ -37,8 +37,7 @@ function findConflicts(components, wires) {
     }
     const parts = [];
     for (let i = 0; i < components.length; i++) for (let j = i + 1; j < components.length; j++) {
-        const a = components[i], b = components[j];
-        if (a.ox < b.ox + b.w && b.ox < a.ox + a.w && a.oy < b.oy + b.h && b.oy < a.oy + a.h) parts.push(a.id, b.id);
+        if (hasOverlap(components[i], components[j])) parts.push(components[i].id, components[j].id);
     }
     return { cells: [...bad.values()], parts: [...new Set(parts)] };
 }
@@ -54,6 +53,24 @@ function turnBoard90(components, wires) {
     for (const w of wires) for (const pt of w.path || []) { const col = -pt.row; pt.row = pt.col; pt.col = col; }
 }
 
+// Wires that start or end in one of `cells` ("col,row") become failed straight lines (ripped up);
+// with `nets`, only wires of those nets.
+function failWiresAt(wires, cells, nets = null) {
+    const at = (pt) => cells.has(`${pt.col},${pt.row}`);
+    return wires.map(w => {
+        if (!w.path || (nets && !nets.has(w.net))) return w;
+        const a = w.path[0], b = w.path[w.path.length - 1];
+        return at(a) || at(b) ? { ...w, failed: true, path: [a, b] } : w;
+    });
+}
+
+// How many pins each net has on the board.
+function netPinCounts(components) {
+    const counts = new Map();
+    for (const c of components) for (const p of c.pins) counts.set(p.net, (counts.get(p.net) || 0) + 1);
+    return counts;
+}
+
 // Wire a board without moving anything, with the solver's negotiating router (much stronger in
 // tight spots than the classic one). Returns the wires, or null if the parts overlap or some net
 // can't be connected.
@@ -67,12 +84,15 @@ export function routeFixed(components) {
     const router = new BoxRouter(model, W, H);
     router.jumpCost = 0;
     if (router.setPlacement(pl) > 0) return null;
-    let r = null;
-    for (let k = 0; k < 4 && !(r && r.miss === 0 && r.overuse === 0); k++) r = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
+    const negotiate = () => {
+        let res = null;
+        for (let k = 0; k < 4 && !(res && res.miss === 0 && res.overuse === 0); k++) res = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
+        return res;
+    };
+    let r = negotiate();
     if (r.miss > 0 || r.overuse > 0) {
         router.jumpCost = 6;
-        r = null;
-        for (let k = 0; k < 4 && !(r && r.miss === 0 && r.overuse === 0); k++) r = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
+        r = negotiate();
     }
     if (!r || r.miss > 0 || r.overuse > 0 || (r.jumpers || 0) > 1) return null;
     return toEngine(model, pl, r, W, minC, minR).wires;
@@ -121,6 +141,11 @@ export class AutorouterEngine {
         if (newState.wires) this.wires = newState.wires;
         if (newState.cols) this.cols = newState.cols;
         if (newState.rows) this.rows = newState.rows;
+        this.changed();
+    }
+
+    // a new tick tells the UI the board changed, also where the arrays are the same objects
+    changed() {
         this.tick++;
         this.notify();
     }
@@ -170,9 +195,9 @@ export class AutorouterEngine {
         // Keep results where the parts were, so the camera doesn't have to chase them.
         let cx = 0, cy = 0;
         if (this.components.length) {
-            const xs = this.components.flatMap(c => [c.ox, c.ox + c.w]), ys = this.components.flatMap(c => [c.oy, c.oy + c.h]);
-            cx = Math.round((Math.min(...xs) + Math.max(...xs)) / 2);
-            cy = Math.round((Math.min(...ys) + Math.max(...ys)) / 2);
+            const b = calculateComponentBounds(this.components);
+            cx = Math.round((b.minCol + b.maxCol + 1) / 2);
+            cy = Math.round((b.minRow + b.maxRow + 1) / 2);
         }
         const place = (components, wires) => {
             const sc0 = scoreState(components, wires);
@@ -185,8 +210,7 @@ export class AutorouterEngine {
             this.components = components;
             this.wires = wires;
             this.conflicts = conflicts;
-            this.tick++;
-            this.notify();
+            this.changed();
         };
         // a jumper counts as 4 holes, like in the solver
         const keyOf = (m) => m.area + 4 * (m.jumpers || 0) + (m.excess > 0 ? 1e6 + 1e4 * m.excess : 0);
@@ -296,23 +320,19 @@ export class AutorouterEngine {
                             // the engine decides when to stop (stallMs: null), worker 0 streams its live state
                             worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, target, live: this.liveView && i === 0 });
                         }
-                        open = workers.length;
-                        this.activeWorkers = workers;
-                        ranWorkers = true;
-                        if (this.gCancelRequested) stopAll();
                     } catch (err) {
                         console.error('Failed to create solver worker', err);
-                        if (workers.length === 0) {
-                            clearInterval(watchdog);
-                            this.activeWorkers = [];
-                            resolve();
-                        } else {
-                            open = workers.length;
-                            this.activeWorkers = workers;
-                            ranWorkers = true;
-                            if (this.gCancelRequested) stopAll();
-                        }
                     }
+                    if (workers.length === 0) {
+                        clearInterval(watchdog);
+                        this.activeWorkers = [];
+                        resolve();
+                        return;
+                    }
+                    open = workers.length;
+                    this.activeWorkers = workers;
+                    ranWorkers = true;
+                    if (this.gCancelRequested) stopAll();
                 });
             }
             if (!ranWorkers) {
@@ -353,21 +373,24 @@ export class AutorouterEngine {
         return Math.max(1, Math.min(this.layoutConfig.maxWorkers, hc - 1));
     }
 
-    async optimize() {
-        this.gCancelRequested = false;
-        const options = {
+    // callbacks for the legacy optimizer's compactBoard / optimizeBoard
+    legacyOptions() {
+        return {
             onProgress: this.onProgress,
             onStatusUpdate: this.onStatusUpdate,
             checkCancel: () => this.gCancelRequested,
             onStateChange: (state) => {
                 this.components = state.components;
                 this.wires = state.wires;
-                this.tick++;
-                this.notify();
+                this.changed();
             },
             onBestSnapshot: (snapshot) => { this.onBestSnapshot?.(snapshot); }
         };
+    }
 
+    async optimize() {
+        this.gCancelRequested = false;
+        const options = this.legacyOptions();
         const { compactBoard } = await legacyOptimizer();
         const res = await compactBoard(
             this.components,
@@ -387,19 +410,7 @@ export class AutorouterEngine {
 
     async plateau() {
         this.gCancelRequested = false;
-        const options = {
-            onProgress: this.onProgress,
-            onStatusUpdate: this.onStatusUpdate,
-            checkCancel: () => this.gCancelRequested,
-            onStateChange: (state) => {
-                this.components = state.components;
-                this.wires = state.wires;
-                this.tick++;
-                this.notify();
-            },
-            onBestSnapshot: (snapshot) => { this.onBestSnapshot?.(snapshot); }
-        };
-
+        const options = this.legacyOptions();
         const { optimizeBoard } = await legacyOptimizer();
         const res = await optimizeBoard(
             this.components,
@@ -439,7 +450,7 @@ export class AutorouterEngine {
         const comp = this.components.find(c => c.id === id);
         if (!comp) return false;
         const complete = () => { const nc = netCompletion(this.components, this.wires); return nc.done === nc.total; };
-        const overlaps = () => this.components.some(o => o !== comp && comp.ox < o.ox + o.w && o.ox < comp.ox + comp.w && comp.oy < o.oy + o.h && o.oy < comp.oy + comp.h);
+        const overlaps = () => anyOverlap(comp, this.components);
         const start = { ox: comp.ox, oy: comp.oy, pins: comp.pins.map(p => ({ ...p })), w: comp.w, h: comp.h, edge: comp.edge };
         // nothing broke on this part (a new picture, a renamed pin): keep the wiring as it is
         // (only its own nets count: a net left open elsewhere is no reason to re-route)
@@ -460,7 +471,7 @@ export class AutorouterEngine {
                 if (overlaps()) continue;
                 const w = routeFixed(this.components);
                 if (w) this.wires = w;
-                if (w && complete()) { this.components = [...this.components]; this.tick++; this.notify(); return true; }
+                if (w && complete()) { this.components = [...this.components]; this.changed(); return true; }
             }
         }
         restore();
@@ -563,19 +574,17 @@ export class AutorouterEngine {
                 this.updateIncrementalWires(c);
             }
             this.components = [...this.components];
-            this.tick++;
-            this.notify();
+            this.changed();
         }
     }
 
     /** Resistor colour rings: 4, 5 or 0 (off); only how the part is drawn. */
     setBands(id, n) {
         const c = this.components.find(x => x.id === id);
-        if (!c || ![0, 4, 5].includes(n)) return;
+        if (!c || !isBands(n)) return;
         c.bands = n;
         this.components = [...this.components];
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     rotateComponent(id) {
@@ -586,8 +595,7 @@ export class AutorouterEngine {
                 this.updateIncrementalWires(c);
             }
             this.components = [...this.components];
-            this.tick++;
-            this.notify();
+            this.changed();
         }
     }
 
@@ -598,11 +606,7 @@ export class AutorouterEngine {
 
     async previewManualRoute(startPin, currentPos, targetNet = null) {
         // Fast A* for single path
-        let minCol = Infinity, maxCol = -Infinity, minRow = Infinity, maxRow = -Infinity;
-        this.components.forEach(c => {
-            minCol = Math.min(minCol, c.ox); maxCol = Math.max(maxCol, c.ox + c.w - 1);
-            minRow = Math.min(minRow, c.oy); maxRow = Math.max(maxRow, c.oy + c.h - 1);
-        });
+        const { minCol, maxCol, minRow, maxRow } = calculateComponentBounds(this.components);
         const pad = 15;
         const gridMinC = Math.min(minCol - pad, startPin.pin.col, currentPos.col);
         const gridMinR = Math.min(minRow - pad, startPin.pin.row, currentPos.row);
@@ -667,8 +671,9 @@ export class AutorouterEngine {
         }
 
         // 1. Remove missing components that aren't renames
+        const renamedOld = new Set(renameMap.values());
         for (const id of missingOld) {
-            if (!Array.from(renameMap.values()).includes(id)) {
+            if (!renamedOld.has(id)) {
                 this.deleteComponent(id);
             }
         }
@@ -689,10 +694,8 @@ export class AutorouterEngine {
                 oldComp.name = def.name;
                 oldComp.value = def.value;
                 oldComp.color = def.color;
-                oldComp.routeUnder = def.routeUnder;
-                if (def.swap) oldComp.swap = def.swap; else delete oldComp.swap;
-                if (def.edge >= 0) oldComp.edge = def.edge; else delete oldComp.edge;
-                if (def.bands !== undefined) oldComp.bands = def.bands; else delete oldComp.bands;
+                delete oldComp.swap; delete oldComp.edge; delete oldComp.bands;
+                Object.assign(oldComp, compOptions(def));
 
                 const incomingPins = def.offsets.map((off, idx) => ({
                     dCol: off[0],
@@ -712,17 +715,17 @@ export class AutorouterEngine {
 
                 // Detect topological changes
                 const changedCoords = new Set();
+                const incomingKeys = new Set();
                 incomingPins.forEach(inp => {
                     const key = `${inp.dCol},${inp.dRow}`;
+                    incomingKeys.add(key);
                     const oldP = oldPinsMap.get(key);
                     if (!oldP || oldP.net !== inp.net || oldP.lbl !== inp.lbl) {
                         changedCoords.add(key);
                     }
                 });
                 oldPinsMap.forEach((oldP, key) => {
-                    if (!incomingPins.find(inp => inp.dCol === oldP.dCol && inp.dRow === oldP.dRow)) {
-                        changedCoords.add(key);
-                    }
+                    if (!incomingKeys.has(key)) changedCoords.add(key);
                 });
 
                 if (changedCoords.size > 0 || dimensionsChanged) {
@@ -736,33 +739,20 @@ export class AutorouterEngine {
                     }));
 
                     // Rip-up wires attached to shifted/changed pins
-                    const oldAbsCoords = Array.from(changedCoords).map(key => {
+                    const oldAbsSet = new Set([...changedCoords].map(key => {
                         const [dc, dr] = key.split(',').map(Number);
                         return `${oldComp.ox + dc},${oldComp.oy + dr}`;
-                    });
-                    const oldAbsSet = new Set(oldAbsCoords);
-
-                    this.wires = this.wires.map(w => {
-                        if (!w.path) return w;
-                        const startsAtChanged = oldAbsSet.has(`${w.path[0].col},${w.path[0].row}`);
-                        const endsAtChanged = oldAbsSet.has(`${w.path[w.path.length - 1].col},${w.path[w.path.length - 1].row}`);
-                        if (startsAtChanged || endsAtChanged) {
-                            return { ...w, failed: true, path: [w.path[0], w.path[w.path.length - 1]] };
-                        }
-                        return w;
-                    });
+                    }));
+                    this.wires = failWiresAt(this.wires, oldAbsSet);
                 }
             }
         });
 
         // Cleanup orphaned wires
-        this.wires = this.wires.filter(w => {
-            const pinCount = this.components.reduce((acc, c) => acc + c.pins.filter(p => p.net === w.net).length, 0);
-            return pinCount >= 2;
-        });
+        const counts = netPinCounts(this.components);
+        this.wires = this.wires.filter(w => (counts.get(w.net) || 0) >= 2);
 
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     deleteComponent(id) {
@@ -783,65 +773,32 @@ export class AutorouterEngine {
         // For nets touched by this component, remove wires if the net
         // no longer has at least two pins remaining on the board.
         if (affectedNets.size > 0) {
-            const netPinCounts = new Map();
-
-            // Recompute pin counts for affected nets across remaining components
-            this.components.forEach(c => {
-                if (!Array.isArray(c.pins)) return;
-                c.pins.forEach(p => {
-                    if (!p || p.net == null) return;
-                    if (!affectedNets.has(p.net)) return;
-                    const current = netPinCounts.get(p.net) || 0;
-                    netPinCounts.set(p.net, current + 1);
-                });
-            });
-
             // Drop wires whose nets have fewer than 2 remaining pins
-            this.wires = this.wires.filter(w => {
-                if (!w || w.net == null) return true;
-                if (!affectedNets.has(w.net)) return true;
-                const count = netPinCounts.get(w.net) || 0;
-                return count >= 2;
-            });
+            const counts = netPinCounts(this.components);
+            this.wires = this.wires.filter(w => !w || w.net == null || !affectedNets.has(w.net) || (counts.get(w.net) || 0) >= 2);
 
-            // Cleanup: For nets that still exist, remove any wires that terminate at 
-            // the exact coordinates where the deleted component's pins were.
-            if (comp && Array.isArray(comp.pins)) {
-                const removedCoords = new Set(comp.pins.map(p => `${p.col},${p.row}`));
-                this.wires = this.wires.map(w => {
-                    if (!affectedNets.has(w.net) || !w.path) return w;
-                    const startsAtRemoved = removedCoords.has(`${w.path[0].col},${w.path[0].row}`);
-                    const endsAtRemoved = removedCoords.has(`${w.path[w.path.length - 1].col},${w.path[w.path.length - 1].row}`);
-                    if (startsAtRemoved || endsAtRemoved) {
-                        return { ...w, failed: true, path: [w.path[0], w.path[w.path.length - 1]] };
-                    }
-                    return w;
-                });
-            }
+            // For nets that still exist, rip up wires that end where the deleted pins were
+            this.wires = failWiresAt(this.wires, new Set(comp.pins.map(p => `${p.col},${p.row}`)), affectedNets);
         }
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     deleteWire(net) {
         this.wires = this.wires.filter(w => w.net !== net);
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     updatePinNet(compId, pinIdx, net) {
         const c = this.components.find(x => x.id === compId);
         if (c && c.pins[pinIdx]) {
             c.pins[pinIdx].net = net;
-            this.tick++;
-            this.notify();
+            this.changed();
         }
     }
 
     addManualWire(net, path) {
         this.wires.push({ net, path, failed: false, manual: true });
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     mergeNets(oldNet, newNet) {
@@ -856,7 +813,6 @@ export class AutorouterEngine {
         this.wires.forEach(w => {
             if (w.net === oldNet) w.net = newNet;
         });
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 }

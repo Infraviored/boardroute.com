@@ -11,8 +11,11 @@ const GOLD = ['gold', '#c9a227'], SILVER = ['silver', '#c4c8cc'];
 
 export const DEFAULT_BANDS = 5;
 
+/** A valid `bands` value: 4, 5 or 0 (off). */
+export const isBands = (n) => [0, 4, 5].includes(n);
+
 /** The part's ring count: 4, 5 or 0 (off). */
-export const bandsOf = (c) => ([0, 4, 5].includes(c?.bands) ? c.bands : DEFAULT_BANDS);
+export const bandsOf = (c) => (isBands(c?.bands) ? c.bands : DEFAULT_BANDS);
 
 export function isResistor(c) {
   return c?.pins?.length === 2 && /resist|^R_/i.test(String(c.name || ''));

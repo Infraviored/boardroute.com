@@ -4,6 +4,17 @@ import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG, phot
 import { scoreState } from '../engine/metrics.js';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
+// segmented buttons: options = [[value, label, title?]]
+function Seg({ value, options, onChange }) {
+    return (
+        <div className="ex-seg">
+            {options.map(([v, label, title]) => (
+                <button key={v} className={value === v ? 'active' : ''} onClick={() => onChange(v)} title={title}>{label}</button>
+            ))}
+        </div>
+    );
+}
+
 // Export with a live preview: the picture on the left is the exact SVG that gets downloaded or
 // printed, so every option (side, board size, hole coordinates) is visible before exporting.
 export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink, partImages = null }) {
@@ -94,11 +105,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
                     <div className="ex-group">
                         <div className="ex-label">View</div>
-                        <div className="ex-seg">
-                            <button className={side === 'top' ? 'active' : ''} onClick={() => setSide('top')}>Top</button>
-                            <button className={side === 'bottom' ? 'active' : ''} onClick={() => setSide('bottom')} title="Solder side, mirrored like the board turned over">Solder side</button>
-                            <button className={side === 'both' ? 'active' : ''} onClick={() => setSide('both')}>Both</button>
-                        </div>
+                        <Seg value={side} onChange={setSide} options={[['top', 'Top'], ['bottom', 'Solder side', 'Solder side, mirrored like the board turned over'], ['both', 'Both']]} />
                     </div>
 
                     {fp && <div className="ex-size">Layout {fp.width} × {fp.height} holes · {mm(fp.width)} × {mm(fp.height)} mm at 2.54 mm pitch</div>}
@@ -112,11 +119,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
                     <div className="ex-group">
                         <div className="ex-label">Colours</div>
-                        <div className="ex-seg">
-                            <button className={look === 'screen' ? 'active' : ''} onClick={() => setLook('screen')}>Dark (screen)</button>
-                            <button className={look === 'paper' ? 'active' : ''} onClick={() => setLook('paper')}>Light (paper)</button>
-                            <button className={look === 'mono' ? 'active' : ''} onClick={() => setLook('mono')} title="For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend">Black &amp; white</button>
-                        </div>
+                        <Seg value={look} onChange={setLook} options={[['screen', 'Dark (screen)'], ['paper', 'Light (paper)'], ['mono', 'Black & white', 'For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend']]} />
                         {photos && <label className="ex-check"><input type="checkbox" checked={pictures} onChange={e => setPictures(e.target.checked)} /> Part pictures (photos)</label>}
                         <label className="ex-check"><input type="checkbox" checked={actualSize} onChange={e => setActualSize(e.target.checked)} /> Print at actual size (1 hole = 2.54 mm)</label>
                         <div className="ex-hint">{look === 'mono' ? 'Connections are told apart by line style; the legend is below the board.' : 'Print always uses the light colours. Black & white printer? Pick Black & white.'}</div>
@@ -124,10 +127,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
                     <div className="ex-group">
                         <div className="ex-label">Format</div>
-                        <div className="ex-seg">
-                            <button className={format === 'svg' ? 'active' : ''} onClick={() => setFormat('svg')}>SVG (vector)</button>
-                            <button className={format === 'png' ? 'active' : ''} onClick={() => setFormat('png')}>PNG (image)</button>
-                        </div>
+                        <Seg value={format} onChange={setFormat} options={[['svg', 'SVG (vector)'], ['png', 'PNG (image)']]} />
                     </div>
 
                     <div className="ex-group">

@@ -9,7 +9,7 @@
 const DX = [1, -1, 0, 0];
 const DY = [0, 0, 1, -1];
 
-class Heap {
+export class Heap {
     constructor(cap) { this.k = new Int32Array(cap); this.f = new Float64Array(cap); this.n = 0; }
     clear() { this.n = 0; }
     push(key, f) {
@@ -54,6 +54,17 @@ export function jumpSpan(a, b, W) {
     return out;
 }
 export const isJump = (a, b, W) => Math.abs((a % W) - (b % W)) + Math.abs(((a / W) | 0) - ((b / W) | 0)) > 1;
+
+// Undirected cell graph: Map cell -> Set of neighbour cells.
+function link(nb, a, b) {
+    if (!nb.has(a)) nb.set(a, new Set()); if (!nb.has(b)) nb.set(b, new Set());
+    nb.get(a).add(b); nb.get(b).add(a);
+}
+function adjacency(conns) {
+    const nb = new Map();
+    for (const c of conns) for (let i = 1; i < c.length; i++) link(nb, c[i - 1], c[i]);
+    return nb;
+}
 
 export const CELL_FREE = -1;
 export const CELL_DEAD = -2; // unconnected pin or pin collision: nobody may use it
@@ -306,12 +317,7 @@ export class BoxRouter {
     // Cheap clean-up used during search: cut dangling wire ends (non-pin leaves) left over
     // from salvaged trees.
     trim(n, conns, missing) {
-        const nb = new Map();
-        const link = (a, b) => {
-            if (!nb.has(a)) nb.set(a, new Set()); if (!nb.has(b)) nb.set(b, new Set());
-            nb.get(a).add(b); nb.get(b).add(a);
-        };
-        for (const c of conns) for (let i = 1; i < c.length; i++) link(c[i - 1], c[i]);
+        const nb = adjacency(conns);
         let out = conns.map(c => Array.from(c));
         let changed = true;
         while (changed) {
@@ -332,25 +338,16 @@ export class BoxRouter {
     // forest over the net's copper, trim non-pin leaves, and split the result into paths
     // between pins/junctions.
     prune(n, conns, missing = 0) {
-        const nb = new Map();
-        const link = (a, b) => {
-            if (!nb.has(a)) nb.set(a, new Set()); if (!nb.has(b)) nb.set(b, new Set());
-            nb.get(a).add(b); nb.get(b).add(a);
-        };
-        for (const c of conns) for (let i = 1; i < c.length; i++) link(c[i - 1], c[i]);
+        const nb = adjacency(conns);
         // spanning forest (BFS from each pin)
         const tree = new Map();
-        const tlink = (a, b) => {
-            if (!tree.has(a)) tree.set(a, new Set()); if (!tree.has(b)) tree.set(b, new Set());
-            tree.get(a).add(b); tree.get(b).add(a);
-        };
         const seen = new Set();
         for (const p of this.netPinCells[n]) {
             if (seen.has(p) || !nb.has(p)) continue;
             seen.add(p);
             const q = [p];
             for (let qi = 0; qi < q.length; qi++) {
-                for (const m of nb.get(q[qi])) if (!seen.has(m)) { seen.add(m); tlink(q[qi], m); q.push(m); }
+                for (const m of nb.get(q[qi])) if (!seen.has(m)) { seen.add(m); link(tree, q[qi], m); q.push(m); }
             }
         }
         // trim leaves that are not this net's pins
@@ -390,8 +387,6 @@ export class BoxRouter {
         return { conns: out, cells: this.wireCells(out), missing: Math.max(0, missing) };
     }
 
-    // Negotiated routing. `state` (optional) is a previous routing to warm-start from:
-    // intact nets are kept as they are, damaged nets are repaired from their salvage.
     // Cells covered on the component side by a net's jumpers, and how many jumpers it uses.
     jumperCells(conns) {
         const out = [];
@@ -402,12 +397,15 @@ export class BoxRouter {
         return { cells: out, count };
     }
 
+    // Negotiated routing. `state` (optional) is a previous routing to warm-start from:
+    // intact nets are kept as they are, damaged nets are repaired from their salvage.
     negotiate({ state = null, maxIter = 6, pres0 = 0.6, presMul = 1.8, histInc = 0.4, partial = true } = {}) {
         const { model, N } = this;
         const nets = model.routedNets;
         const occ = new Int16Array(N);
         const jocc = new Int16Array(N); // jumper coverage on the component side, per cell
         const useJumps = this.jumpCost > 0;
+        const jo = useJumps ? jocc : null; // jumper coverage as routeNet/salvage take it
         const conns = new Array(model.netNames.length);
         const cells = new Array(model.netNames.length);
         const jcells = new Array(model.netNames.length);
@@ -441,8 +439,8 @@ export class BoxRouter {
             for (const n of order) {
                 add(n, -1);
                 let seed = seeds.get(n) || null;
-                if (it > 0) seed = partial ? this.salvage(n, conns[n], occ, useJumps ? jocc : null) : null;
-                const r = this.routeNet(n, occ, pres, seed, useJumps ? jocc : null);
+                if (it > 0) seed = partial ? this.salvage(n, conns[n], occ, jo) : null;
+                const r = this.routeNet(n, occ, pres, seed, jo);
                 conns[n] = r.conns; cells[n] = r.cells; missing[n] = r.missing;
                 jcells[n] = useJumps ? this.jumperCells(r.conns).cells : null;
                 add(n, 1);

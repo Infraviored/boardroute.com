@@ -229,9 +229,6 @@ const PRE = 2;
 // search effort per bound, in cells scanned (at most ~80 ms on a hard instance)
 const WORK = 3e6;
 
-// A layout is perfect when its area meets the bound and it uses no more jumper wires than any
-// layout must: 0 for a circuit that can be drawn without crossings, 1 for one that can't
-// (a non-planar network needs at least one crossing).
 // Board size target { cols, rows } (either may be null): how many holes a w x h layout sticks
 // out of it, the cheaper of the two orientations (the whole layout can be turned 90°), and
 // whether it fits only turned. No target: 0.
@@ -242,6 +239,9 @@ export function targetExcess(w, h, target) {
     return turned < straight ? { excess: turned, turned: true } : { excess: straight, turned: false };
 }
 
+// A layout is perfect when its area meets the bound and it uses no more jumper wires than any
+// layout must: 0 for a circuit that can be drawn without crossings, 1 for one that can't
+// (a non-planar network needs at least one crossing).
 export function isPerfect(area, jumpers, bound, planar = true) {
     return area <= bound.area && (jumpers || 0) <= (planar ? 0 : 1);
 }

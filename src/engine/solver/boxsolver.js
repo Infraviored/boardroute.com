@@ -32,7 +32,7 @@ function footprint(model, s, W) {
     return { minX, minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-function remapRoute(model, route, oldW, newW, newH, dx, dy) {
+function remapRoute(route, oldW, newW, newH, dx, dy) {
     const map = (k) => ((((k / oldW) | 0) + dy) * newW + (k % oldW) + dx);
     const conns = route.conns.map(cs => cs && cs.map(c => c.map(map)));
     const cells = route.cells.map(cs => cs && cs.map(map));
@@ -152,13 +152,14 @@ export async function solveBox(defs, opts = {}) {
     };
 
     // Soft shrink target: a boundary line that should be emptied (then cropped away).
+    // Occupancy: 2 per body cell on the line, 1 per wire cell (route null: bodies only).
     let edge = null;
     const lineOccupancy = (route, e) => {
         let n = 0;
         const len = e.axis === 0 ? H : W;
         for (let t = 0; t < len; t++) {
             const k = e.axis === 0 ? t * W + e.idx : e.idx * W + t;
-            if (router.bodyCount[k] > 0) n += 2; else if (route.occ[k] > 0) n += 1;
+            if (router.bodyCount[k] > 0) n += 2; else if (route && route.occ[k] > 0) n += 1;
         }
         return n;
     };
@@ -184,8 +185,8 @@ export async function solveBox(defs, opts = {}) {
                 const x0 = s.pl.ox[i] - r, x1 = s.pl.ox[i] + R.w - 1 + r, y0 = s.pl.oy[i] - r, y1 = s.pl.oy[i] + R.h - 1 + r;
                 for (const k of hot) { const x = k % W, y = (k / W) | 0; if (x >= x0 && x <= x1 && y >= y0 && y <= y1) { out.push(i); return; } }
             } else if (c.nets.some(n => s.route.badNets.has(n))) { out.push(i); return; }
-            if (s.overlap && c.edge >= 0 && edgeGap(c, s.pl.rot[i], s.pl.ox[i], s.pl.oy[i], W, H) > 0) { out.push(i); return; }
             if (s.overlap) {
+                if (c.edge >= 0 && edgeGap(c, s.pl.rot[i], s.pl.ox[i], s.pl.oy[i], W, H) > 0) { out.push(i); return; }
                 const R = c.rots[s.pl.rot[i]];
                 for (let dx = 0; dx < R.w; dx++) for (let dy = 0; dy < R.h; dy++) {
                     const x = s.pl.ox[i] + dx, y = s.pl.oy[i] + dy;
@@ -309,13 +310,7 @@ export async function solveBox(defs, opts = {}) {
                 const ov = router.setPlacement(pl);
                 rasterized = true;
                 let lb = W_OVERLAP * ov;
-                if (edge) {
-                    const len = edge.axis === 0 ? H : W;
-                    for (let t = 0; t < len; t++) {
-                        const k = edge.axis === 0 ? t * W + edge.idx : edge.idx * W + t;
-                        if (router.bodyCount[k] > 0) lb += 2 * V.edgeW;
-                    }
-                }
+                if (edge) lb += V.edgeW * lineOccupancy(null, edge);
                 if (lb - s.cost > thr) { lazyRejects++; T *= alpha; continue; }
             }
             const c = evaluate(pl, s, V.iters, rasterized);
@@ -346,22 +341,25 @@ export async function solveBox(defs, opts = {}) {
 
     // Cheap pre-placement: anneal half-perimeter wire length with a 1-hole keep-out around
     // every body (leaves routing channels). No routing involved, so thousands of moves/ms.
-    const pinNetIdx = model.comps.map(c => c.net);
+    // per-net pin bounding boxes, reused across calls (bbStamp marks the nets seen this call)
+    const nNets = model.netNames.length;
+    const bbX0 = new Int32Array(nNets), bbX1 = new Int32Array(nNets), bbY0 = new Int32Array(nNets), bbY1 = new Int32Array(nNets);
+    const bbStamp = new Int32Array(nNets);
+    let bbCur = 0;
     const hpwlCost = (pl) => {
-        let total = 0;
-        const bb = new Map();
+        const st = ++bbCur;
         for (let i = 0; i < nC; i++) {
-            const R = model.comps[i].rots[pl.rot[i]], nets = pinNetIdx[i];
+            const c = model.comps[i], R = c.rots[pl.rot[i]], nets = c.net;
             for (let p = 0; p < nets.length; p++) {
                 const n = nets[p];
                 if (n < 0 || model.netPinCount[n] < 2) continue;
                 const x = pl.ox[i] + R.dc[p], y = pl.oy[i] + R.dr[p];
-                const b = bb.get(n);
-                if (!b) bb.set(n, [x, x, y, y]);
-                else { if (x < b[0]) b[0] = x; if (x > b[1]) b[1] = x; if (y < b[2]) b[2] = y; if (y > b[3]) b[3] = y; }
+                if (bbStamp[n] !== st) { bbStamp[n] = st; bbX0[n] = bbX1[n] = x; bbY0[n] = bbY1[n] = y; }
+                else { if (x < bbX0[n]) bbX0[n] = x; if (x > bbX1[n]) bbX1[n] = x; if (y < bbY0[n]) bbY0[n] = y; if (y > bbY1[n]) bbY1[n] = y; }
             }
         }
-        for (const b of bb.values()) total += b[1] - b[0] + b[3] - b[2];
+        let total = 0;
+        for (const n of model.routedNets) if (bbStamp[n] === st) total += bbX1[n] - bbX0[n] + bbY1[n] - bbY0[n];
         let ov = 0;
         for (let i = 0; i < nC; i++) {
             const A = model.comps[i].rots[pl.rot[i]];
@@ -424,7 +422,7 @@ export async function solveBox(defs, opts = {}) {
         if (f.w === W && f.h === H && f.minX === 0 && f.minY === 0) return s;
         const pl = clonePl(s.pl);
         for (let i = 0; i < nC; i++) { pl.ox[i] -= f.minX; pl.oy[i] -= f.minY; }
-        const route = remapRoute(model, s.route, W, f.w, f.h, -f.minX, -f.minY);
+        const route = remapRoute(s.route, W, f.w, f.h, -f.minX, -f.minY);
         setBox(f.w, f.h);
         const overlap = router.setPlacement(pl);
         return { pl, route, overlap, cost: costOf(route, overlap, V.jumperWeight) };
@@ -497,13 +495,6 @@ export async function solveBox(defs, opts = {}) {
         while (!stop()) {
             if ((warm = takeover('tick'))) break;
             onProgress?.(`box ${W}x${H} (best ${best.f.w}x${best.f.h}=${best.area})`);
-            const options = [];
-            if (W - 1 >= minDimA && (W - 1) * H > 0) options.push({ axis: 0, w: W - 1, h: H });
-            if (H - 1 >= minDimA) options.push({ axis: 1, w: W, h: H - 1 });
-            // larger area cut first; with a board size target, first what gets closer to it
-            options.sort((a, b) => (targetExcess(a.w, a.h, opts.target).excess - targetExcess(b.w, b.h, opts.target).excess) || (a.w * a.h - b.w * b.h));
-            if (W - 1 < minDimB && H - 1 < minDimB) { /* both dims at minimum */ }
-
             let next = null;
             const legalBase = s, baseW = W, baseH = H;
             if (V.shrink === 'soft') {
@@ -532,6 +523,11 @@ export async function solveBox(defs, opts = {}) {
                 await maybeYield();
                 continue;
             }
+            const options = [];
+            if (W - 1 >= minDimA && (W - 1) * H > 0) options.push({ axis: 0, w: W - 1, h: H });
+            if (H - 1 >= minDimA) options.push({ axis: 1, w: W, h: H - 1 });
+            // larger area cut first; with a board size target, first what gets closer to it
+            options.sort((a, b) => (targetExcess(a.w, a.h, opts.target).excess - targetExcess(b.w, b.h, opts.target).excess) || (a.w * a.h - b.w * b.h));
             for (const o of options) {
                 if (stop()) break;
                 if (Math.max(o.w, o.h) < minDimB) continue;
@@ -548,7 +544,6 @@ export async function solveBox(defs, opts = {}) {
                 const effort = baseEvals * (1 + Math.min(fails, 4));
                 const r = await anneal(cand, effort);
                 if (isLegal(r)) { next = r; break; }
-                setBox(baseW, baseH);
             }
             if (next) {
                 s = crop(next);

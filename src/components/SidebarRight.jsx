@@ -114,8 +114,7 @@ export function SidebarRight({
   return (
     <aside id="rsb" className={mobileOpen ? 'mobile-open' : ''}>
       <div className="mobile-sheet-head">
-        <div className="mobile-sheet-handle" />
-        <div className="mobile-sheet-title">Inspector &amp; stats</div>
+<div className="mobile-sheet-title">Inspector &amp; stats</div>
         <button type="button" className="mobile-sheet-close" onClick={onCloseDrawer} aria-label="Close drawer"><X size={18} /></button>
       </div>
       {/* Board stats: always visible, one compact block */}
@@ -218,8 +217,7 @@ export function SidebarRight({
                   onMouseLeave={() => setHoveredNet(null)}
                   onClick={() => setSelectedNet(selectedNet === name ? null : name)}
                 >
-                  <div className="net-dot" style={{ background: netColor(name) }}></div>
-                  <span className="net-name">{name}</span>
+<span className="net-name">{name}</span>
                   <span className={`net-count ${pins.length === 1 ? 'lonely' : ''}`} title={pins.length === 1 ? 'Only one pin: connected to nothing' : undefined}>{pins.length}P</span>
                 </div>
               );
@@ -254,13 +252,7 @@ export function SidebarRight({
            user-select: none;
            cursor: default;
         }
-        .section-header.clickable {
-          cursor: pointer;
-        }
-        .section-header.clickable:hover {
-          background: rgba(255,255,255,0.02);
-        }
-        .section-header h2 {
+.section-header h2 {
            font-size: var(--fs-lg);
            font-weight: 700;
            margin: 0;
@@ -271,22 +263,7 @@ export function SidebarRight({
            color: var(--txt1);
            opacity: 0.6;
         }
-        .toggle-icon-right {
-          margin-left: auto;
-          color: var(--txt1);
-          opacity: 0.3;
-          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
-          transform: rotate(90deg);
-        }
-        .section-header.clickable:hover .toggle-icon-right {
-          opacity: 0.7;
-        }
-        .section-header.open .toggle-icon-right {
-          transform: rotate(0deg);
-          opacity: 0.8;
-          color: var(--blu-bright);
-        }
-        .section-divider {
+.section-divider {
            height: 1px;
            background: linear-gradient(90deg, transparent, var(--border2), transparent);
            margin: 4px 12px 4px 16px;
@@ -374,7 +351,7 @@ export function SidebarRight({
         .rs-board input { width: 42px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: 12px; -moz-appearance: textfield; flex: none; }
         .rs-board input::-webkit-outer-spin-button, .rs-board input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .rs-board input:focus { outline: none; border-color: var(--ui-accent-hover); }
-        .rs-board-x, .rs-board-u { color: var(--txt2); }
+        .rs-board-x { color: var(--txt2); }
         .rs-board-clear { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; margin-left: auto; background: none; border: 0; color: var(--txt2); cursor: pointer; }
         .rs-board-fit { margin-left: 4px; font-weight: 600; white-space: nowrap; }
         .rs-board-fit.ok { color: var(--grn-bright); }
@@ -443,18 +420,7 @@ export function SidebarRight({
         }
         #netPanel .rs-hint { padding: 0 2px; }
 
-        .bottom-preview-container {
-          padding-top: 4px;
-        }
-        .bottom-preview-svg {
-          background: rgba(0,0,0,0.2);
-          border-radius: 12px;
-          padding: 8px;
-          border: 1px solid var(--border);
-          box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        .prop-list {
+.prop-list {
           padding: 8px 12px;
           display: flex;
           flex-direction: column;
@@ -542,8 +508,7 @@ export function SidebarRight({
            border-color: var(--net-color);
            box-shadow: 0 0 0 1px var(--net-color), 0 0 12px color-mix(in srgb, var(--net-color), transparent 60%);
         }
-        .net-dot { display: none; }
-        .net-name { 
+.net-name { 
           flex: 1; 
           font-size: var(--fs-md); 
           color: var(--txt0); 
@@ -578,18 +543,7 @@ export function SidebarRight({
             z-index: 20;
             border-bottom: 1px solid var(--border);
           }
-          .mobile-sheet-handle { display: none !important; }
-          .mobile-sheet-handle-unused {
-            position: absolute;
-            top: 6px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 36px;
-            height: 4px;
-            border-radius: 2px;
-            background: rgba(255, 255, 255, 0.25);
-          }
-          .mobile-sheet-title {
+.mobile-sheet-title {
             font-family: 'Outfit', sans-serif;
             font-size: 1rem;
             font-weight: 700;

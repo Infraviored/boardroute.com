@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { MOBILE_MQ, LANDSCAPE_MQ } from '../mobile.js';
 import { X } from 'lucide-react';
 import { generateBoardSVG } from '../engine/render-utils.js';
 
@@ -83,7 +84,7 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
         .examples-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         .examples-foot .tplbtn { width: auto; padding: 8px 14px; font-size: var(--fs-sm); border-radius: var(--radius-md); }
         .examples-learn { color: var(--blu-bright); font-size: var(--fs-sm); text-decoration: none; }
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .examples-modal {
             max-width: 100vw;
             width: 100vw;
@@ -128,11 +129,21 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
           .examples-learn {
             text-align: center;
             padding: 6px;
-            min-height: 36px;
+            min-height: 40px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
           }
+        }
+        /* phone sideways: cards side by side, the buttons in one row */
+        @media ${LANDSCAPE_MQ} {
+          .examples-modal { padding: 10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); gap: 10px; }
+          .examples-sub { display: none; }
+          .examples-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+          .example-thumb { height: 96px; padding: 8px; }
+          .example-body { padding: 8px 12px 10px; }
+          .examples-foot { flex-direction: row; margin-top: 0; }
+          .examples-foot .tplbtn { width: auto; flex: 1; }
         }
       `}} />
         </div>

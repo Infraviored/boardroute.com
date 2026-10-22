@@ -599,7 +599,12 @@ kbd {
   .fast-tip { display: none !important; }
 }
 
-@media (max-width: 768px) {
+/* = MOBILE_MQ in src/mobile.js (CSS files cannot import it; keep the two in sync) */
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  /* 40 px tap targets for the shared controls: dialog close buttons, small buttons */
+  .ui-modal-close-btn, .close-btn { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+  .ui-btn-sm, .ui-btn-md { min-height: 40px; }
+  .ui-icn-btn-sm, .ui-icn-btn-md { min-width: 40px; min-height: 40px; }
   html, body, #root {
     height: 100dvh;
     width: 100vw;
@@ -956,8 +961,9 @@ textarea:focus-visible,
   color: var(--txt1);
 }
 
-/* Bug 1 Fix: Suppress coach-mark floating hint whenever any dialog or drawer is open */
-body:has(.overlay-bg:not([style*="display: none"]), .json-drawer, #lsb.mobile-open, #rsb.mobile-open, .mobile-action-sheet-overlay) .coach-mark {
+/* Bug 1 Fix: Suppress coach-mark floating hint whenever any dialog or drawer is open,
+   and on the solder side (view only; its badge sits where the tip would) */
+body:has(.overlay-bg:not([style*="display: none"]), .json-drawer, #lsb.mobile-open, #rsb.mobile-open, .mobile-action-sheet-overlay, .side-badge) .coach-mark {
   display: none !important;
 }
 
@@ -996,7 +1002,8 @@ body:has(.overlay-bg:not([style*="display: none"]), .json-drawer, #lsb.mobile-op
 .acc-icon:hover { background: var(--ui-ghost-hover); color: var(--txt0); }
 .acc-error { color: var(--ui-danger-subtle-text); background: var(--ui-danger-subtle-bg); border: 1px solid var(--ui-danger-subtle-border); border-radius: var(--radius-md); padding: 8px 10px; font-size: var(--fs-sm); }
 .account-btn.signed-in svg { color: var(--grn-bright); }
-@media (max-width: 768px) {
+/* = MOBILE_MQ in src/mobile.js (CSS files cannot import it; keep the two in sync) */
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
   .acc-modal { width: 100%; max-width: none !important; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
   .acc-input { height: 42px; }
   .acc-save { flex-wrap: wrap; }

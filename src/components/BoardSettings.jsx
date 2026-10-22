@@ -1,6 +1,7 @@
 import React from 'react';
 import { computeBoardFrame, holeLabel, normalizeBoardView } from '../engine/render-utils.js';
 import { AlertTriangle } from 'lucide-react';
+import { MOBILE_MQ } from '../mobile.js';
 
 // Physical board size and hole-coordinate settings. Shared by the right sidebar and the
 // export dialog (both edit the same useBoardView state).
@@ -259,5 +260,18 @@ export function BoardSettingsStyles() {
           padding: 6px 8px;
         }
         .bv-note.warn svg { flex-shrink: 0; margin-top: 1px; }
+        /* phones: 40 px tap targets */
+        @media ${MOBILE_MQ} {
+          .bv-seg button { min-height: 40px; min-width: 44px; padding: 0 12px; font-size: var(--fs-sm); }
+          .bv-mini { min-height: 40px; padding: 0 14px; }
+          .bv-origin { grid-template-columns: repeat(2, 48px); gap: 6px; }
+          .bv-corner { width: 48px; height: 40px; }
+          .bv-corner::after { width: 8px; height: 8px; }
+          .bv-corner.tl::after, .bv-corner.tr::after { top: 5px; }
+          .bv-corner.bl::after, .bv-corner.br::after { bottom: 5px; }
+          .bv-corner.tl::after, .bv-corner.bl::after { left: 6px; }
+          .bv-corner.tr::after, .bv-corner.br::after { right: 6px; }
+          .bv-switch { min-height: 40px; }
+        }
   ` }} />;
 }

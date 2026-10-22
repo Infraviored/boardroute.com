@@ -1,4 +1,5 @@
 import React from 'react';
+import { MOBILE_MQ } from '../mobile.js';
 import { ModalShell, Button } from './ui';
 
 export function ConfirmOverlay({ isOpen, title, message, onConfirm, onCancel }) {
@@ -47,7 +48,7 @@ export function ConfirmOverlay({ isOpen, title, message, onConfirm, onCancel }) 
           line-height: 1.6;
           margin: 6px 0 16px 0;
         }
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .confirm-modal-shell {
             width: calc(100vw - 32px);
           }

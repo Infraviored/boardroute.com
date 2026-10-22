@@ -1,4 +1,5 @@
 import React from 'react';
+import { MOBILE_MQ, LANDSCAPE_MQ } from '../mobile.js';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -14,7 +15,8 @@ import {
   BookOpen,
   Share2,
   MoreVertical,
-  Cloud
+  Cloud,
+  Check
 } from 'lucide-react';
 
 export function Topbar({
@@ -34,16 +36,18 @@ export function Topbar({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [shareState, setShareState] = React.useState(null); // null | 'copied' | 'failed'
+  const [shareToast, setShareToast] = React.useState(false); // menu closes at once: confirm in a toast
   const shareTimer = React.useRef(null);
   React.useEffect(() => () => clearTimeout(shareTimer.current), []);
-  const share = async () => {
+  const share = async (toast = false) => {
     try {
       const url = await onShareLink();
       await navigator.clipboard.writeText(url);
       setShareState('copied');
     } catch { setShareState('failed'); }
+    setShareToast(toast);
     clearTimeout(shareTimer.current);
-    shareTimer.current = setTimeout(() => setShareState(null), 2000);
+    shareTimer.current = setTimeout(() => { setShareState(null); setShareToast(false); }, 2000);
   };
   const wireRef = React.useRef(null);
   const compactRef = React.useRef(null);
@@ -54,6 +58,13 @@ export function Topbar({
     writeHints(next);
     return next;
   });
+
+  // A run counts for its hint however it was started (top bar, result card, W/C keys).
+  const runningStep = isProcessing ? workflowStep : 0;
+  React.useEffect(() => {
+    if (runningStep === 2) markHint('wire');
+    else if (runningStep === 3) markHint('compact');
+  }, [runningStep]);
 
   // Next-step coach mark: after Load point at Wire, after Wire at Compact; only for the first runs.
   const hintKey = isProcessing ? null : workflowStep === 1 ? 'wire' : workflowStep === 2 ? 'compact' : null;
@@ -77,7 +88,7 @@ export function Topbar({
           <button
             className={`flow-btn ${workflowStep >= 2 && !(workflowStep === 2 && isProcessing) ? 'completed' : ''} ${workflowStep === 2 && isProcessing ? 'processing' : ''} ${workflowStep === 1 && !isProcessing ? 'next' : ''}`}
             ref={wireRef}
-            onClick={() => { markHint('wire'); onStepClick(2); }}
+            onClick={() => onStepClick(2)}
             disabled={workflowStep < 1 || isProcessing}
             title="Arrange the parts until every connection is wired (W)"
             style={{ '--flow-color': 'var(--grn-bright)' }}
@@ -88,7 +99,7 @@ export function Topbar({
           <button
             className={`flow-btn ${workflowStep >= 3 && !(workflowStep === 3 && isProcessing) ? 'completed' : ''} ${workflowStep === 3 && isProcessing ? 'processing' : ''} ${workflowStep === 2 && !isProcessing ? 'next' : ''}`}
             ref={compactRef}
-            onClick={() => { markHint('compact'); onStepClick(3); }}
+            onClick={() => onStepClick(3)}
             disabled={workflowStep < 2 || isProcessing}
             title="Shrink the board as far as possible, starting from the current layout, also after moving parts by hand (C)"
             style={{ '--flow-color': '#a371f7' }}
@@ -133,7 +144,7 @@ export function Topbar({
           <span className="docs-link-label">{account ? 'My circuits' : 'Sign in'}</span>
         </button>
 
-        <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout inside the link, nothing is uploaded)">
+        <button className={`tbtn share-btn ${shareState || ''}`} onClick={() => share()} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout inside the link, nothing is uploaded)">
           <Share2 size={16} />
           <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
         </button>
@@ -176,7 +187,7 @@ export function Topbar({
                 <Cloud size={18} />
                 <span>{account ? 'My circuits' : 'Sign in'}</span>
               </button>
-              <button className={`mas-btn share-btn ${shareState || ''}`} onClick={() => { share(); setMobileMenuOpen(false); }} disabled={!hasLayout || isProcessing}>
+              <button className={`mas-btn share-btn ${shareState || ''}`} onClick={() => { share(true); setMobileMenuOpen(false); }} disabled={!hasLayout || isProcessing}>
                 <Share2 size={18} />
                 <span>{shareState === 'copied' ? 'Link copied' : 'Share link'}</span>
               </button>
@@ -210,6 +221,13 @@ export function Topbar({
               </button>
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+
+      {shareToast && shareState && typeof document !== 'undefined' && createPortal(
+        <div className={`share-toast ${shareState}`} role="status" aria-live="polite">
+          {shareState === 'copied' ? <><Check size={15} /> Link copied</> : 'Copy failed'}
         </div>,
         document.body
       )}
@@ -629,13 +647,13 @@ export function Topbar({
           border-color: var(--ui-primary);
         }
 
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           /* phone: logo and menu on the first row, the step track full width below (same
              interlocking steps as on desktop) */
           #topbar {
             display: grid !important;
             grid-template-columns: 1fr auto;
-            grid-template-rows: 40px 40px;
+            grid-template-rows: 40px 44px;
             align-items: center;
             column-gap: 8px;
             row-gap: 6px;
@@ -666,9 +684,9 @@ export function Topbar({
             display: flex !important;
             align-items: center;
             justify-content: center;
-            width: 38px;
-            height: 38px;
-            min-width: 38px;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
             background: var(--bg4);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -681,7 +699,31 @@ export function Topbar({
             background: var(--bg3);
             color: var(--txt0);
           }
+          /* steps: 40 px tap height (the chevron clip-path rules out an invisible hit area) */
+          #topbar .workflow-track .flow-btn { min-height: 40px; }
         }
+        /* phone held sideways: logo, steps and menu in one row, so the canvas keeps its height */
+        @media ${LANDSCAPE_MQ} {
+          #topbar {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            grid-template-rows: 44px;
+            column-gap: 12px;
+            padding: 4px max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left)) !important;
+          }
+          #topbar .workflow-track { grid-column: 2; grid-row: 1; max-width: 460px; justify-self: center; }
+          .mobile-more-btn { grid-column: 3; grid-row: 1; margin-left: 0; }
+        }
+
+        /* "Link copied" after Share link in the menu (the menu closes at once) */
+        .share-toast {
+          position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+          z-index: 1100; display: flex; align-items: center; gap: 8px;
+          padding: 10px 16px; border-radius: var(--radius-full, 999px);
+          background: var(--bg3); border: 1px solid rgba(63,185,80,.5); color: var(--grn-bright);
+          font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.9rem; white-space: nowrap;
+          box-shadow: 0 8px 28px rgba(0,0,0,.55); animation: mas-fade 0.2s ease-out;
+        }
+        .share-toast.failed { color: var(--red); border-color: rgba(248,81,73,.5); }
       `}} />
       {hint && (
         <CoachMark
@@ -794,6 +836,9 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
           color: var(--txt1); cursor: pointer;
         }
         .coach-close:hover { color: var(--txt0); background: var(--bg4); }
+        @media ${MOBILE_MQ} {
+          .coach-close { width: 40px; height: 40px; margin: -9px -6px -9px -8px; }
+        }
         @keyframes coach-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
         @keyframes coach-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
         @media (prefers-reduced-motion: reduce) { .coach-mark { animation: none; } }

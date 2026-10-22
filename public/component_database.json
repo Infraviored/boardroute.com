@@ -1213,5 +1213,275 @@
       ]
     },
     "swap": true
+  },
+  {
+    "name": "Arduino Nano",
+    "value": "ATmega328P",
+    "pins": [
+      {
+        "offset": [
+          0,
+          0
+        ],
+        "label": "D1/TX"
+      },
+      {
+        "offset": [
+          0,
+          1
+        ],
+        "label": "D0/RX"
+      },
+      {
+        "offset": [
+          0,
+          2
+        ],
+        "label": "RST"
+      },
+      {
+        "offset": [
+          0,
+          3
+        ],
+        "label": "GND"
+      },
+      {
+        "offset": [
+          0,
+          4
+        ],
+        "label": "D2"
+      },
+      {
+        "offset": [
+          0,
+          5
+        ],
+        "label": "D3"
+      },
+      {
+        "offset": [
+          0,
+          6
+        ],
+        "label": "D4"
+      },
+      {
+        "offset": [
+          0,
+          7
+        ],
+        "label": "D5"
+      },
+      {
+        "offset": [
+          0,
+          8
+        ],
+        "label": "D6"
+      },
+      {
+        "offset": [
+          0,
+          9
+        ],
+        "label": "D7"
+      },
+      {
+        "offset": [
+          0,
+          10
+        ],
+        "label": "D8"
+      },
+      {
+        "offset": [
+          0,
+          11
+        ],
+        "label": "D9"
+      },
+      {
+        "offset": [
+          0,
+          12
+        ],
+        "label": "D10"
+      },
+      {
+        "offset": [
+          0,
+          13
+        ],
+        "label": "D11"
+      },
+      {
+        "offset": [
+          0,
+          14
+        ],
+        "label": "D12"
+      },
+      {
+        "offset": [
+          6,
+          14
+        ],
+        "label": "D13"
+      },
+      {
+        "offset": [
+          6,
+          13
+        ],
+        "label": "3V3"
+      },
+      {
+        "offset": [
+          6,
+          12
+        ],
+        "label": "AREF"
+      },
+      {
+        "offset": [
+          6,
+          11
+        ],
+        "label": "A0"
+      },
+      {
+        "offset": [
+          6,
+          10
+        ],
+        "label": "A1"
+      },
+      {
+        "offset": [
+          6,
+          9
+        ],
+        "label": "A2"
+      },
+      {
+        "offset": [
+          6,
+          8
+        ],
+        "label": "A3"
+      },
+      {
+        "offset": [
+          6,
+          7
+        ],
+        "label": "A4"
+      },
+      {
+        "offset": [
+          6,
+          6
+        ],
+        "label": "A5"
+      },
+      {
+        "offset": [
+          6,
+          5
+        ],
+        "label": "A6"
+      },
+      {
+        "offset": [
+          6,
+          4
+        ],
+        "label": "A7"
+      },
+      {
+        "offset": [
+          6,
+          3
+        ],
+        "label": "5V"
+      },
+      {
+        "offset": [
+          6,
+          2
+        ],
+        "label": "RST"
+      },
+      {
+        "offset": [
+          6,
+          1
+        ],
+        "label": "GND"
+      },
+      {
+        "offset": [
+          6,
+          0
+        ],
+        "label": "VIN"
+      }
+    ],
+    "body": {
+      "offset": [
+        0,
+        -1
+      ],
+      "size": [
+        7,
+        18
+      ]
+    }
+  },
+  {
+    "name": "DHT11",
+    "value": "Temp/humidity",
+    "pins": [
+      {
+        "offset": [
+          0,
+          0
+        ],
+        "label": "VCC"
+      },
+      {
+        "offset": [
+          0,
+          1
+        ],
+        "label": "DATA"
+      },
+      {
+        "offset": [
+          0,
+          2
+        ],
+        "label": "NC"
+      },
+      {
+        "offset": [
+          0,
+          3
+        ],
+        "label": "GND"
+      }
+    ],
+    "body": {
+      "offset": [
+        -1,
+        -1
+      ],
+      "size": [
+        3,
+        6
+      ]
+    }
   }
 ]

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { MOBILE_MQ, LANDSCAPE_MQ } from '../mobile.js';
 import { isResistor, parseOhms, ringsFor, bandsOf, DEFAULT_BANDS } from '../engine/resistor-code.js';
 import { Plus, Trash2, Camera, Undo2, X, Image as ImageIcon } from 'lucide-react';
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
@@ -484,7 +485,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-pin input { height: 26px !important; }
                 .ce-icon { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
                 .ce-icon:hover { color: var(--red); background: rgba(248,81,73,.1); }
-                @media (max-width: 768px) {
+                @media ${MOBILE_MQ} {
                     .ce-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
                     .ce-size, .ce-canvas-hint, .ce-hint-long, .ce-head > svg, .ce-btn-txt { display: none; }
                     .ce-head { padding: 8px 10px; gap: 8px; }
@@ -492,7 +493,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     .ce-id { flex: none; }
                     .ce-head-actions { flex: none; }
                     .ce-head .ce-btn { padding: 0 12px; }
-                    .ce-undo { width: 38px; padding: 0 !important; justify-content: center; }
+                    .ce-undo { width: 40px; padding: 0 !important; justify-content: center; }
                     .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
                     .ce-canvas { flex: none; height: 30dvh; position: sticky; top: 0; z-index: 2; }
                     .ce-canvas > svg { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
@@ -510,9 +511,28 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     .ce-icon { width: 40px; height: 40px; }
                     .ce-side input:not([type=color]) { height: 40px; font-size: 14px; }
                     .ce-color input { width: 44px; height: 40px; }
-                    .ce-seg button { padding: 8px 6px; font-size: var(--fs-sm); }
-                    .ce-add { height: 32px; padding: 0 12px; }
-                    .ce-head .ce-btn { min-height: 36px; }
+                    .ce-seg button { padding: 8px 6px; font-size: var(--fs-sm); min-height: 40px; }
+                    .ce-add { height: 40px; padding: 0 14px; }
+                    .ce-head .ce-btn { min-height: 40px; }
+                    /* header: the actions drop to their own row when the name would get squeezed */
+                    .ce-head { flex-wrap: wrap; row-gap: 6px; }
+                    .ce-head input.ce-title { flex: 1 1 auto; min-width: 96px; height: 40px; }
+                    .ce-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+                    .ce-head-actions { margin-left: auto; max-width: 100%; }
+                    .ce-head-actions .ce-btn { white-space: nowrap; }
+                    .ce-face { height: 40px; padding: 0 12px; }
+                    .ce-face-x { width: 40px; height: 40px; }
+                    .ce-photo-row .ce-btn { height: 40px; }
+                    .ce-photo-row .ce-photo-x { width: 40px; }
+                    .ce-side label.ce-check { min-height: 40px; }
+                }
+                /* phone sideways: drawing left, settings right (scrolling on their own) */
+                @media ${LANDSCAPE_MQ} {
+                    .ce-head { flex-wrap: nowrap; padding: 4px max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left)); }
+                    .ce-body { display: grid; grid-template-columns: minmax(0, 1fr) min(360px, 48%); overflow: hidden; }
+                    .ce-canvas { height: auto; position: relative; }
+                    .ce-side { border-left: 1px solid var(--border); overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom, 0px); }
+                    .ce-side section { flex: none; }
                 }
             ` }} />
         </div>

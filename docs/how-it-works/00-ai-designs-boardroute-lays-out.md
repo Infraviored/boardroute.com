@@ -20,7 +20,7 @@ That search is what boardroute does.
 
 ## How the two halves fit together
 
-1. **Describe your circuit to your AI.** In the app, *How do I obtain this?* gives you a ready-made prompt. Paste it into your assistant together with what you want to build. The AI answers with a short JSON description: each part, the position of its pins, and which pins are connected.
+1. **Describe your circuit to your AI.** In the app, *Get it from your AI* gives you a ready-made prompt. Paste it into your assistant together with what you want to build. The AI answers with a short JSON description: each part by name ("resistor", "TO-220", "Wemos D1 Mini") and which pins are connected. It never has to know a footprint or a pin position: boardroute takes those from its library of ~1,150 through-hole parts, so even a small free model gets it right.
 2. **Paste the JSON into boardroute and press Load.** The parts appear on the board, not yet connected.
 3. **Press Wire.** boardroute rearranges the parts until every connection is wired. Usually that takes a second or two.
 4. **Press Compact.** boardroute keeps rearranging and shrinking until it stops finding a smaller board. You watch it work, the panel at the bottom shows the best result so far.

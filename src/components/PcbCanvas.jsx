@@ -352,6 +352,7 @@ export function PcbCanvas({
     }, [showBoardLayer, components, wires, boardView, tick]);
 
     const bounds = useMemo(() => {
+        void tick; // the engine moves parts in place (manual wires, a Compact that keeps its start)
         if (components.length === 0 && wires.length === 0) {
             return { minCol: 0, minRow: 0, maxCol: cols, maxRow: rows };
         }
@@ -383,7 +384,7 @@ export function PcbCanvas({
         if (minCol === maxCol) maxCol += 1;
         if (minRow === maxRow) maxRow += 1;
         return { minCol, minRow, maxCol, maxRow };
-    }, [components, wires, cols, rows, boardFrame, boardView, side]);
+    }, [components, wires, cols, rows, boardFrame, boardView, side, tick]);
 
     const snapLockRef = useRef(null);
     const lastSnapStep = useRef(0);

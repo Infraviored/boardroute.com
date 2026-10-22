@@ -39,9 +39,10 @@ const CONFIRM_TEXT = {
   reset: ['Reset Workspace', () => 'Clear all components and wires?'],
 };
 
-// first free id of the form <prefix><n>, counting up from `start`
-function freeId(components, prefix, start = 1) {
-  const ids = new Set(components.map(c => c.id));
+// first free id of the form <prefix><n>, counting up from `start`; ids that still hold a
+// picture (of a deleted part) are not free
+function freeId(components, prefix, start = 1, pictures = {}) {
+  const ids = new Set([...components.map(c => c.id), ...Object.keys(pictures)]);
   let n = start; while (ids.has(`${prefix}${n}`)) n++;
   return `${prefix}${n}`;
 }
@@ -228,19 +229,16 @@ const [board, setBoard] = useState(() => {
       }
     }
   }, [partImages]);
-  // Prune pictures for parts no longer on the board
-  useEffect(() => {
-    const valid = new Set(board.components.map(c => c.id));
-    setPartImages(prev => {
-      let changed = false;
-      const next = {};
-      for (const [id, img] of Object.entries(prev)) {
-        if (valid.has(id)) next[id] = img;
-        else changed = true;
-      }
-      return changed ? next : prev;
-    });
-  }, [board.components]);
+  // Every change goes through setPictures, so the history (saveHistory, called in the same
+  // handler) sees the new pictures at once. Pictures of parts no longer on the board are kept:
+  // saving, sharing and export only take those of parts on the board (boardData), and new parts
+  // never reuse such an id (freeId).
+  const picturesRef = useRef(partImages);
+  const setPictures = useCallback((v) => {
+    const next = typeof v === 'function' ? v(picturesRef.current) : v;
+    picturesRef.current = next;
+    setPartImages(next);
+  }, []);
   const [editorPhoto, setEditorPhoto] = useState(null);  // 'pick': open the editor with the photo dialog
   const [confirmData, setConfirmData] = useState(CONFIRM_CLOSED);
   const [activePin, setActivePin] = useState(null);
@@ -248,9 +246,10 @@ const [board, setBoard] = useState(() => {
 
   // History
   // The restored board is the first history entry, so Undo can always get back to it
-  // (e.g. after loading an example over it).
+  // (e.g. after loading an example over it). An entry = the board as JSON + the pictures object
+  // of that moment (by reference; picture objects are never changed in place).
   const [history, setHistory] = useState(() => board.components.length
-    ? [JSON.stringify({ components: board.components, wires: board.wires, cols: board.cols, rows: board.rows, cloudCurrent })] : []);
+    ? [{ board: JSON.stringify({ components: board.components, wires: board.wires, cols: board.cols, rows: board.rows, cloudCurrent }), pictures: partImages }] : []);
   const [historyIndex, setHistoryIndex] = useState(() => (board.components.length ? 0 : -1));
 
   // Resizing
@@ -287,7 +286,7 @@ const [board, setBoard] = useState(() => {
   const saveHistory = useCallback((current = cloudCurrent) => {
     const snap = JSON.stringify({ components: engine.components, wires: engine.wires, cols: engine.cols, rows: engine.rows, cloudCurrent: current });
     const next = history.slice(0, historyIndex + 1);
-    next.push(snap);
+    next.push({ board: snap, pictures: picturesRef.current });
     if (next.length > 30) next.shift();
     setHistory(next);
     setHistoryIndex(next.length - 1);
@@ -296,12 +295,12 @@ const [board, setBoard] = useState(() => {
   const handleLoadTemplate = useCallback(() => {
     setExampleTitle(null);
     setCloudCurrent(null);
-    setPartImages({});
+    setPictures({});
     setJsonInput(JSON.stringify(TEMPLATE, null, 2));
     const defs = processTemplate(TEMPLATE);
     engine.initializeBoard(defs);
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory(null);
-  }, [engine, saveHistory]);
+  }, [engine, saveHistory, setPictures]);
 
   // Parse the circuit JSON; problems become a visible notice instead of a silent no-op.
   const parseCircuit = useCallback(() => {
@@ -341,6 +340,7 @@ const [board, setBoard] = useState(() => {
 
   // Wire (step 2): fresh placement, rearranged only until every net is connected.
   // Compact (step 3): shrink from the current board (also after moving parts by hand).
+  const layoutRun = useRef(null); // the running engine.layout(), if any
   const runLayout = useCallback(async (refine) => {
     const defs = parseCircuit();
     if (!defs) return;
@@ -357,8 +357,10 @@ const [board, setBoard] = useState(() => {
       const bv = normalizeBoardView(boardView);
       const target = bv.boardCols || bv.boardRows ? { cols: bv.boardCols, rows: bv.boardRows } : null;
       // Wire only connects; the board limit applies to Compact
-      res = await engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true });
+      layoutRun.current = engine.layout(defs, refine ? { refine: true, target } : { firstOnly: true });
+      res = await layoutRun.current;
     } finally {
+      layoutRun.current = null;
       setStatus(prev => ({ ...prev, isProcessing: false, isInitial: false, best: null }));
       setBestSnapshot(null);
     }
@@ -413,11 +415,12 @@ const [board, setBoard] = useState(() => {
   const goHistory = useCallback((delta) => {
     const i = historyIndex + delta;
     if (i < 0 || i >= history.length) return;
-    const snap = JSON.parse(history[i]);
+    const snap = JSON.parse(history[i].board);
     engine.setState(snap);
+    setPictures(history[i].pictures);
     setCloudCurrent(snap.cloudCurrent || null);
     setHistoryIndex(i);
-  }, [history, historyIndex, engine]);
+  }, [history, historyIndex, engine, setPictures]);
   const handleUndo = useCallback(() => goHistory(-1), [goHistory]);
   const handleRedo = useCallback(() => goHistory(1), [goHistory]);
 
@@ -480,7 +483,7 @@ const [board, setBoard] = useState(() => {
   const handleAddFromLibrary = useCallback((compDef, photo = null) => {
     // a free id: name initial + number (R3, C2, U1, ...)
     const prefix = (compDef.name || 'P').replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase() || 'P';
-    const newId = freeId(board.components, prefix);
+    const newId = freeId(board.components, prefix, 1, partImages);
     // footprint = pins + optional body, pin offsets relative to its origin
     const def = processTemplate({ components: [{ ...compDef, id: newId }] })?.[0];
     if (!def) return;
@@ -498,13 +501,13 @@ const [board, setBoard] = useState(() => {
     setEditorMode('add');
     setEditingComp(newComp);
     setIsEditorOpen(true);
-  }, [board.components]);
+  }, [board.components, partImages]);
 
   const handleSaveEdit = useCallback(async (edited) => {
     if (!editingComp) return;
     // the picture goes to its own store; the part itself stays plain
     const { image, ...updated } = edited;
-    setPartImages(prev => {
+    setPictures(prev => {
       const next = { ...prev };
       delete next[editingComp.id];
       if (image) next[updated.id] = image;
@@ -541,7 +544,7 @@ const [board, setBoard] = useState(() => {
     setIsEditorOpen(false); 
     setEditingComp(null);
     saveHistory(); 
-  }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode]);
+  }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode, setPictures]);
 
   // the project file: board plus the pictures of its parts (also what an account saves)
   const boardData = useCallback(() => {
@@ -569,7 +572,7 @@ const [board, setBoard] = useState(() => {
             const cols = valid.cols || board.cols;
             const rows = valid.rows || board.rows;
             engine.setState({ components: valid.components, wires: valid.wires, cols, rows });
-            setPartImages(valid.partImages || {});
+            setPictures(valid.partImages || {});
             setCloudCurrent(null);
             saveHistory(null);
           } else {
@@ -583,7 +586,7 @@ const [board, setBoard] = useState(() => {
       reader.readAsText(file);
     };
     input.click();
-  }, [engine, saveHistory, board.cols, board.rows]);
+  }, [engine, saveHistory, board.cols, board.rows, setPictures]);
 
   useEffect(() => {
     engine.setCallbacks({
@@ -660,12 +663,12 @@ const [board, setBoard] = useState(() => {
   // Example circuits load bare (no wires): placed on the board, all three steps still to do.
   const loadExample = useCallback((ex) => {
     setExamplesOpen(null);
-    setPartImages({});
+    setPictures({});
     setJsonInput(JSON.stringify(ex.circuit, null, 2));
     engine.initializeBoard(processTemplate(ex.circuit));
     boardLoaded(1, { title: ex.title });
     window.goatcounter?.count?.({ path: `example-${ex.id}`, title: ex.title, event: true });
-  }, [engine, boardLoaded]);
+  }, [engine, boardLoaded, setPictures]);
 
   const closeExamples = useCallback(() => {
     // Skipping the first-visit picker still leaves a circuit to edit
@@ -690,7 +693,7 @@ const [board, setBoard] = useState(() => {
     engine.setState({ components, wires });
     // Pictures are not in share links. Keep the ones that still fit a part of the same id and
     // footprint (opening a link to your own board must not throw its photos away), drop the rest.
-    setPartImages(prev => {
+    setPictures(prev => {
       const next = {};
       for (const c of components) if (prev[c.id] && photoTurn(c, prev[c.id]) >= 0) next[c.id] = prev[c.id];
       return next;
@@ -704,7 +707,7 @@ const [board, setBoard] = useState(() => {
     setShareState('failed');
   }).finally(() => {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
-  }), [engine, boardLoaded]);
+  }), [engine, boardLoaded, setPictures]);
   // a saved circuit(from the account dialog or a /?c= link) onto the board
   const applySaved = useCallback((rawData, current = null) => {
     const data = validateBoardData(rawData);
@@ -714,10 +717,10 @@ const [board, setBoard] = useState(() => {
     }
     const { components, wires, cols, rows, partImages } = data;
     engine.setState({ components, wires, ...(cols ? { cols, rows } : {}) });
-    setPartImages(partImages || {});
+    setPictures(partImages || {});
     boardLoaded(wires.length ? 2 : 1, { current });
     return true;
-  }, [engine, boardLoaded]);
+  }, [engine, boardLoaded, setPictures]);
   const shareStarted = useRef(false);
   useEffect(() => {
     if (shareStarted.current) return;
@@ -758,10 +761,16 @@ const [board, setBoard] = useState(() => {
   }, []);
   // A link pasted into a tab that already shows boardroute only changes the fragment (no reload).
   useEffect(() => {
-    const onHash = () => { const v = shareFromHash(window.location.hash); if (v) loadShare(v); };
+    // a running Wire/Compact would put its own layout back when it ends: stop it first
+    const onHash = async () => {
+      const v = shareFromHash(window.location.hash);
+      if (!v) return;
+      if (layoutRun.current) { engine.cancel(); await layoutRun.current.catch(() => {}); }
+      loadShare(v);
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
-  }, [loadShare]);
+  }, [loadShare, engine]);
 
   const examplesStarted = useRef(false);
   useEffect(() => {
@@ -779,9 +788,10 @@ const [board, setBoard] = useState(() => {
   }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate, shareState]);
 
   const netsMap = useMemo(() => {
+    void board.tick; // mergeNets / pin edits change pins in place
     const m = {}; board.components.forEach(c => c.pins.forEach(p => { if (p.net) { if (!m[p.net]) m[p.net] = []; m[p.net].push(p); } }));
     return m;
-  }, [board.components]);
+  }, [board.components, board.tick]);
 
   const stats = useMemo(() => {
     const score = scoreState(board.components, board.wires);
@@ -823,7 +833,7 @@ const [board, setBoard] = useState(() => {
             setEditorPhoto(null);
             setEditorMode('edit');
             // The editor needs a component to edit; start from a blank 2-pin part with a free id.
-            setEditingComp({ id: freeId(board.components, 'C', board.components.length + 1), name: 'New part', value: '', w: 2, h: 1, routeUnder: true,
+            setEditingComp({ id: freeId(board.components, 'C', board.components.length + 1, partImages), name: 'New part', value: '', w: 2, h: 1, routeUnder: true,
               pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
             setIsEditorOpen(true);
           }}

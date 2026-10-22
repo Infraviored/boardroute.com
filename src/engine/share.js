@@ -23,6 +23,7 @@
 // pins in the current rotation, body = w x h box), so the components carry the circuit too.
 
 import { swapGroups, edgeSide, isBands } from './templates.js';
+import { SAFE_IMG } from './render-utils.js';
 
 const VERSION = '1';
 const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
@@ -349,7 +350,24 @@ export function validateBoardData(data) {
   }
   const cols = isInt(data.cols, 1, 1000) ? data.cols : undefined;
   const rows = isInt(data.rows, 1, 1000) ? data.rows : undefined;
-  const partImages = data.partImages && typeof data.partImages === 'object' && !Array.isArray(data.partImages)
-    ? data.partImages : undefined;
+  let partImages;
+  if (data.partImages && typeof data.partImages === 'object' && !Array.isArray(data.partImages)) {
+    partImages = {};
+    for (const [id, img] of Object.entries(data.partImages)) {
+      const rec = cleanPicture(img);
+      if (rec) partImages[id] = rec;
+    }
+  }
   return { components: cleanComps, wires: cleanWires, cols, rows, partImages };
+}
+
+// A part picture as the photo dialog stores it; anything else is dropped (it comes from a file
+// or another account and is drawn on every render).
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= MAX_COORD;
+function cleanPicture(img) {
+  if (!img || typeof img !== 'object' || typeof img.src !== 'string' || !SAFE_IMG.test(img.src)) return null;
+  const { x, y, w, h, fw, fh, offs } = img;
+  if (![x, y, w, h].every(isNum) || !isInt(fw, 1, 1000) || !isInt(fh, 1, 1000)) return null;
+  if (!Array.isArray(offs) || offs.length > 1000 || !offs.every(o => Array.isArray(o) && isInt(o[0]) && isInt(o[1]))) return null;
+  return { src: img.src, x, y, w, h, fw, fh, offs: offs.map(o => [o[0], o[1]]) };
 }

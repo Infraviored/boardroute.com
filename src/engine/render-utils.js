@@ -36,7 +36,7 @@ export { compColor };
 const escXml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // Only plain colour literals may reach a style attribute.
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*\)|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i;
-const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
+export const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
 // Manually coloured parts get lifted so they pop; auto colours (hsl) are already tuned.
 export function boostColor(hexOrHsl) {

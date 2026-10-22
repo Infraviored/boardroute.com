@@ -6,31 +6,8 @@ import { completion } from './state-utils.js';
 
 export function calculateFootprintArea(components, wires) {
   if (components.length === 0) return { area: 0, bounds: { minCol: 0, maxCol: 0, minRow: 0, maxRow: 0 } };
-
-  let minCol = Infinity, maxCol = -Infinity;
-  let minRow = Infinity, maxRow = -Infinity;
-
-  components.forEach(c => {
-    minCol = Math.min(minCol, c.ox);
-    maxCol = Math.max(maxCol, c.ox + c.w - 1);
-    minRow = Math.min(minRow, c.oy);
-    maxRow = Math.max(maxRow, c.oy + c.h - 1);
-  });
-
-  wires.forEach(w => {
-    if (w.path) w.path.forEach(pt => {
-      minCol = Math.min(minCol, pt.col);
-      maxCol = Math.max(maxCol, pt.col);
-      minRow = Math.min(minRow, pt.row);
-      maxRow = Math.max(maxRow, pt.row);
-    });
-  });
-
-  const width = maxCol - minCol + 1;
-  const height = maxRow - minRow + 1;
-  const area = width * height;
-
-  return { area, bounds: { minCol, maxCol, minRow, maxRow } };
+  const { area, bounds } = footprintBoxMetrics(components, wires);
+  return { area, bounds };
 }
 
 
@@ -71,10 +48,9 @@ export function wireLengthMetric(ws) {
 }
 
 export function scoreState(components, ws) {
-  const comp = completion(ws || []);
-  const { area, perim, width, height, bounds } = footprintBoxMetrics(components, ws || []);
-  const wl = wireLengthMetric(ws || []);
-  return { comp, area, perim, wl, width, height, bounds };
+  const wires = ws || [];
+  const { area, perim, width, height, bounds } = footprintBoxMetrics(components, wires);
+  return { comp: completion(wires), area, perim, wl: wireLengthMetric(wires), width, height, bounds };
 }
 
 

@@ -82,7 +82,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
               </div>
               {status.detail && <div className="pb-detail">{status.detail}</div>}
               <button className="pb-btn-glass" onClick={onGoodEnough} disabled={status.isProcessing && !bestSnapshot}>
-                Apply Current Best
+                Apply current best
               </button>
             </>
           )}
@@ -225,10 +225,10 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           min-width: 140px;
           height: 38px;
           padding: 0 24px;
-          background: rgba(35, 134, 54, 0.15);
-          border: 1px solid var(--grn-bright);
-          color: var(--grn-bright);
-          border-radius: 10px;
+          background: rgba(35, 134, 54, 0.18);
+          border: 1px solid var(--ui-primary-border);
+          color: var(--ui-primary-hover);
+          border-radius: var(--radius-md);
           font-family: 'Outfit', sans-serif;
           font-weight: 700;
           font-size: 0.9rem;
@@ -242,13 +242,14 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .pb-btn-glass:hover {
-          background: rgba(35, 134, 54, 0.3);
+          background: var(--ui-primary);
           color: #fff;
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(63, 185, 80, 0.2);
+          box-shadow: 0 6px 20px rgba(35, 134, 54, 0.3);
         }
         .pb-btn-glass:active {
           transform: translateY(0);
+          background: var(--ui-primary-active);
         }
         .pb-esc {
           font-size: 0.7rem;
@@ -296,6 +297,47 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         #proc-bar.perfect { border-top-color: #e3b341; }
         #proc-bar.perfect .pb-title { color: #e3b341; }
         #proc-bar.results { border-top-color: var(--grn-bright); background: linear-gradient(180deg, #101413 0%, #050706 100%); }
+
+        @media (max-width: 768px) {
+          #proc-bar {
+            height: auto;
+            min-height: 110px;
+            max-height: 160px;
+            padding: 10px 14px;
+            bottom: var(--bottom-nav-height, 54px);
+            border-top-width: 1px;
+          }
+          .pb-content-wrap {
+            gap: 10px;
+            flex-direction: column;
+            align-items: stretch;
+            height: auto;
+          }
+          .pb-preview {
+            display: none !important;
+          }
+          .pb-left {
+            gap: 6px;
+          }
+          .active-metrics {
+            gap: 16px;
+            padding: 2px 0;
+          }
+          .pb-btn-glass {
+            width: 100%;
+            min-height: 44px;
+            margin-top: 4px;
+          }
+          .res-grid {
+            gap: 12px;
+          }
+          .res-val {
+            font-size: 1.25rem;
+          }
+          .res-val.small {
+            font-size: 1.1rem;
+          }
+        }
       `}} />
     </div>
   );

@@ -12,7 +12,9 @@ import {
   Eraser,
   FileJson,
   BookOpen,
-  Share2
+  Share2,
+  MoreVertical,
+  Cloud
 } from 'lucide-react';
 
 export function Topbar({
@@ -25,9 +27,12 @@ export function Topbar({
   onExportSVG,
   onRouteOnly,
   onShareLink,
+  onAccount,
+  account,
   hasLayout,
   isProcessing
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [shareState, setShareState] = React.useState(null); // null | 'copied' | 'failed'
   const shareTimer = React.useRef(null);
   React.useEffect(() => () => clearTimeout(shareTimer.current), []);
@@ -67,7 +72,7 @@ export function Topbar({
             style={{ '--flow-color': '#4da0ff' }}
           >
             <FileJson size={14} />
-            Load
+            <span>Load</span>
           </button>
           <button
             className={`flow-btn ${workflowStep >= 2 && !(workflowStep === 2 && isProcessing) ? 'completed' : ''} ${workflowStep === 2 && isProcessing ? 'processing' : ''} ${workflowStep === 1 && !isProcessing ? 'next' : ''}`}
@@ -78,7 +83,7 @@ export function Topbar({
             style={{ '--flow-color': 'var(--grn-bright)' }}
           >
             <Cable size={14} />
-            Wire
+            <span>Wire</span>
           </button>
           <button
             className={`flow-btn ${workflowStep >= 3 && !(workflowStep === 3 && isProcessing) ? 'completed' : ''} ${workflowStep === 3 && isProcessing ? 'processing' : ''} ${workflowStep === 2 && !isProcessing ? 'next' : ''}`}
@@ -89,7 +94,7 @@ export function Topbar({
             style={{ '--flow-color': '#a371f7' }}
           >
             <Minimize2 size={14} />
-            Compact
+            <span>Compact</span>
           </button>
         </div>
       </div>
@@ -123,7 +128,12 @@ export function Topbar({
 
         <div className="spc" style={{ flex: 1 }}></div>
 
-        <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout, nothing is uploaded)">
+        <button className={`tbtn account-btn ${account ? 'signed-in' : ''}`} onClick={onAccount} title={account ? `My circuits (${account.email})` : 'Save circuits online and share them (optional account)'}>
+          <Cloud size={16} />
+          <span className="docs-link-label">{account ? 'My circuits' : 'Sign in'}</span>
+        </button>
+
+        <button className={`tbtn share-btn ${shareState || ''}`} onClick={share} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout inside the link, nothing is uploaded)">
           <Share2 size={16} />
           <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
         </button>
@@ -142,6 +152,67 @@ export function Topbar({
           <RotateCcw size={16} />
         </button>
       </div>
+
+      <button
+        className="mobile-more-btn"
+        onClick={() => setMobileMenuOpen(o => !o)}
+        aria-label="More actions"
+        aria-expanded={mobileMenuOpen}
+      >
+        <MoreVertical size={20} />
+      </button>
+
+      {mobileMenuOpen && typeof document !== 'undefined' && createPortal(
+        <div className="mobile-action-sheet-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-action-sheet" onClick={e => e.stopPropagation()}>
+            <div className="mas-header">
+              <span className="mas-title">Menu &amp; Actions</span>
+              <button className="mas-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mas-grid">
+              <button className={`mas-btn account-btn ${account ? 'signed-in' : ''}`} onClick={() => { onAccount(); setMobileMenuOpen(false); }}>
+                <Cloud size={18} />
+                <span>{account ? 'My circuits' : 'Sign in'}</span>
+              </button>
+              <button className={`mas-btn share-btn ${shareState || ''}`} onClick={() => { share(); setMobileMenuOpen(false); }} disabled={!hasLayout || isProcessing}>
+                <Share2 size={18} />
+                <span>{shareState === 'copied' ? 'Link copied' : 'Share link'}</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onExportSVG(); setMobileMenuOpen(false); }} disabled={!hasLayout}>
+                <Download size={18} />
+                <span>Export board</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onUndo(); setMobileMenuOpen(false); }}>
+                <Undo2 size={18} />
+                <span>Undo</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onRedo(); setMobileMenuOpen(false); }}>
+                <Redo2 size={18} />
+                <span>Redo</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onRouteOnly(); setMobileMenuOpen(false); }} disabled={isProcessing}>
+                <Zap size={18} />
+                <span>Reroute</span>
+              </button>
+              <button className="mas-btn" onClick={() => { onClearWires(); setMobileMenuOpen(false); }} disabled={isProcessing}>
+                <Eraser size={18} />
+                <span>Clear wires</span>
+              </button>
+              <a className="mas-btn docs-btn" href="/how-it-works/">
+                <BookOpen size={18} />
+                <span>How it works</span>
+              </a>
+              <button className="mas-btn danger-btn" onClick={() => { onReset(); setMobileMenuOpen(false); }}>
+                <RotateCcw size={18} />
+                <span>Reset board</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -271,19 +342,19 @@ export function Topbar({
         }
         .btn-group .tbtn:first-child {
           margin-left: 0;
-          border-radius: 8px 0 0 8px;
+          border-radius: var(--radius-md) 0 0 var(--radius-md);
         }
         .btn-group .tbtn:last-child {
-          border-radius: 0 8px 8px 0;
+          border-radius: 0 var(--radius-md) var(--radius-md) 0;
         }
 
         .tbtn {
-          background: var(--bg4);
+          background: var(--ui-neutral);
           border: 1px solid var(--border);
           color: var(--txt1);
           padding: 6px 12px;
           height: 34px;
-          border-radius: 8px;
+          border-radius: var(--radius-md);
           cursor: pointer;
           font-size: .82em;
           font-weight: 500;
@@ -295,12 +366,16 @@ export function Topbar({
           position: relative;
         }
         .tbtn:hover:not(:disabled) {
-          background: var(--bg3);
+          background: var(--ui-neutral-hover);
           border-color: var(--border2);
           color: var(--txt0);
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           z-index: 10;
+        }
+        .tbtn:active:not(:disabled) {
+          transform: translateY(0);
+          background: var(--ui-neutral-active);
         }
 
         .docs-link { text-decoration: none; }
@@ -453,14 +528,159 @@ export function Topbar({
         }
 
         .reset-btn {
-          color: var(--err-bright);
-          background: rgba(248, 81, 73, 0.08);
-          border: 1px solid rgba(248, 81, 73, 0.2);
+          color: var(--ui-danger-subtle-text);
+          background: var(--ui-danger-subtle-bg);
+          border: 1px solid var(--ui-danger-subtle-border);
+          border-radius: var(--radius-md);
         }
         .reset-btn:hover:not(:disabled) {
-          background: var(--err-bright);
+          background: var(--ui-danger);
           color: #fff;
-          border-color: var(--err-bright);
+          border-color: var(--ui-danger);
+        }
+
+        .mobile-more-btn { display: none; }
+        .mobile-action-sheet-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.65);
+          backdrop-filter: blur(4px);
+          z-index: 300;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          animation: mas-fade 0.2s ease-out;
+        }
+        @keyframes mas-fade { from { opacity: 0; } to { opacity: 1; } }
+        .mobile-action-sheet {
+          background: var(--bg2);
+          border-top: 1px solid var(--border2);
+          border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+          padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+          box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
+          animation: sheet-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          max-height: 80dvh;
+          overflow-y: auto;
+        }
+        @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .mas-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
+        }
+        .mas-title {
+          font-family: 'Outfit', sans-serif;
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: var(--txt0);
+        }
+        .mas-close {
+          background: none;
+          border: none;
+          color: var(--txt1);
+          width: 38px;
+          height: 38px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+        }
+        .mas-close:hover { background: var(--ui-ghost-hover); color: var(--txt0); }
+        .mas-close:active { background: var(--bg4); color: var(--txt0); }
+        .mas-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+        .mas-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          min-height: 44px;
+          background: var(--ui-neutral);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--txt0);
+          font-family: 'Outfit', sans-serif;
+          font-size: 0.88rem;
+          font-weight: 600;
+          cursor: pointer;
+          text-decoration: none;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .mas-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
+        .mas-btn:active { background: var(--ui-neutral-active); border-color: var(--border2); }
+        .mas-btn:disabled { opacity: 0.45; cursor: default; }
+        .mas-btn.danger-btn {
+          color: var(--ui-danger-subtle-text);
+          background: var(--ui-danger-subtle-bg);
+          border-color: var(--ui-danger-subtle-border);
+        }
+        .mas-btn.danger-btn:hover,
+        .mas-btn.danger-btn:active {
+          background: var(--ui-danger);
+          color: #fff;
+        }
+        .mas-btn.share-btn.copied {
+          color: var(--ui-primary-hover);
+          border-color: var(--ui-primary);
+        }
+
+        @media (max-width: 768px) {
+          /* phone: logo and menu on the first row, the step track full width below (same
+             interlocking steps as on desktop) */
+          #topbar {
+            display: grid !important;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: 40px 40px;
+            align-items: center;
+            column-gap: 8px;
+            row-gap: 6px;
+            height: auto !important;
+            min-height: 0 !important;
+            padding: 6px 10px 8px !important;
+            overflow: visible;
+          }
+          #topbar > .sep { display: none !important; }
+          .topbar-row-1 { display: contents !important; }
+          .logo {
+            grid-column: 1; grid-row: 1;
+            width: auto !important;
+            flex-basis: auto !important;
+            padding: 0 2px !important;
+          }
+          .logo-sep { display: none !important; }
+          #topbar .workflow-track {
+            grid-column: 1 / -1; grid-row: 2;
+            margin: 0 !important;
+            width: 100%;
+            min-width: 0;
+          }
+          #topbar .workflow-track .flow-btn { flex: 1 1 0; min-width: 0; justify-content: center; }
+          .topbar-actions { display: none !important; }
+          .mobile-more-btn {
+            grid-column: 2; grid-row: 1;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            background: var(--bg4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--txt1);
+            cursor: pointer;
+            margin-left: 6px;
+            flex-shrink: 0;
+          }
+          .mobile-more-btn:active {
+            background: var(--bg3);
+            color: var(--txt0);
+          }
         }
       `}} />
       {hint && (
@@ -524,6 +744,7 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
     window.addEventListener('resize', place);
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null;
     if (ro) { if (watchRef.current) ro.observe(watchRef.current); if (bubbleRef.current) ro.observe(bubbleRef.current); }
+    // hidden while a dialog or drawer is open: CSS in index.css (body:has(...) .coach-mark)
     return () => { window.removeEventListener('resize', place); ro?.disconnect(); };
   }, [targetRef, watchRef]);
 

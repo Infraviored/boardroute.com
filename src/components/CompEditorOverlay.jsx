@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Edit3, Camera, Undo2 } from 'lucide-react';
-import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect } from '../engine/render-utils.js';
+import { isResistor, parseOhms, ringsFor, bandsOf, DEFAULT_BANDS } from '../engine/resistor-code.js';
+import { Plus, Trash2, Camera, Undo2, X, Image as ImageIcon } from 'lucide-react';
+import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
+import { swapGroups } from '../engine/templates.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 
 // Footprint editor.
@@ -8,15 +10,29 @@ import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
 // body is either "auto" (exactly the box around the pins: a resistor grows when a pin is moved
 // out) or a custom rectangle (relay, electrolytic, dev board) that is extended automatically
 // whenever a pin is dragged outside it. The view always frames the whole part.
+function remapSwap(swap, pins) {
+    if (!swap || swap === true) return swap;
+    const idToIndex = new Map(pins.map((p, i) => [p._id, i]));
+    const out = [];
+    for (const g of swap) {
+        if (!Array.isArray(g)) continue;
+        const mapped = g.map(id => idToIndex.get(id)).filter(i => i !== undefined);
+        if (mapped.length >= 2) out.push(mapped);
+    }
+    return out.length ? out : null;
+}
+
 function fromComponent(component) {
     if (!component) return null;
     const c = JSON.parse(JSON.stringify(component));
-    const pins = (c.pins || []).map(p => ({ lbl: p.lbl ?? '', net: p.net || '', dCol: p.dCol || 0, dRow: p.dRow || 0 }));
+    const pins = (c.pins || []).map((p, i) => ({ _id: i + 1, lbl: p.lbl ?? '', net: p.net || '', dCol: p.dCol || 0, dRow: p.dRow || 0 }));
     const pb = boxOf(pins);
     // a body larger than the pins' box is a custom body
     const w = c.w || pb.w, h = c.h || pb.h;
     const custom = pins.length && (w > pb.x + pb.w || h > pb.y + pb.h || pb.x > 0 || pb.y > 0);
-    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, pins,
+    const sg = swapGroups(c);
+    const swap = c.swap === true ? true : (sg ? sg.map(g => g.map(idx => pins[idx]?._id).filter(id => id !== undefined)) : null);
+    return { id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder, swap, edge: c.edge >= 0 ? c.edge : -1, bands: bandsOf(c), pins,
         body: custom ? { x: 0, y: 0, w, h } : null, image: imageFromRecord(c.image, { ...c, w, h, pins: c.pins || [] }) };
 }
 
@@ -58,6 +74,7 @@ const union = (a, b) => {
 export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames = [], mode = 'edit', photo = null }) {
     const [data, setData] = useState(() => fromComponent(component));
     const [selectedPinIdx, setSelectedPinIdx] = useState(null);
+    const [faceMode, setFaceMode] = useState(false); // picking the side that faces out: the four sides are clickable
     const [drag, setDrag] = useState(null); // { kind: 'pin', idx } | { kind: 'edge', edge: 'l'|'r'|'t'|'b' }
     const [frozenView, setFrozenView] = useState(null); // view box held still while dragging
     const svgRef = useRef(null);
@@ -128,7 +145,8 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         let spot = null;
         for (let r = foot.y; r < foot.y + foot.h && !spot; r++) for (let c = foot.x; c < foot.x + foot.w && !spot; c++) if (!taken.has(`${c},${r}`)) spot = [c, r];
         if (!spot) spot = [foot.x + foot.w, foot.y];
-        const pins = [...data.pins, { lbl: `${data.pins.length + 1}`, net: '', dCol: spot[0], dRow: spot[1] }];
+        const nextId = Math.max(0, ...data.pins.map(p => p._id || 0)) + 1;
+        const pins = [...data.pins, { _id: nextId, lbl: `${data.pins.length + 1}`, net: '', dCol: spot[0], dRow: spot[1] }];
         update({ ...data, pins });
         setSelectedPinIdx(pins.length - 1);
     };
@@ -173,14 +191,26 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             if (seen.has(key)) { alert(`Two pins in the same hole (${key})`); return; }
             seen.add(key);
         }
+        let savedSwap;
+        if (data.swap && data.pins.length >= 2) {
+            if (data.swap === true) {
+                savedSwap = [data.pins.map((_, i) => i)];
+            } else {
+                savedSwap = remapSwap(data.swap, data.pins);
+            }
+        }
         // normalise: footprint box starts at 0,0; w/h cover pins and body
-        onSave({
+        const saved = {
             ...component, // keeps position and anything the editor doesn't touch
             id: data.id, name: data.name, value: data.value, color: data.color, routeUnder: data.routeUnder,
             w: foot.w, h: foot.h,
-            pins: data.pins.map(p => ({ ...p, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
+            pins: data.pins.map(p => ({ lbl: p.lbl, net: p.net, dCol: p.dCol - foot.x, dRow: p.dRow - foot.y })),
             image: recordFromImage(data.image, foot, data.pins),
-        });
+        };
+        if (data.edge >= 0) saved.edge = data.edge; else delete saved.edge;
+        if (isResistor(data) && data.bands !== DEFAULT_BANDS) saved.bands = data.bands; else delete saved.bands;
+        if (savedSwap) saved.swap = savedSwap; else delete saved.swap;
+        onSave(saved);
     };
 
     const mainColor = boostColor(compColor(data));
@@ -188,10 +218,28 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     // Pins found in a photo replace the current ones; with the same count the labels and nets
     // carry over (re-measuring a part that is already wired).
     const applyPhoto = ({ pins, body, image }) => {
+        if (!pins) {
+            // picture only: it covers the footprint as it is now, pins stay
+            update(prev => ({ ...prev, image: { src: image.src, turn: 0, box: { x: foot.x, y: foot.y, w: foot.w, h: foot.h }, base: { w: foot.w, h: foot.h } } }));
+            setPhotoSession(s => ({ ...s, open: false }));
+            return;
+        }
         update(prev => {
             const keep = prev.pins.length === pins.length;
+            let nextId = Math.max(0, ...prev.pins.map(p => p._id || 0)) + 1;
             // names read from the photo win; otherwise keep the old labels (same count) or number them
-            const next = pins.map(([c, r, label], i) => ({ lbl: label || (keep ? prev.pins[i].lbl : String(i + 1)), net: keep ? prev.pins[i].net : '', dCol: c, dRow: r }));
+            const next = pins.map(([c, r, label], i) => {
+                const lbl = label || (keep ? prev.pins[i].lbl : String(i + 1));
+                const net = keep ? prev.pins[i].net : '';
+                let _id;
+                if (keep) {
+                    _id = prev.pins[i]._id;
+                } else {
+                    const match = prev.pins.find(p => p.lbl && p.lbl === lbl);
+                    _id = match ? match._id : nextId++;
+                }
+                return { _id, lbl, net, dCol: c, dRow: r };
+            });
             const pb = boxOf(next);
             const larger = body.x < pb.x || body.y < pb.y || body.x + body.w > pb.x + pb.w || body.y + body.h > pb.y + pb.h;
             return { ...prev, pins: next, body: larger ? body : null, image: image ? { src: image.src, turn: 0, box: { x: image.x, y: image.y, w: image.w, h: image.h }, base: { w: image.w, h: image.h } } : prev.image };
@@ -201,15 +249,17 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     };
 
     return (
-        <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`}>
+        <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget && !photoSession?.open) onClose(); }}>
+            <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`} style={photoSession?.open ? { display: 'none' } : undefined}>
                 <header className="ce-head">
-                    <Edit3 size={16} className="icon-accent" />
-                    <h3>{mode === 'add' ? 'Add part' : 'Edit part'}</h3>
+                    {/* the part's name is the title, edited in place; id and value beside it */}
                     <span className="ce-id" style={{ borderColor: mainColor, color: mainColor }}>{data.id || '?'}</span>
+                    <input className="ce-title" value={data.name} onChange={e => handleUpdate('name', e.target.value)} placeholder={mode === 'add' ? 'New part' : 'Part name'}
+                        aria-label="Part name" size={Math.max(6, Math.min(28, (data.name || '').length))} />
+                    {data.value && <span className="ce-kind">{data.value}</span>}
                     <span className="ce-size">{foot.w} × {foot.h} holes · {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
                     <div className="ce-head-actions">
-                        <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /> Undo</button>
+                        <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /><span className="ce-btn-txt"> Undo</span></button>
                         <button className="ce-btn" onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</button>
                         <button className="ce-btn primary" onClick={save}>{mode === 'add' ? 'Add to circuit' : 'Save'}</button>
                     </div>
@@ -240,6 +290,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 stroke={mainColor} strokeWidth={2.5}
                                 strokeDasharray={data.body ? '7 5' : undefined}
                             />
+                            {/* the side that faces out: a small arrow pointing away from it */}
+                            {data.edge >= 0 && !faceMode && <path d={edgeArrowPath(bodyBox.x * SP + 3, bodyBox.y * SP + 3, bodyBox.w * SP - 6, bodyBox.h * SP - 6, data.edge, SP * 1.4)}
+                                fill="none" stroke={mainColor} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }} />}
                             {data.image && (
                                 <g transform={`translate(${data.image.box.x * SP},${data.image.box.y * SP}) matrix(${turnMatrix(data.image.turn, data.image.base.w * SP, data.image.base.h * SP)})`} style={{ pointerEvents: 'none' }}>
                                     <image href={data.image.src} x="0" y="0" width={data.image.base.w * SP} height={data.image.base.h * SP} preserveAspectRatio="none" opacity="0.9" />
@@ -255,6 +308,20 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                     fill="#fff" stroke={mainColor} strokeWidth={2} style={{ cursor }}
                                     onPointerDown={(e) => startDrag(e, { kind: 'edge', edge })} />
                             ))}
+
+                            {/* picking the side: a band along each side, click one (again: none) */}
+                            {faceMode && [0, 1, 2, 3].map(k => {
+                                const x0 = bodyBox.x * SP, y0 = bodyBox.y * SP, w = bodyBox.w * SP, h = bodyBox.h * SP, t = SP * 0.9;
+                                const r = [{ x: x0, y: y0 - t, w, h: t }, { x: x0 + w, y: y0, w: t, h }, { x: x0, y: y0 + h, w, h: t }, { x: x0 - t, y: y0, w: t, h }][k];
+                                const on = data.edge === k;
+                                return (
+                                    <g key={'face' + k} className={`ce-face-side ${on ? 'on' : ''}`} style={{ '--c': mainColor }}
+                                        onPointerDown={(e) => { e.stopPropagation(); handleUpdate('edge', on ? -1 : k); setFaceMode(false); }}>
+                                        <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={6} />
+                                        <path d={edgeArrowPath(x0 + 3, y0 + 3, w - 6, h - 6, k, SP * 1.4)} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                                    </g>
+                                );
+                            })}
 
                             {data.pins.map((p, i) => {
                                 const isActive = selectedPinIdx === i;
@@ -273,6 +340,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 );
                             })}
                         </svg>
+                        {faceMode && <div className="ce-face-banner">Tap the side that faces out (the board edge)</div>}
                         <div className="ce-canvas-hint">Drag pins{data.body ? ' and the outline handles' : ''} · arrows move the selected pin · Del removes it</div>
                     </div>
 
@@ -285,25 +353,41 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                     <input type="color" value={toHex(data.color || compColor(data))} onChange={e => handleUpdate('color', e.target.value)} />
                                 </label>
                             </div>
-                            <label>Name<input value={data.name} onChange={e => handleUpdate('name', e.target.value)} /></label>
+                            <div className="ce-opts">
+                                <label className="ce-check" title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
+                                    <input type="checkbox" checked={!!data.swap} onChange={e => handleUpdate('swap', e.target.checked ? true : null)} /> Pins swappable
+                                </label>
+                                <div className="ce-edge">
+                                    <button className={`ce-face ${faceMode ? 'active' : ''} ${data.edge >= 0 ? 'set' : ''}`} onClick={() => setFaceMode(m => !m)} aria-pressed={faceMode}
+                                        title="Pick the side that must face outward, on the board's edge (a plug or wires come in there). Which way it ends up pointing is up to the router.">
+                                        Face out{data.edge >= 0 ? `: ${['top', 'right', 'bottom', 'left'][data.edge]}` : ''}
+                                    </button>
+                                    {data.edge >= 0 && <button className="ce-face-x" onClick={() => { handleUpdate('edge', -1); setFaceMode(false); }} aria-label="No side faces out" title="No side has to face out"><X size={12} /></button>}
+                                </div>
+                            </div>
                         </section>
 
-                        <section>
+                        {isResistor(data) && <RingsSection data={data} onChange={n => handleUpdate('bands', n)} />}
+
+                        <section className="ce-bodysec">
                             <div className="ce-label">Body</div>
                             <div className="ce-seg">
                                 <button className={!data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: null }))}>Spans the pins</button>
                                 <button className={data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger housing</button>
                             </div>
-                            <p className="ce-hint">{data.body
+                            <p className="ce-hint ce-hint-long">{data.body
                                 ? 'Drag the outline to the housing size. Other parts and jumpers stay out; wires still pass underneath.'
                                 : 'Move a pin outward and the part grows with it.'}</p>
                         </section>
 
                         <section>
                             <div className="ce-photo-row">
-                                {data.image && <button className="ce-btn ce-photo" onClick={() => update(d => ({ ...d, image: null }))} title="Keep the footprint, drop the picture">Remove picture</button>}
                                 {photoSession && <button className="ce-btn primary ce-photo" onClick={() => setPhotoSession(s => ({ ...s, open: true }))}><Camera size={14} /> Back to photo</button>}
-                                <button className="ce-btn ce-photo" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1 }))}><Camera size={14} /> {photoSession ? 'New photo' : 'Footprint from a photo'}</button>
+                                <button className="ce-btn ce-photo ce-photo-fp" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1, mode: 'footprint' }))}
+                                    title="Pins and outline from a photo of the part (replaces the footprint)"><Camera size={14} /> Footprint from photo</button>
+                                <button className="ce-btn ce-photo" disabled={!data.pins.length} onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1, mode: 'picture' }))}
+                                    title="Only a picture of the part; pins and outline stay as they are"><ImageIcon size={14} /> {data.image ? 'Change picture' : 'Picture from photo'}</button>
+                                {data.image && <button className="ce-btn ce-photo-x" onClick={() => update(d => ({ ...d, image: null }))} title="Remove the picture (the footprint stays)" aria-label="Remove picture"><Trash2 size={14} /></button>}
                             </div>
                         </section>
 
@@ -328,25 +412,34 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
             </div>
 
             {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
-                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} />}
+                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name}
+                mode={photoSession.mode || 'footprint'} footprint={{ w: foot.w, h: foot.h, pins: data.pins.map(p => [p.dCol - foot.x, p.dRow - foot.y, p.lbl]) }} />}
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .ce-photo-row { display: flex; gap: 6px; flex-wrap: wrap; }
-                .ce-photo-row .ce-photo { flex: 1 1 40%; white-space: nowrap; }
+                .ce-photo-row .ce-photo { flex: 1 1 0; white-space: nowrap; padding: 0 8px; }
+                .ce-photo-row .ce-photo-fp { flex-basis: 100%; }
+                .ce-photo-row .ce-photo-x { flex: none; width: 34px; padding: 0; display: grid; place-items: center; }
                 .ce-photo-row .ce-photo.primary { flex-basis: 100%; order: -1; }
                 .ce-photo { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-                .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; }
+                .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }
                 .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
                 .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }
-                .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: 6px; }
+                .ce-head input.ce-title { min-width: 0; max-width: 100%; height: 30px; padding: 0 6px; margin-left: -6px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--txt0); font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 700; field-sizing: content; }
+                .ce-head input.ce-title:hover { border-color: var(--border); }
+                .ce-head input.ce-title:focus { outline: none; border-color: var(--ui-accent-hover); background: var(--bg0); }
+                .ce-kind { font-size: var(--fs-sm); color: var(--txt1); white-space: nowrap; }
+                .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: var(--radius-md); }
                 .ce-size { font-size: var(--fs-xs); color: var(--txt2); font-family: ui-monospace, Consolas, monospace; }
                 .ce-head-actions { margin-left: auto; display: flex; gap: 6px; }
-                .ce-btn { height: 30px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
-                .ce-btn:hover { border-color: var(--txt2); }
+                .ce-btn { height: 30px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+                .ce-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
+                .ce-btn:active { background: var(--ui-neutral-active); }
                 .ce-btn:disabled { opacity: .45; cursor: default; }
                 .ce-undo { display: inline-flex; align-items: center; gap: 5px; }
-                .ce-btn.primary { background: var(--grn); border-color: var(--grn-bright); color: #fff; }
-                .ce-btn.primary:hover { background: #2a9a40; }
+                .ce-btn.primary { background: var(--ui-primary); border-color: var(--ui-primary-border); color: #fff; }
+                .ce-btn.primary:hover { background: var(--ui-primary-hover); }
+                .ce-btn.primary:active { background: var(--ui-primary-active); }
                 .ce-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
                 .ce-canvas { position: relative; min-width: 0; min-height: 0; background: #080a0c; }
                 .ce-canvas > svg { position: absolute; inset: 16px 16px 34px; width: calc(100% - 32px); height: calc(100% - 50px); touch-action: none; user-select: none; }
@@ -354,16 +447,34 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-side { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--bg2); }
                 .ce-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
                 .ce-side label { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); min-width: 0; }
-                .ce-side input:not([type=color]) { height: 28px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: 6px; color: var(--txt0); font-family: inherit; font-size: 13px; font-weight: 500; min-width: 0; width: 100%; }
-                .ce-side input:focus { outline: none; border-color: var(--blu-bright); }
+                .ce-side input:not([type=color]) { height: 28px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font-family: inherit; font-size: 13px; font-weight: 500; min-width: 0; width: 100%; }
+                .ce-side input:focus { outline: none; border-color: var(--ui-accent-hover); }
                 .ce-row3 { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; }
-                .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+                .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: none; cursor: pointer; }
                 .ce-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
                 .ce-label span { color: var(--txt1); }
-                .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
-                .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: 5px; cursor: pointer; }
-                .ce-seg button.active { background: var(--blu); color: #fff; }
+                .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
+                .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
+                .ce-seg button.active { background: var(--ui-accent); color: #fff; }
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
+                .ce-rings { display: flex; align-items: center; gap: 10px; }
+                .ce-rings .ce-seg { flex: 1; }
+                .ce-rings svg { flex: none; }
+                .ce-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+                .ce-side label.ce-check { flex-direction: row; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--txt1); cursor: pointer; white-space: nowrap; }
+                .ce-side .ce-check input[type=checkbox] { width: 14px; height: 14px; padding: 0; margin: 0; flex: none; accent-color: var(--ui-accent); }
+                .ce-edge { display: flex; align-items: center; gap: 4px; }
+                .ce-face { height: 24px; padding: 0 9px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
+                .ce-face.set { color: var(--txt0); border-color: var(--border2); }
+                .ce-face.active { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+                .ce-face-x { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
+                .ce-face-x:hover { color: var(--txt0); }
+                .ce-face-side { cursor: pointer; }
+                .ce-face-side rect { fill: var(--c); fill-opacity: .08; stroke: var(--c); stroke-opacity: .35; stroke-dasharray: 4 3; }
+                .ce-face-side path { stroke: var(--c); opacity: .35; }
+                .ce-face-side:hover rect, .ce-face-side.on rect { fill-opacity: .22; stroke-opacity: .9; }
+                .ce-face-side:hover path, .ce-face-side.on path { opacity: 1; }
+                .ce-face-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: var(--radius-md); background: var(--ui-accent); color: #fff; font-size: var(--fs-xs); font-weight: 600; pointer-events: none; white-space: nowrap; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
                 .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
                 .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }
@@ -373,14 +484,35 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-pin input { height: 26px !important; }
                 .ce-icon { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
                 .ce-icon:hover { color: var(--red); background: rgba(248,81,73,.1); }
-                @media (max-width: 760px) {
+                @media (max-width: 768px) {
                     .ce-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
-                    .ce-size { display: none; }
+                    .ce-size, .ce-canvas-hint, .ce-hint-long, .ce-head > svg, .ce-btn-txt { display: none; }
+                    .ce-head { padding: 8px 10px; gap: 8px; }
+                    .ce-head h3 { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+                    .ce-id { flex: none; }
+                    .ce-head-actions { flex: none; }
+                    .ce-head .ce-btn { padding: 0 12px; }
+                    .ce-undo { width: 38px; padding: 0 !important; justify-content: center; }
                     .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
-                    .ce-canvas { flex: none; height: 42dvh; position: sticky; top: 0; z-index: 2; }
+                    .ce-canvas { flex: none; height: 30dvh; position: sticky; top: 0; z-index: 2; }
+                    .ce-canvas > svg { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
                     .ce-side { border-left: 0; }
+                    .ce-side section { padding: 10px 12px; gap: 8px; }
+                    .ce-row3 { grid-template-columns: 1fr 1.4fr 44px; }
+                    .ce-side section.ce-bodysec { flex-direction: row; align-items: center; gap: 12px; }
+                    .ce-bodysec .ce-seg { flex: 1; }
                     .ce-pins { flex: none; }
-                    .ce-pin-list { overflow: visible; }
+                    .ce-pin-list { overflow: visible; margin: 0; padding: 0; gap: 6px; }
+                    .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; border: 0; }
+                    .ce-pin.sel { background: none; }
+                    .ce-pin.sel input { border-color: rgba(88,166,255,.5); }
+                    .ce-pin input { height: 40px !important; font-size: 14px; }
+                    .ce-icon { width: 40px; height: 40px; }
+                    .ce-side input:not([type=color]) { height: 40px; font-size: 14px; }
+                    .ce-color input { width: 44px; height: 40px; }
+                    .ce-seg button { padding: 8px 6px; font-size: var(--fs-sm); }
+                    .ce-add { height: 32px; padding: 0 12px; }
+                    .ce-head .ce-btn { min-height: 36px; }
                 }
             ` }} />
         </div>
@@ -423,4 +555,38 @@ function toHex(c) {
     const k = (n) => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
     const f = (n) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
     return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+// Colour rings of a resistor: 4 / 5 / off, with a preview of the rings its value gives.
+function RingsSection({ data, onChange }) {
+    const n = data.bands;
+    const ohms = parseOhms(data.value);
+    const rings = n ? ringsFor(ohms, n) : null;
+    const hint = !n ? 'No rings on the board.'
+        : ohms === null ? 'Enter the value as a resistance (10k, 4k7, 220) to see the rings.'
+            : !rings ? `${data.value} needs ${n === 4 ? '5 rings' : 'other rings'}; with ${n} it has no colour code.`
+                : rings.map(r => r[0]).join(' · ');
+    const W = 76, H = 18, bw = 6;
+    return (
+        <section>
+            <div className="ce-label">Colour rings</div>
+            <div className="ce-rings">
+                <div className="ce-seg">
+                    {[[5, '5 rings'], [4, '4 rings'], [0, 'Off']].map(([k, l]) => (
+                        <button key={k} className={n === k ? 'active' : ''} onClick={() => onChange(k)}>{l}</button>
+                    ))}
+                </div>
+                {rings && (
+                    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+                        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#9aa4ad" strokeWidth="2" />
+                        <rect x="8" y="1" width={W - 16} height={H - 2} rx={(H - 2) / 2} fill={n === 5 ? '#8db8e3' : '#dcbf8f'} stroke="#0b0c0e" strokeWidth="0.8" />
+                        {rings.map(([name, hex], k) => (
+                            <rect key={k} x={k === rings.length - 1 ? W - 8 - 9 - bw / 2 : 8 + 9 + k * bw * 1.7 - bw / 2} y="1" width={bw} height={H - 2} fill={hex}><title>{name}</title></rect>
+                        ))}
+                    </svg>
+                )}
+            </div>
+            <p className="ce-hint">{hint}</p>
+        </section>
+    );
 }

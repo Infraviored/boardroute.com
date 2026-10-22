@@ -4,7 +4,7 @@
 
 - AI assistants like ChatGPT, Claude or Gemini know thousands of parts and how to wire them into a working circuit. What they can't do is arrange those parts on a perfboard.
 - boardroute is that missing half. Your AI writes the circuit description; boardroute places the parts, routes every wire without crossings, and shrinks the board.
-- No account, no upload: it runs in your browser.
+- No account needed, no upload: it runs in your browser.
 
 ---
 

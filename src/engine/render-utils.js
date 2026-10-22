@@ -1,6 +1,7 @@
 import { getAllNets } from './router.js';
 
 import { NET_PAL, compColor } from './colors.js';
+import { partRings } from './resistor-code.js';
 
 export const SP = 28; // Standard pitch - 28px
 
@@ -31,15 +32,13 @@ export function netColor(n) {
 
 export { compColor };
 
-/**
- * boostColor - For components manually assigned color, make them pop.
- * For auto-colored ones, we already have our HSL targets.
- */
 // Text from the user's circuit JSON ends up in SVG markup rendered via innerHTML: escape it.
 const escXml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // Only plain colour literals may reach a style attribute.
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*\)|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i;
+export const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
+// Manually coloured parts get lifted so they pop; auto colours (hsl) are already tuned.
 export function boostColor(hexOrHsl) {
   if (typeof hexOrHsl !== 'string' || !SAFE_COLOR.test(hexOrHsl)) return '#555';
   if (hexOrHsl.startsWith('hsl')) return hexOrHsl; // Already processed
@@ -57,48 +56,9 @@ export function boostColor(hexOrHsl) {
   return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 }
 
-export function generateBackgroundSVG(cols, rows, bounds = null) {
-  // Use massive dimensions for infinite panning
-  const W = 100000;
-  const H = 100000;
-  const OX = -50000;
-  const OY = -50000;
-
-  let maskContent = '';
-  if (bounds) {
-    const cx = ((bounds.minCol + bounds.maxCol + 1) / 2) * SP;
-    const cy = ((bounds.minRow + bounds.maxRow + 1) / 2) * SP;
-    const rw = (bounds.maxCol - bounds.minCol + 10) * SP / 2;
-    const rh = (bounds.maxRow - bounds.minRow + 10) * SP / 2;
-    // 3x radius for massive visible glow area
-    const r = Math.max(rw, rh, 300) * 3;
-
-    maskContent = `
-      <radialGradient id="fadeGrad" cx="${cx}" cy="${cy}" r="${r}" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="white" stop-opacity="1"/>
-        <stop offset="40%" stop-color="white" stop-opacity="1"/>     <!-- 2x larger inner bright circle -->
-        <stop offset="60%" stop-color="white" stop-opacity="0.8"/>
-        <stop offset="80%" stop-color="white" stop-opacity="0.3"/>   <!-- Smoother, softer falloff -->
-        <stop offset="100%" stop-color="white" stop-opacity="0"/>
-      </radialGradient>
-      <mask id="fadeMask">
-        <rect x="${OX}" y="${OY}" width="${W}" height="${H}" fill="url(#fadeGrad)"/>
-      </mask>
-    `;
-  }
-
-  return `
-    <defs>
-      <pattern id="perfPattern" patternUnits="userSpaceOnUse" width="${SP}" height="${SP}" x="0" y="0">
-        <rect width="${SP}" height="${SP}" fill="#1a1208"/>
-        <circle cx="${SP / 2}" cy="${SP / 2}" r="${SP * .22}" fill="#b87333"/>
-        <circle cx="${SP / 2}" cy="${SP / 2}" r="${SP * .09}" fill="#0d0a06"/>
-      </pattern>
-      ${maskContent}
-    </defs>
-    <rect x="${OX}" y="${OY}" width="${W}" height="${H}" fill="url(#perfPattern)" ${bounds ? 'mask="url(#fadeMask)"' : ''}/>
-  `;
-}
+// pixel centre of hole index v (col or row)
+const cellPx = (v) => v * SP + SP / 2;
+const isJumper = (w) => w.jumper && !w.failed && w.path?.length === 2;
 
 // Jumper wire: an insulated bridge on the component side, drawn as an arc between its legs.
 // `hidden` (solder-side view) draws only a faint dashed line between the legs.
@@ -121,25 +81,21 @@ export function generateWiresSVG(wires, activeNets = [], opts = {}) {
   let out = '';
   let jumpers = '';
   wires.forEach(w => {
-    if (w.jumper && !w.failed && w.path?.length === 2) {
+    const isActive = activeNets.includes(w.net);
+    if (isJumper(w)) {
       const [a, b] = w.path;
-      const isActive = activeNets.includes(w.net);
-      jumpers += jumperSVG(a.col * SP + SP / 2, a.row * SP + SP / 2, b.col * SP + SP / 2, b.row * SP + SP / 2, netColor(w.net), { width: isActive ? 3.4 : 2.4, hidden: !!opts.solderSide });
+      jumpers += jumperSVG(cellPx(a.col), cellPx(a.row), cellPx(b.col), cellPx(b.row), netColor(w.net), { width: isActive ? 3.4 : 2.4, hidden: !!opts.solderSide });
       return;
     }
     if (w.failed) {
       const a = w.path[0], b = w.path[w.path.length - 1];
-      out += `<line x1="${a.col * SP + SP / 2}" y1="${a.row * SP + SP / 2}" x2="${b.col * SP + SP / 2}" y2="${b.row * SP + SP / 2}" stroke="#ff2222" stroke-width="1" stroke-dasharray="2 5"/>`;
+      out += `<line x1="${cellPx(a.col)}" y1="${cellPx(a.row)}" x2="${cellPx(b.col)}" y2="${cellPx(b.row)}" stroke="#ff2222" stroke-width="1" stroke-dasharray="2 5"/>`;
       return;
     }
-
-    const isActive = activeNets.includes(w.net);
-    const strokeW = isActive ? 3.8 : 2.8;
     if (!w.path) return;
-    const pts = w.path.map(pt => `${pt.col * SP + SP / 2},${pt.row * SP + SP / 2}`).join(' ');
+    const pts = w.path.map(pt => `${cellPx(pt.col)},${cellPx(pt.row)}`).join(' ');
     const color = netColor(w.net);
-
-    out += `<polyline points="${pts}" fill="none" class="${isActive ? 'wire-active' : ''}" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round" style="${isActive ? `--wire-color: ${color}` : ''}"/>`;
+    out += `<polyline points="${pts}" fill="none" class="${isActive ? 'wire-active' : ''}" stroke="${color}" stroke-width="${isActive ? 3.8 : 2.8}" stroke-linecap="round" stroke-linejoin="round" style="${isActive ? `--wire-color: ${color}` : ''}"/>`;
   });
   // Jumpers sit on the component side, above the copper
   return out + jumpers;
@@ -153,77 +109,39 @@ export function generateRatsnestSVG(components, wires = []) {
     const { net, pins } = netObj;
     if (pins.length < 2) continue;
 
-    const netWires = wires.filter(w => w.net === net && !w.failed);
-
-    // Coordinate-based connectivity: map each coordinate occupied by the net to a group ID
+    // pins are joined only through wires: union every wire's holes, and each hole with the pins on it
     const parent = Array.from({ length: pins.length }, (_, i) => i);
-    const findParent = (i) => {
+    const find = (i) => {
       while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
       return i;
     };
-    const union = (i, j) => {
-      const rootI = findParent(i), rootJ = findParent(j);
-      if (rootI !== rootJ) parent[rootI] = rootJ;
-    };
-
-    // 1. Map each grid coordinate used by this net to the set of pins it can "see"
-    const coordMap = new Map(); // "col,row" -> Set of root parents
-
-    // Seed coordMap with pin locations
+    const union = (i, j) => { i = find(i); j = find(j); if (i !== j) parent[i] = j; };
+    const pinsAt = new Map();
     pins.forEach((p, i) => {
       const key = `${p.col},${p.row}`;
-      if (!coordMap.has(key)) coordMap.set(key, new Set());
-      coordMap.get(key).add(i);
+      if (!pinsAt.has(key)) pinsAt.set(key, []);
+      pinsAt.get(key).push(i);
     });
-
-    // 2. For each wire, all coordinates in that wire are now connected
-    // This is effectively a flood-fill across all segments
-    let changed = true;
-    while (changed) {
-      changed = false;
-      netWires.forEach(w => {
-        const path = w.path;
-        if (!path) return;
-
-        // Find all groups currently touching this wire
-        const touchingGroupRoots = new Set();
-        path.forEach(pt => {
-          const key = `${pt.col},${pt.row}`;
-          if (coordMap.has(key)) {
-            coordMap.get(key).forEach(pIdx => touchingGroupRoots.add(findParent(pIdx)));
-          }
-        });
-
-        if (touchingGroupRoots.size > 1) {
-          const roots = Array.from(touchingGroupRoots);
-          const first = roots[0];
-          for (let i = 1; i < roots.length; i++) {
-            union(first, roots[i]);
-            changed = true;
-          }
-        }
-
-        // Mark all path points as belonging to the unified root, if any groups are touching
-        if (touchingGroupRoots.size === 0) return;
-        const newRoot = findParent(Array.from(touchingGroupRoots)[0]);
-        path.forEach(pt => {
-          const key = `${pt.col},${pt.row}`;
-          if (!coordMap.has(key)) {
-            coordMap.set(key, new Set());
-            changed = true;
-          }
-          if (!coordMap.get(key).has(newRoot)) {
-            coordMap.get(key).add(newRoot);
-            changed = true;
-          }
-        });
-      });
+    const holes = new Map(); // "col,row" -> node id after the pins
+    const hole = (key) => {
+      let id = holes.get(key);
+      if (id === undefined) {
+        id = parent.length;
+        parent.push(id);
+        holes.set(key, id);
+        pinsAt.get(key)?.forEach(pi => union(pi, id));
+      }
+      return id;
+    };
+    for (const w of wires) {
+      if (w.net !== net || w.failed || !w.path?.length) continue;
+      const first = hole(`${w.path[0].col},${w.path[0].row}`);
+      for (const pt of w.path) union(first, hole(`${pt.col},${pt.row}`));
     }
 
-    // 3. Final Grouping
     const finalGroupsMap = new Map();
     pins.forEach((p, i) => {
-      const root = findParent(i);
+      const root = find(i);
       if (!finalGroupsMap.has(root)) finalGroupsMap.set(root, []);
       finalGroupsMap.get(root).push(i);
     });
@@ -231,7 +149,7 @@ export function generateRatsnestSVG(components, wires = []) {
 
     if (finalGroups.length <= 1) continue;
 
-    // 4. MST between groups
+    // MST between groups
     const connectedGroups = new Set([0]);
     while (connectedGroups.size < finalGroups.length) {
       let bD = Infinity, bJ = -1, pI = -1, pJ = -1;
@@ -248,7 +166,7 @@ export function generateRatsnestSVG(components, wires = []) {
       });
 
       if (bJ === -1) break;
-      out += `<line x1="${pins[pI].col * SP + SP / 2}" y1="${pins[pI].row * SP + SP / 2}" x2="${pins[pJ].col * SP + SP / 2}" y2="${pins[pJ].row * SP + SP / 2}" stroke="${netColor(net)}" opacity="0.35" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+      out += `<line x1="${cellPx(pins[pI].col)}" y1="${cellPx(pins[pI].row)}" x2="${cellPx(pins[pJ].col)}" y2="${cellPx(pins[pJ].row)}" stroke="${netColor(net)}" opacity="0.35" stroke-width="1.5" stroke-dasharray="4 4"/>`;
       connectedGroups.add(bJ);
     }
   }
@@ -260,9 +178,16 @@ export function generateRatsnestSVG(components, wires = []) {
 // changed since the picture was taken.
 export function photoTurn(c, photo) {
   if (!photo?.offs || photo.offs.length !== c.pins.length) return -1;
+  const hasSwap = c.swap === true || (Array.isArray(c.swap) && c.swap.length > 0);
+  const pinKeys = hasSwap ? new Set(c.pins.map(p => `${p.dCol},${p.dRow}`)) : null;
   let w = photo.fw, h = photo.fh, offs = photo.offs.map(o => [o[0], o[1]]);
   for (let k = 0; k < 4; k++) {
-    if (w === c.w && h === c.h && offs.every((o, i) => o[0] === c.pins[i].dCol && o[1] === c.pins[i].dRow)) return k;
+    if (w === c.w && h === c.h) {
+      const match = hasSwap
+        ? offs.every(o => pinKeys.has(`${o[0]},${o[1]}`))
+        : offs.every((o, i) => o[0] === c.pins[i].dCol && o[1] === c.pins[i].dRow);
+      if (match) return k;
+    }
     offs = offs.map(([dc, dr]) => [h - 1 - dr, dc]);
     [w, h] = [h, w];
   }
@@ -287,12 +212,243 @@ export function turnMatrix(k, W0, H0) {
 export function turnRect(r, W, H) {
   return { x: H - r.y - r.h, y: r.x, w: r.h, h: r.w };
 }
-const SAFE_IMG = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
-export function renderCompSVG(c, isSelected = false, activePin = null, photo = null) {
-  const bx = c.ox * SP + SP * .08, by = c.oy * SP + SP * .08;
-  const bw = c.w * SP - SP * .16, bh = c.h * SP - SP * .16;
-  const mainColor = boostColor(compColor(c));
+// ---------------------------------------------------------------------------
+// Part labels
+//
+// The board shows what a part is ("ESP8266", "IRLB8721", "100 Ω"), not only its id. Inside the
+// body when the text fits clear of the pins (largest size first, title + id, then title alone);
+// otherwise as a small tag outside, on a leader line, at the spot around the part that covers
+// the fewest other parts and tags. Text widths are estimated (render-utils stays DOM-free).
+const charW = (ch) => {
+  if (ch === ' ') return 0.28;
+  if (/[ijl.,:;'|!·]/.test(ch)) return 0.3;
+  if (/[MWOCGDQmw]/i.test(ch) || ch.charCodeAt(0) > 127) return 0.75;
+  if (/[A-Z0-9]/.test(ch)) return 0.62;
+  return 0.53;
+};
+export const textWidth = (s, fs) => [...String(s)].reduce((a, ch) => a + charW(ch), 0) * fs;
+
+export function partTitle(c) {
+  const rawV = String(c.value || '').trim();
+  const v = rawV === '?' ? '' : rawV;
+  const n = String(c.name || '').trim();
+  const name = n === '?' ? '' : n;
+  if (v && /resist/i.test(n) && /^\d+(\.\d+)?[kKM]?$/.test(v)) return `${v} Ω`;
+  // a package ("DIP-8", "TO-220", "3-pin") says less than the name ("NE555")
+  if (name && /^(DIP|SOIC|SIP|TO|SOT|HC49|DO|PDIP)-?\d|^\d+-pin$/i.test(v)) return name;
+  if (/^LED$/i.test(name) && v && !/LED/i.test(v)) return `LED ${v}`;
+  return v || name;
+}
+
+const bodyRect = (c) => ({ x: c.ox * SP + SP * .08, y: c.oy * SP + SP * .08, w: c.w * SP - SP * .16, h: c.h * SP - SP * .16 });
+const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+export function segmentIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+  const pad = 0.5;
+  const xmin = rx + pad, xmax = rx + rw - pad;
+  const ymin = ry + pad, ymax = ry + rh - pad;
+  if (xmax <= xmin || ymax <= ymin) return false;
+
+  if (x1 >= xmin && x1 <= xmax && y1 >= ymin && y1 <= ymax) return true;
+  if (x2 >= xmin && x2 <= xmax && y2 >= ymin && y2 <= ymax) return true;
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  let t0 = 0;
+  let t1 = 1;
+
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - xmin, xmax - x1, y1 - ymin, ymax - y1];
+
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false;
+    } else {
+      const t = q[i] / p[i];
+      if (p[i] < 0) {
+        if (t > t1) return false;
+        if (t > t0) t0 = t;
+      } else {
+        if (t < t0) return false;
+        if (t < t1) t1 = t;
+      }
+    }
+  }
+  return t0 <= t1;
+}
+
+// Text sizes (px at SP = 28). The board can be zoomed, the export is looked at whole (and printed
+// with one hole = 2.54 mm), so it gets a floor well above the board's smallest sizes.
+export const BOARD_TEXT = { inMin: 7, sub: 5.5, tag: 7.5, pin: 6, pinLong: 6, pinCoord: 6.5 };
+export const EXPORT_TEXT = { inMin: 9, sub: 7.5, tag: 9, pin: 7.5, pinLong: 6.5, pinCoord: 8 };
+
+// title: partTitle(c); sub: the id when it says something the title doesn't, else null
+function insideLabel(c, title, sub, T) {
+  const b = bodyRect(c), pr = SP * .22 + 3;
+  const pins = c.pins.map(p => [cellPx(p.col), cellPx(p.row)]);
+  const clear = (x0, y0, x1, y1) => x0 >= b.x + 3 && x1 <= b.x + b.w - 3 && y0 >= b.y + 2 && y1 <= b.y + b.h - 2
+    && pins.every(([px, py]) => { const dx = Math.max(x0 - px, 0, px - x1), dy = Math.max(y0 - py, 0, py - y1); return dx * dx + dy * dy > pr * pr; });
+  const cx = b.x + b.w / 2;
+  const ys = [0, -.5, .5, -1, 1, -1.5, 1.5, -2, 2].map(k => b.y + b.h / 2 + k * SP);
+  const tries = title ? (sub ? [[title, sub], [title, null]] : [[title, null]]) : [[c.id, null]];
+  for (const [main, sub] of tries) {
+    for (let fs = 14; fs >= T.inMin; fs--) {
+      const sfs = Math.max(T.sub, fs * .72);
+      const w = Math.max(textWidth(main, fs), sub ? textWidth(sub, sfs) : 0) + 2.5;
+      const h = fs + (sub ? sfs * 1.15 : 0) + 2.5;
+      for (const cy of ys) {
+        if (clear(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)) return { mode: 'in', cx, y0: cy - h / 2, fs, sfs, main, sub };
+      }
+    }
+  }
+  return null;
+}
+
+// { [id]: label } for every part; pass the components as the board draws them (solder side: the
+// mirrored ones). opts.bounds = { x, y, w, h } keeps tags inside an export's frame; opts.avoid =
+// [{ x, y, w, h }] areas tags stay off (the hole-coordinate strips drawn on top of them);
+// opts.text = BOARD_TEXT | EXPORT_TEXT.
+export function layoutPartLabels(components, opts = {}) {
+  const res = {};
+  const rects = components.map(c => bodyRect(c));
+  const tags = [];
+  const prevIndices = opts.prevIndices;
+  const T = opts.text || BOARD_TEXT;
+  const HYSTERESIS_MARGIN = 2.0;
+  const avoid = opts.avoid || [], B = opts.bounds;
+
+  for (const c of components) {
+    const title = partTitle(c);
+    const sub = title && title.toLowerCase() !== String(c.id).toLowerCase() ? c.id : null;
+    const fit = insideLabel(c, title, sub, T);
+    if (fit) { res[c.id] = fit; continue; }
+
+    const fs = T.tag, text = title || c.id;
+    const w = (sub ? textWidth(`${c.id} `, fs) : 0) + textWidth(text, fs) + 6, h = fs + 5;
+    const b = bodyRect(c), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    const cands = [];
+    for (const g of [SP * .45, SP * 1.1]) {
+      cands.push([cx - w / 2, b.y - g - h], [cx - w / 2, b.y + b.h + g], [b.x + b.w + g, cy - h / 2], [b.x - g - w, cy - h / 2],
+        [b.x + b.w + g * .5, b.y - g - h], [b.x - g * .5 - w, b.y - g - h], [b.x + b.w + g * .5, b.y + b.h + g], [b.x - g * .5 - w, b.y + b.h + g]);
+    }
+
+    let best = null;
+    let prevCandBest = null;
+    const rememberedIdx = prevIndices ? (prevIndices instanceof Map ? prevIndices.get(c.id) : prevIndices[c.id]) : undefined;
+
+    cands.forEach(([x, y], i) => {
+      const r = { x, y, w, h };
+      const tx = r.x + r.w / 2, ty = r.y + r.h / 2;
+      const ax = Math.min(Math.max(tx, b.x), b.x + b.w), ay = Math.min(Math.max(ty, b.y), b.y + b.h);
+      const lx = Math.min(Math.max(ax, r.x), r.x + r.w), ly = Math.min(Math.max(ay, r.y), r.y + r.h);
+
+      let score = i * 0.01; // on a tie, the earlier (closer) spot
+      for (const o of rects) {
+        score += overlap(r, o);
+        if (o !== b && segmentIntersectsRect(ax, ay, lx, ly, o.x, o.y, o.w, o.h)) {
+          score += 500;
+        }
+      }
+      for (const t of tags) score += 2 * overlap(r, t);
+      for (const a of avoid) score += 3 * overlap(r, a);
+      if (B && (x < B.x || y < B.y || x + w > B.x + B.w || y + h > B.y + B.h)) score += 1e6;
+
+      const candData = { r, score, ax, ay, lx, ly, idx: i };
+      if (!best || score < best.score) best = candData;
+      if (rememberedIdx === i) prevCandBest = candData;
+    });
+
+    const chosen = (prevCandBest && prevCandBest.score <= best.score + HYSTERESIS_MARGIN) ? prevCandBest : best;
+
+    if (prevIndices) {
+      if (prevIndices instanceof Map) prevIndices.set(c.id, chosen.idx);
+      else prevIndices[c.id] = chosen.idx;
+    }
+
+    tags.push(chosen.r);
+    res[c.id] = {
+      mode: 'out',
+      ...chosen.r,
+      fs,
+      ax: chosen.ax,
+      ay: chosen.ay,
+      lx: chosen.lx,
+      ly: chosen.ly,
+      main: text,
+      sub,
+      candIdx: chosen.idx
+    };
+  }
+  return res;
+}
+
+const LABEL_TEXT = `font-family="'Outfit', sans-serif" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
+
+function partLabelSVG(L, color) {
+  if (!L) return '';
+  if (L.mode === 'in') {
+    let s = `<text x="${L.cx}" y="${L.y0 + L.fs * .82}" fill="#fff" font-size="${L.fs}" font-weight="800" stroke-width="2.5" ${LABEL_TEXT}>${escXml(L.main)}</text>`;
+    if (L.sub) s += `<text x="${L.cx}" y="${L.y0 + L.fs + L.sfs * .95}" fill="rgba(255,255,255,0.6)" font-size="${L.sfs}" font-weight="700" stroke-width="2.2" ${LABEL_TEXT}>${escXml(L.sub)}</text>`;
+    return s;
+  }
+  const sub = L.sub ? `<tspan fill="${color}">${escXml(L.sub)}</tspan> ` : '';
+  return `<g style="pointer-events:none">`
+    + `<line x1="${L.ax}" y1="${L.ay}" x2="${L.lx}" y2="${L.ly}" stroke="${color}" stroke-width="1" stroke-opacity="0.8"/>`
+    + `<circle cx="${L.ax}" cy="${L.ay}" r="1.6" fill="${color}"/>`
+    + `<rect x="${L.x}" y="${L.y}" width="${L.w}" height="${L.h}" rx="3" fill="#0b0c0e" fill-opacity="0.85" stroke="${color}" stroke-opacity="0.6" stroke-width="0.8"/>`
+    + `<text x="${L.x + L.w / 2}" y="${L.y + L.h / 2}" dy=".35em" fill="#fff" font-size="${L.fs}" font-weight="700" stroke-width="0" ${LABEL_TEXT}>${sub}${escXml(L.main)}</text>`
+    + `</g>`;
+}
+
+// Path of the 'faces out' arrow for side e (0 top, 1 right, 2 bottom, 3 left) of the box
+// x, y, w, h: a short shaft with a head, just outside the middle of that side, pointing away.
+export function edgeArrowPath(x, y, w, h, e, size = SP) {
+  const [nx, ny] = [[0, -1], [1, 0], [0, 1], [-1, 0]][e];
+  const mx = x + w / 2 + nx * w / 2, my = y + h / 2 + ny * h / 2;
+  const s0 = size * 0.12, L = size * 0.5, hd = size * 0.18;
+  const sx = mx + nx * s0, sy = my + ny * s0, tx = mx + nx * (s0 + L), ty = my + ny * (s0 + L);
+  const bx = tx - nx * hd, by = ty - ny * hd, px = -ny * hd, py = nx * hd;
+  return `M${sx} ${sy}L${tx} ${ty}M${bx + px} ${by + py}L${tx} ${ty}L${bx - px} ${by - py}`;
+}
+
+// Resistor body between the two pins with its colour rings (the last one, the tolerance, at the
+// second pin's end, set off by a gap). Only for pins in one row or column at least 2 holes apart.
+function resistorBodySVG(c, rings) {
+  const [a, b] = c.pins;
+  if (a.col !== b.col && a.row !== b.row) return '';
+  const dist = Math.abs(b.col - a.col) + Math.abs(b.row - a.row);
+  if (dist < 2) return '';
+  const L = dist * SP - 2 * (SP * .22 + 2.5), T = SP * .42;
+  const cx = (a.col + b.col + 1) * SP / 2, cy = (a.row + b.row + 1) * SP / 2;
+  const ang = Math.atan2(b.row - a.row, b.col - a.col) * 180 / Math.PI;
+  const five = rings.length === 5;
+  const u0 = -L / 2 + T * .6, u1 = L / 2 - T * .6;
+  const bw = Math.min(L * .09, 4), step = bw * 1.7;
+  const at = (k) => (k === rings.length - 1 ? u1 - bw / 2 : u0 + bw / 2 + k * step);
+  // the rings solid, the body half see-through, so wires under the part (solder side) stay visible
+  const tint = five ? '#8db8e3' : '#dcbf8f';
+  let g = `<g transform="translate(${cx} ${cy}) rotate(${ang})" style="pointer-events:none">`
+    + `<rect x="${-L / 2}" y="${-T / 2}" width="${L}" height="${T}" rx="${T / 2}" fill="${tint}" fill-opacity="0.5" stroke="${tint}" stroke-opacity="0.9" stroke-width="1"/>`;
+  // a light glow around each ring so it reads on any background
+  rings.forEach((_, k) => {
+    g += `<rect x="${(at(k) - bw / 2 - 1.4).toFixed(2)}" y="${(-T / 2 + 0.5).toFixed(2)}" width="${(bw + 2.8).toFixed(2)}" height="${(T - 1).toFixed(2)}" rx="1.5" fill="#fff" fill-opacity="0.55"/>`;
+  });
+  rings.forEach(([, hex], k) => {
+    g += `<rect x="${(at(k) - bw / 2).toFixed(2)}" y="${(-T / 2 + 0.5).toFixed(2)}" width="${bw.toFixed(2)}" height="${(T - 1).toFixed(2)}" rx="0.8" fill="${hex}" stroke="#0b0c0e" stroke-width="0.5" stroke-opacity="0.7"/>`;
+  });
+  return g + '</g>';
+}
+
+// opts.photoOpacity: how strongly the part's photo shows (board 0.3: wires under it stay visible);
+// opts.mirrorPhoto: the solder-side view (the part's box is mirrored, the photo with it);
+// opts.text: BOARD_TEXT (default) or EXPORT_TEXT
+export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null, opts = {}) {
+  const T = opts.text || BOARD_TEXT;
+  const { x: bx, y: by, w: bw, h: bh } = bodyRect(c);
+  const mono = !!opts.mono; // black & white print: no colours, nets told apart by line style
+  const mainColor = mono ? '#8a8a8a' : boostColor(compColor(c));
 
   // Use deterministic hash for "random" animation timing
   const hash = (hashString(c.id) % 1000) / 1000;
@@ -311,48 +467,42 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
 
   const half = sw / 2;
   // Body: Inset by half the stroke width so it doesn't overlap the inner stroke half
-  out += `<rect x="${bx + half}" y="${by + half}" width="${bw - sw}" height="${bh - sw}" rx="3" fill="#080808" fill-opacity="0.8"/>`;
-  // a photo of the real part, between the dark body and the rim/pins
+  // only a faint shade: the wires under the part (solder side) must stay clearly visible
+  out += `<rect x="${bx + half}" y="${by + half}" width="${bw - sw}" height="${bh - sw}" rx="3" fill="#080808" fill-opacity="0.2"/>`;
+  // a photo of the real part, between the body and the rim/pins; faint for the same reason
   const pic = photo ? photoSVG(c, photo) : '';
-  out += pic;
+  if (pic) out += `<g opacity="${opts.photoOpacity ?? 0.3}"${opts.mirrorPhoto ? ` transform="translate(${(2 * c.ox + c.w) * SP} 0) scale(-1 1)"` : ''}>${pic}</g>`;
   // Rim: Drawn with fill="none" to ensure uniform wire visibility through the stroke
   out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)
-  if (!pic) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
+  if (!pic && !mono) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
+  // a resistor shows its colour code: the body between its two pins with the rings on it
+  const rings = pic || mono ? null : partRings(c);
+  if (rings) out += resistorBodySVG(c, rings);
+
+  // the side that faces out: a small arrow just outside the middle of that edge
+  if (c.edge >= 0) out += `<path d="${edgeArrowPath(bx, by, bw, bh, c.edge)}" fill="none" stroke="${mainColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"/>`;
 
   let labelsOut = '';
+  const pinText = `fill="#fff" font-family="'Outfit', sans-serif" font-weight="900"`;
+  const pinTextEnd = `text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
   // 2. Draw Pins
   c.pins.forEach((p, idx) => {
-    const px = p.col * SP + SP / 2, py = p.row * SP + SP / 2;
+    const px = cellPx(p.col), py = cellPx(p.row);
     const isActive = activePin && activePin.compId === c.id && activePin.pinIdx === idx;
-    const pinColor = netColor(p.net);
+    const pinColor = mono ? '#ffffff' : netColor(p.net);
     // Active pin: soft outer halo ring behind the pad (glow only, no size change)
     if (isActive) {
       out += `<circle cx="${px}" cy="${py}" r="${SP * .38}" fill="${pinColor}" opacity="0.15" style="pointer-events:none"/>`;
     }
     // Centered pin design: Label inside the colored pad (always same size)
-    out += `<circle cx="${px}" cy="${py}" r="${SP * .22}" fill="${pinColor}" class="${isActive ? 'active-pin' : ''}" style="${isActive ? `--active-color: ${pinColor}` : ''}"/>`;
-
-
-    const textAttrs = `x="${px}" y="${py}" dy=".35em" fill="#fff" font-family="'Outfit', sans-serif" font-weight="900" font-size="${Math.min(SP * .22, 6)}" text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-    labelsOut += `<text ${textAttrs}>${escXml(p.lbl)}</text>`;
+    out += `<circle cx="${px}" cy="${py}" r="${SP * .22}" fill="${pinColor}"${mono ? ' stroke="#000" stroke-width="0.9"' : ''} class="${isActive ? 'active-pin' : ''}" style="${isActive ? `--active-color: ${pinColor}` : ''}"/>`;
+    labelsOut += `<text x="${px}" y="${py}" dy=".35em" ${pinText} font-size="${String(p.lbl ?? '').length > 3 ? T.pinLong : T.pin}" ${pinTextEnd}>${escXml(p.lbl)}</text>`;
   });
 
-  // 3. Draw Component Labels (Centered, two-line layout)
-  const midX = bx + bw / 2;
-  // Shift midY only for vertical strips (h > w) with odd pin counts (h > 1) to avoid pin overlap.
-  const isVerticalStrip = c.h > c.w && c.h > 1;
-  const midY = (isVerticalStrip && c.h % 2 !== 0) ? (by + bh / 2 - SP / 2) : (by + bh / 2);
-  const fontSize = Math.min(SP * .3, 10);
-
-  // Name line
-  const nameAttrs = `x="${midX}" y="${midY}" fill="#fff" font-family="'Outfit', sans-serif" font-size="${fontSize}" font-weight="800" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${nameAttrs}>${escXml(c.id)}</text>`;
-
-  // Value line (slightly smaller and dimmer)
-  const valY = midY + fontSize * 0.8;
-  const valAttrs = `x="${midX}" y="${valY}" fill="rgba(255,255,255,0.6)" font-family="'Outfit', sans-serif" font-size="${fontSize * 0.8}" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="#0b0c0e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
-  labelsOut += `<text ${valAttrs}>${escXml(c.value)}</text>`;
+  // 3. Part label: what the part is (value, else name) large, its id small; outside on a
+  // leader line when it doesn't fit between the pins (see layoutPartLabels).
+  labelsOut += partLabelSVG(label || layoutPartLabels([c], { text: T })[c.id], mainColor);
 
   out += `</g>`;
 
@@ -379,11 +529,16 @@ export const DEFAULT_BOARD_VIEW = {
   pinCoords: false,  // additionally label every pin ("C7")
   boardCols: null,   // null = auto (layout footprint)
   boardRows: null,
-  margin: 1,         // holes between the board edge and the layout (only for a set size)
+  margin: 0,         // kept for old saved settings; the board size is the whole board now
   colStyle: 'num',   // 'num' | 'alpha'
   rowStyle: 'alpha',
   start: 1,          // numbers count from 1 or 0 (letters always start at A)
   origin: 'tl',      // corner of label 1/A: 'tl' | 'tr' | 'bl' | 'br'
+  // Many boards are printed on both sides, and the solder side's print need not name a hole the
+  // way the top does: an axis may count from the other end there (e.g. numbers the same, letters
+  // reversed). These apply to the solder-side view only.
+  solderFlipCols: false,
+  solderFlipRows: false,
 };
 
 export function normalizeBoardView(v) {
@@ -404,10 +559,12 @@ export function normalizeBoardView(v) {
     rowStyle: o.rowStyle === 'num' ? 'num' : 'alpha',
     start: Number(o.start) === 0 ? 0 : 1,
     origin: ['tl', 'tr', 'bl', 'br'].includes(o.origin) ? o.origin : 'tl',
+    solderFlipCols: !!o.solderFlipCols,
+    solderFlipRows: !!o.solderFlipRows,
   };
 }
 
-/** Layout footprint in grid cells, max exclusive (same extent as generateBoundingBoxSVG). */
+/** Layout footprint in grid cells, max exclusive. */
 export function layoutBounds(components = [], wires = []) {
   let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
   components.forEach(c => {
@@ -436,14 +593,16 @@ export function computeBoardFrame(components, wires, view) {
   const v = normalizeBoardView(view);
   const fw = b.maxC - b.minC, fh = b.maxR - b.minR;
   const sizedC = !!v.boardCols, sizedR = !!v.boardRows;
-  const need = { cols: fw + (sizedC ? v.margin : 0), rows: fh + (sizedR ? v.margin : 0) };
+  const need = { cols: fw, rows: fh };
   const cols = sizedC ? v.boardCols : fw;
   const rows = sizedR ? v.boardRows : fh;
+  // a set board is drawn with the layout in its middle (left/top aligned if it doesn't fit)
   return {
-    c0: sizedC ? b.minC - v.margin : b.minC,
-    r0: sizedR ? b.minR - v.margin : b.minR,
+    c0: b.minC - Math.max(0, Math.floor((cols - fw) / 2)),
+    r0: b.minR - Math.max(0, Math.floor((rows - fh) / 2)),
     cols, rows,
     sized: sizedC || sizedR,
+    sizedC, sizedR,
     layout: b,
     footprint: { cols: fw, rows: fh },
     need,
@@ -457,11 +616,14 @@ function lettersFor(i) {
   return s;
 }
 
-/** Index along each axis counted from the origin corner (0-based), or null off the board. */
-function axisIndex(frame, view, col, row) {
+/**
+ * Index along each axis counted from the origin corner (0-based), or null off the board.
+ * side 'bottom': the solder side's own print (an axis may count the other way there).
+ */
+function axisIndex(frame, view, col, row, side = 'top') {
   let i = col - frame.c0, j = row - frame.r0;
-  if (view.origin[1] === 'r') i = frame.cols - 1 - i;
-  if (view.origin[0] === 'b') j = frame.rows - 1 - j;
+  if ((view.origin[1] === 'r') !== (side === 'bottom' && !!view.solderFlipCols)) i = frame.cols - 1 - i;
+  if ((view.origin[0] === 'b') !== (side === 'bottom' && !!view.solderFlipRows)) j = frame.rows - 1 - j;
   return {
     i: i >= 0 && i < frame.cols ? i : null,
     j: j >= 0 && j < frame.rows ? j : null,
@@ -474,9 +636,12 @@ function fmtAxis(idx, style, start) {
 }
 
 /** Label of one hole relative to the board frame, e.g. "C7"; null when off the board. */
-export function holeLabel(frame, view, col, row) {
-  const v = normalizeBoardView(view);
-  const { i, j } = axisIndex(frame, v, col, row);
+export function holeLabel(frame, view, col, row, side = 'top') {
+  return holeLabelOf(frame, normalizeBoardView(view), col, row, side);
+}
+
+function holeLabelOf(frame, v, col, row, side) {
+  const { i, j } = axisIndex(frame, v, col, row, side);
   const c = fmtAxis(i, v.colStyle, v.start), r = fmtAxis(j, v.rowStyle, v.start);
   if (c === null || r === null) return null;
   if (v.colStyle !== v.rowStyle) return v.colStyle === 'alpha' ? c + r : r + c; // letters first
@@ -491,6 +656,9 @@ function maxLabelChars(n, style, start) {
   return style === 'alpha' ? lettersFor(Math.max(n - 1, 0)).length : String(Math.max(n - 1 + start, start)).length;
 }
 
+// estimated width (px) of the widest of an axis's n labels
+const axisLabelWidth = (n, style, start, font) => maxLabelChars(n, style, start) * font * (style === 'alpha' ? 0.75 : 0.62);
+
 /**
  * Which display edges carry the axis labels: the two edges meeting at the origin corner.
  * The solder-side view is mirrored left/right, so the row labels move to the other side.
@@ -501,15 +669,21 @@ function labelEdges(view, side) {
   return { colEdge: view.origin[0] === 'b' ? 'bottom' : 'top', rowEdge: h };
 }
 
-/** Extra room (px) the axis labels need outside the board frame, per display edge. */
-export function coordGutters(frame, view, side = 'top', scale = 1) {
+const OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+
+/**
+ * Extra room (px) the axis labels need outside the board frame, per display edge.
+ * `all`: labels on all four edges (the export), not only the two at the origin corner.
+ */
+export function coordGutters(frame, view, side = 'top', scale = 1, all = false) {
   const g = { top: 0, right: 0, bottom: 0, left: 0 };
   const v = normalizeBoardView(view);
   if (!frame || !v.showCoords) return g;
   const font = coordFont(scale);
   const { colEdge, rowEdge } = labelEdges(v, side);
   g[colEdge] = COORD_GAP + font + 8;
-  g[rowEdge] = COORD_GAP + Math.max(font + 8, maxLabelChars(frame.rows, v.rowStyle, v.start) * font * (v.rowStyle === 'alpha' ? 0.75 : 0.62) + 10);
+  g[rowEdge] = COORD_GAP + Math.max(font + 8, axisLabelWidth(frame.rows, v.rowStyle, v.start, font) + 10);
+  if (all) { g[OPPOSITE[colEdge]] = g[colEdge]; g[OPPOSITE[rowEdge]] = g[rowEdge]; }
   return g;
 }
 
@@ -522,10 +696,13 @@ export function coordGutters(frame, view, side = 'top', scale = 1) {
  *
  * Returns { board, labels }: `board` goes below the components, `labels` on top.
  * `scale` (>= 1) enlarges the text when the canvas is zoomed out; labels thin out when they
- * would collide. `dimOutside` darkens everything off the board (canvas only).
+ * would collide. `dimOutside` darkens everything off the board (canvas only). `allEdges` puts
+ * the labels on all four edges (export); `outset` { top, right, bottom, left } moves a strip that
+ * far further out (px), past part tags that sit outside the board.
  */
 export function generateCoordinatesSVG({
   frame, view, components = [], side = 'top', mCenter = 0, offC = 0, offR = 0, scale = 1, dimOutside = false,
+  allEdges = false, outset = null, pinFont = 6.5,
 }) {
   if (!frame) return { board: '', labels: '' };
   const v = normalizeBoardView(view);
@@ -539,12 +716,18 @@ export function generateCoordinatesSVG({
 
   let board = '';
   if (frame.sized) {
-    const stroke = frame.fits ? 'rgba(240,246,252,0.55)' : '#f85149';
+    // the board limit, kept subtle: a thin line and a faint shade outside. With only one side
+    // set it is a strip through the endless grid (open along the other axis).
+    const stroke = frame.fits ? 'rgba(240,246,252,0.35)' : 'rgba(248,81,73,0.7)';
+    const B = 50000;
+    const bx0 = frame.sizedC ? x0 - 3 : -B, bx1 = frame.sizedC ? x0 + w + 3 : B;
+    const by0 = frame.sizedR ? y0 - 3 : -B, by1 = frame.sizedR ? y0 + h + 3 : B;
     if (dimOutside) {
-      const B = 50000;
-      board += `<path d="M${x0 - B},${y0 - B}h${w + 2 * B}v${h + 2 * B}h${-(w + 2 * B)}Z M${x0 - 3},${y0 - 3}v${h + 6}h${w + 6}v${-(h + 6)}Z" fill="#050706" fill-opacity="0.6" fill-rule="evenodd" style="pointer-events:none"/>`;
+      board += `<path d="M${-B},${-B}H${B}V${B}H${-B}Z M${bx0},${by0}V${by1}H${bx1}V${by0}Z" fill="#050706" fill-opacity="0.22" fill-rule="evenodd" style="pointer-events:none"/>`;
     }
-    board += `<rect x="${x0 - 3}" y="${y0 - 3}" width="${w + 6}" height="${h + 6}" rx="6" fill="none" stroke="${stroke}" stroke-width="1.6" style="pointer-events:none"/>`;
+    if (frame.sizedC && frame.sizedR) board += `<rect x="${bx0}" y="${by0}" width="${bx1 - bx0}" height="${by1 - by0}" rx="6" fill="none" stroke="${stroke}" stroke-width="1.2" style="pointer-events:none"/>`;
+    else if (frame.sizedC) board += `<path d="M${bx0},${-B}V${B}M${bx1},${-B}V${B}" stroke="${stroke}" stroke-width="1.2" style="pointer-events:none"/>`;
+    else board += `<path d="M${-B},${by0}H${B}M${-B},${by1}H${B}" stroke="${stroke}" stroke-width="1.2" style="pointer-events:none"/>`;
   }
 
   if (!v.showCoords) return { board, labels: '' };
@@ -552,45 +735,50 @@ export function generateCoordinatesSVG({
   const font = coordFont(scale);
   const textBase = `font-family="'Outfit', sans-serif" font-weight="700" text-anchor="middle" dy=".35em" paint-order="stroke" stroke="#05070a" stroke-width="2.5" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
   const { colEdge, rowEdge } = labelEdges(v, side);
-  const gut = coordGutters(frame, v, side, scale);
+  const gut = coordGutters(frame, v, side, scale, allEdges);
+  const colEdges = allEdges ? ['top', 'bottom'] : [colEdge];
+  const rowEdges = allEdges ? ['left', 'right'] : [rowEdge];
+  const out = { top: 0, right: 0, bottom: 0, left: 0, ...outset };
   let labels = '';
 
   // Label strips: a dark backing so the text stays readable over the copper pads.
   const strip = (x, y, sw, sh) => `<rect x="${x}" y="${y}" width="${sw}" height="${sh}" rx="4" fill="#0d1117" fill-opacity="0.82" stroke="rgba(255,255,255,0.08)" style="pointer-events:none"/>`;
   const colStripH = gut[colEdge] - COORD_GAP;
-  const colStripY = colEdge === 'top' ? y0 - gut.top : y0 + h + COORD_GAP;
+  const colStripYs = colEdges.map(e => (e === 'top' ? y0 - gut.top - out.top : y0 + h + COORD_GAP + out.bottom));
   const rowStripW = gut[rowEdge] - COORD_GAP;
-  const rowStripX = rowEdge === 'left' ? x0 - gut.left : x0 + w + COORD_GAP;
-  labels += strip(x0, colStripY, w, colStripH) + strip(rowStripX, y0, rowStripW, h);
+  const rowStripXs = rowEdges.map(e => (e === 'left' ? x0 - gut.left - out.left : x0 + w + COORD_GAP + out.right));
+  colStripYs.forEach(y => { labels += strip(x0, y, w, colStripH); });
+  rowStripXs.forEach(x => { labels += strip(x, y0, rowStripW, h); });
 
   // Thin out labels that would overlap (only when zoomed far out or on huge numbers).
   const steps = [1, 2, 5, 10, 20, 50, 100];
-  const colW = maxLabelChars(frame.cols, v.colStyle, v.start) * font * (v.colStyle === 'alpha' ? 0.75 : 0.62) + 6;
+  const colW = axisLabelWidth(frame.cols, v.colStyle, v.start, font) + 6;
   const colStep = steps.find(k => k * SP >= colW) || 100;
   const rowStep = steps.find(k => k * SP >= font * 1.25) || 100;
   const shown = (idx, style, k) => k === 1 || (style === 'alpha' ? idx % k === 0 : (idx + v.start) % k === 0);
   // Every 5th number brighter: makes counting holes on the real board easier.
   const tone = (idx, style) => (style === 'num' && (idx + v.start) % 5 === 0 ? '#f0f6fc' : '#8b949e');
+  const axisText = (x, y, idx, style) => `<text x="${x}" y="${y}" font-size="${font}" fill="${tone(idx, style)}" ${textBase}>${fmtAxis(idx, style, v.start)}</text>`;
 
   for (let c = frame.c0; c < frame.c0 + frame.cols; c++) {
-    const { i } = axisIndex(frame, v, c, frame.r0);
+    const { i } = axisIndex(frame, v, c, frame.r0, side);
     if (i === null || !shown(i, v.colStyle, colStep)) continue;
-    labels += `<text x="${X(c) + SP / 2}" y="${colStripY + colStripH / 2}" font-size="${font}" fill="${tone(i, v.colStyle)}" ${textBase}>${fmtAxis(i, v.colStyle, v.start)}</text>`;
+    for (const sy of colStripYs) labels += axisText(X(c) + SP / 2, sy + colStripH / 2, i, v.colStyle);
   }
   for (let r = frame.r0; r < frame.r0 + frame.rows; r++) {
-    const { j } = axisIndex(frame, v, frame.c0, r);
+    const { j } = axisIndex(frame, v, frame.c0, r, side);
     if (j === null || !shown(j, v.rowStyle, rowStep)) continue;
-    labels += `<text x="${rowStripX + rowStripW / 2}" y="${Y(r) + SP / 2}" font-size="${font}" fill="${tone(j, v.rowStyle)}" ${textBase}>${fmtAxis(j, v.rowStyle, v.start)}</text>`;
+    for (const sx of rowStripXs) labels += axisText(sx + rowStripW / 2, Y(r) + SP / 2, j, v.rowStyle);
   }
 
   if (v.pinCoords) {
     // Small tag at the pad's upper-right, in the gap between holes, on a dark pill so it reads
     // over part bodies and their name/value text.
-    const pf = 6.5 * Math.min(scale, 1.6);
+    const pf = pinFont * Math.min(scale, 1.6);
     const ph = pf + 3;
     components.forEach(comp => comp.pins?.forEach(p => {
       if (!isFinite(p.col) || !isFinite(p.row)) return;
-      const lbl = holeLabel(frame, v, p.col, p.row) || 'off';
+      const lbl = holeLabelOf(frame, v, p.col, p.row, side) || 'off';
       const pw = lbl.length * pf * 0.66 + 4;
       const cx = X(p.col) + SP / 2, cy = Y(p.row) + SP / 2;
       const lx = cx + SP * 0.1, ly = cy - SP * 0.2 - ph; // pill's top-left
@@ -602,28 +790,14 @@ export function generateCoordinatesSVG({
   return { board, labels };
 }
 
-export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null }) {
+// photos: { [part id]: picture record } (App's partImages) to draw the parts' photos
+// mono: black & white printer -- every net gets its own line style (solid, dashed, dotted, in black
+// and grey) and a legend below the board says which is which
+export function generatePrunedSVG({ components, wires, side = 'top', padding = 3, view = null, photos = null, mono = false }) {
   if (!components?.length) return null;
-
-  let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
-  components.forEach(c => {
-    if (!isFinite(c.ox) || !isFinite(c.oy)) return;
-    minC = Math.min(minC, c.ox);
-    maxC = Math.max(maxC, c.ox + c.w);
-    minR = Math.min(minR, c.oy);
-    maxR = Math.max(maxR, c.oy + c.h);
-  });
-  if (!isFinite(minC)) return null;
-
-  wires.forEach(w => {
-    if (w.failed) return;
-    w.path?.forEach(pt => {
-      minC = Math.min(minC, pt.col);
-      maxC = Math.max(maxC, pt.col + 1);
-      minR = Math.min(minR, pt.row);
-      maxR = Math.max(maxR, pt.row + 1);
-    });
-  });
+  const lb = layoutBounds(components, wires);
+  if (!lb) return null;
+  let { minC, maxC, minR, maxR } = lb;
 
   // Hole coordinates / physical board: a set board size widens the export to the whole board.
   const bv = view ? normalizeBoardView(view) : null;
@@ -648,104 +822,128 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     path: w.path?.map(pt => ({ ...pt, col: mCenter - pt.col - 1 }))
   })) : wires;
 
-  const gut = coordGutters(frame, bv, side);
-  minC -= (padding + gut.left) / SP; minR -= (padding + gut.top) / SP;
-  maxC += (padding + gut.right) / SP; maxR += (padding + gut.bottom) / SP;
+  // Compute part labels on unshifted display components, then grow bounds so all outside tags fit
+  const unshiftedLabels = layoutPartLabels(displayComps, { text: EXPORT_TEXT });
+  const tags = Object.values(unshiftedLabels).filter(L => L?.mode === 'out');
+  tags.forEach(L => {
+    minC = Math.min(minC, L.x / SP);
+    maxC = Math.max(maxC, (L.x + L.w) / SP);
+    minR = Math.min(minR, L.y / SP);
+    maxR = Math.max(maxR, (L.y + L.h) / SP);
+  });
+
+  // Hole numbers on all four edges. A part tag outside the board pushes that edge's strip out
+  // past it instead of being covered by it.
+  const gut = coordGutters(frame, bv, side, 1, true);
+  const outset = { top: 0, right: 0, bottom: 0, left: 0 };
+  if (frame) {
+    const fx0 = isBottom ? mCenter - frame.c0 - frame.cols : frame.c0, fx1 = fx0 + frame.cols;
+    const fy0 = frame.r0, fy1 = fy0 + frame.rows;
+    if (bv.showCoords) {
+      const px0 = fx0 * SP, px1 = fx1 * SP, py0 = fy0 * SP, py1 = fy1 * SP;
+      tags.forEach(L => {
+        const overX = L.x < px1 && L.x + L.w > px0, overY = L.y < py1 && L.y + L.h > py0;
+        if (overX) { outset.top = Math.max(outset.top, py0 - L.y); outset.bottom = Math.max(outset.bottom, L.y + L.h - py1); }
+        if (overY) { outset.left = Math.max(outset.left, px0 - L.x); outset.right = Math.max(outset.right, L.x + L.w - px1); }
+      });
+      for (const k in outset) outset[k] = outset[k] > 0 ? Math.ceil(outset[k]) : 0;
+    }
+    // the strips sit outside the frame (+ outset); tags already widened the bounds past it
+    minC = Math.min(minC, fx0 - (gut.left + outset.left) / SP); maxC = Math.max(maxC, fx1 + (gut.right + outset.right) / SP);
+    minR = Math.min(minR, fy0 - (gut.top + outset.top) / SP); maxR = Math.max(maxR, fy1 + (gut.bottom + outset.bottom) / SP);
+  }
+  minC -= padding / SP; minR -= padding / SP;
+  maxC += padding / SP; maxR += padding / SP;
 
   const W = Math.round((maxC - minC) * SP);
-  const H = Math.round((maxR - minR) * SP);
+  let H = Math.round((maxR - minR) * SP);
   if (W <= 0 || H <= 0) return null;
 
-  let inner = '';
-  // Background
-  inner += `<rect width="${W}" height="${H}" fill="#1a1208" rx="7"/>`;
+  // Black & white: the nets that have wires, GND first, each with its line style
+  const monoNets = mono ? [...new Set(wires.filter(w => !w.failed && w.path?.length).map(w => w.net).filter(Boolean))]
+    .sort((a, b) => (/^gnd$/i.test(b) - /^gnd$/i.test(a)) || a.localeCompare(b)) : [];
+  const monoStyle = (net) => MONO_STYLES[Math.max(0, monoNets.indexOf(net)) % MONO_STYLES.length];
+  const wireStyle = (net) => (mono ? monoStyle(net) : { c: netColor(net), dash: '' });
+  const dashAttr = (m) => (m.dash ? ` stroke-dasharray="${m.dash}"` : '');
+  let legend = '';
+  if (monoNets.length) {
+    const fs = 10, rowH = 16, gap = 14, x0 = 10;
+    let x = x0, y = H + 6;
+    monoNets.forEach(net => {
+      const m = monoStyle(net), iw = 26 + 5 + textWidth(net, fs);
+      if (x > x0 && x + iw > W - x0) { x = x0; y += rowH; }
+      legend += `<line x1="${x}" y1="${y + rowH / 2}" x2="${x + 26}" y2="${y + rowH / 2}" stroke="${m.c}" stroke-width="2"${dashAttr(m)} stroke-linecap="round"/>`
+        + `<text x="${x + 31}" y="${y + rowH / 2}" dy=".35em" fill="#fff" font-family="'Outfit', sans-serif" font-weight="700" font-size="${fs}">${escXml(net)}</text>`;
+      x += iw + gap;
+    });
+    H = y + rowH + 6;
+  }
+
+  let inner = `<rect width="${W}" height="${H}" fill="#1a1208" rx="7"/>`;
 
   // Grid / Pads
+  const padR = Math.round(SP * .22), holeR = Math.round(SP * .09);
   for (let c = Math.ceil(minC); c < Math.floor(maxC); c++) {
     for (let r = Math.ceil(minR); r < Math.floor(maxR); r++) {
       const cx = Math.round((c - minC) * SP + SP / 2);
       const cy = Math.round((r - minR) * SP + SP / 2);
-      inner += `<circle cx="${cx}" cy="${cy}" r="${Math.round(SP * .22)}" fill="#b87333"/><circle cx="${cx}" cy="${cy}" r="${Math.round(SP * .09)}" fill="#0d0a06"/>`;
+      inner += `<circle cx="${cx}" cy="${cy}" r="${padR}" fill="#b87333"/><circle cx="${cx}" cy="${cy}" r="${holeR}" fill="#0d0a06"/>`;
     }
   }
 
-  // Wires (Bottom: components first, then wires? User said "wires on highest layer overshadow everything")
   const px = (pt) => [Math.round((pt.col - minC) * SP + SP / 2), Math.round((pt.row - minR) * SP + SP / 2)];
   // Jumpers are on the component side: arcs on top in the top view, faint in the solder-side view
-  const jumpersContent = displayWires.filter(w => w.jumper && !w.failed && w.path?.length === 2)
-    .map(w => jumperSVG(...px(w.path[0]), ...px(w.path[1]), netColor(w.net), { width: 2, hidden: isBottom })).join('');
+  const jumpersContent = displayWires.filter(isJumper)
+    .map(w => jumperSVG(...px(w.path[0]), ...px(w.path[1]), wireStyle(w.net).c, { width: 2, hidden: isBottom })).join('');
   const wiresContent = displayWires.map(w => {
     if (!w.path?.length || w.failed || w.jumper) return '';
-    const pts = w.path.map(pt => `${Math.round((pt.col - minC) * SP + SP / 2)},${Math.round((pt.row - minR) * SP + SP / 2)}`).join(' ');
-    return `<polyline points="${pts}" fill="none" stroke="${netColor(w.net)}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+    const m = wireStyle(w.net);
+    return `<polyline points="${w.path.map(pt => px(pt).join(',')).join(' ')}" fill="none" stroke="${m.c}" stroke-width="${mono ? 2 : 2.2}"${dashAttr(m)} stroke-linecap="round" stroke-linejoin="round"/>`;
   }).join('');
 
-  const compsBases = [];
-  const compsLabels = [];
-
-  displayComps.forEach(c => {
-    const sc = {
-      ...c,
-      ox: c.ox - minC,
-      oy: c.oy - minR,
-      pins: c.pins.map(p => ({ ...p, col: p.col - minC, row: p.row - minR }))
-    };
-    const rendered = renderCompSVG(sc, 'split');
-    compsBases.push(rendered.base);
-    compsLabels.push(rendered.labels);
-  });
-
-  let content = '';
-  if (isBottom) {
-    // Components Base -> Wires -> Component Labels (always on top)
-    content = compsBases.join('') + wiresContent + jumpersContent + compsLabels.join('');
-  } else {
-    // Wires -> Components (Base + Labels) -> jumpers (component side)
-    content = wiresContent + compsBases.join('') + compsLabels.join('') + jumpersContent;
+  const dxPx = minC * SP, dyPx = minR * SP;
+  const partLabels = {};
+  for (const [id, L] of Object.entries(unshiftedLabels)) {
+    if (!L) continue;
+    partLabels[id] = L.mode === 'in'
+      ? { ...L, cx: L.cx - dxPx, y0: L.y0 - dyPx }
+      : { ...L, x: L.x - dxPx, y: L.y - dyPx, ax: L.ax - dxPx, ay: L.ay - dyPx, lx: L.lx - dxPx, ly: L.ly - dyPx };
   }
 
-  const coords = generateCoordinatesSVG({ frame, view: bv, components, side, mCenter, offC: minC, offR: minR });
-  inner += `${coords.board}<g>${content}</g>${coords.labels}`;
+  // the solder-side copies keep their pins' offsets (only the holes are mirrored), so the photo
+  // is matched unmirrored and mirrored around the part
+  const rendered = displayComps.map(c => renderCompSVG({
+    ...c,
+    ox: c.ox - minC,
+    oy: c.oy - minR,
+    pins: c.pins.map(p => ({ ...p, col: p.col - minC, row: p.row - minR }))
+  }, 'split', null, photos?.[c.id] || null, partLabels[c.id], { photoOpacity: 0.55, mirrorPhoto: isBottom, text: EXPORT_TEXT, mono }));
+  const bases = rendered.map(r => r.base).join(''), compLabels = rendered.map(r => r.labels).join('');
+  // top: wires -> parts -> jumpers (component side); bottom: parts -> wires -> part labels on top
+  const content = isBottom ? bases + wiresContent + jumpersContent + compLabels : wiresContent + bases + compLabels + jumpersContent;
 
-  // Border
-  const strokeWidth = 2;
-  inner += `<rect x="${strokeWidth / 2}" y="${strokeWidth / 2}" width="${W - strokeWidth}" height="${H - strokeWidth}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="${strokeWidth}" stroke-dasharray="8 6" rx="7"/>`;
+  const coords = generateCoordinatesSVG({ frame, view: bv, components, side, mCenter, offC: minC, offR: minR, allEdges: true, outset, pinFont: EXPORT_TEXT.pinCoord });
+  inner += `${coords.board}<g>${content}</g>${coords.labels}${legend}`;
+  inner += dashedFrame(1, 1, W - 2, H - 2);
 
   return { W, H, inner };
 }
 
+// line styles for the nets in a black & white export: [colour, dash pattern]
+const MONO_STYLES = [
+  { c: '#000000', dash: '' }, { c: '#000000', dash: '6 3.5' }, { c: '#000000', dash: '0.1 4' }, { c: '#000000', dash: '9 3 0.1 3' },
+  { c: '#777777', dash: '' }, { c: '#777777', dash: '6 3.5' }, { c: '#777777', dash: '0.1 4' }, { c: '#777777', dash: '9 3 0.1 3' },
+];
+
+// rx=7 (4 comp radius + 3 padding) ensures parallel rounding
+const dashedFrame = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="8 6" rx="7"/>`;
+
 export function generateBoundingBoxSVG(components, wires = []) {
   if (!components.length) return '';
-
-  let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
-  components.forEach(c => {
-    minC = Math.min(minC, c.ox);
-    maxC = Math.max(maxC, c.ox + c.w);
-    minR = Math.min(minR, c.oy);
-    maxR = Math.max(maxR, c.oy + c.h);
-  });
-
-  wires.forEach(w => {
-    if (w.failed) return;
-    w.path?.forEach(pt => {
-      minC = Math.min(minC, pt.col);
-      maxC = Math.max(maxC, pt.col + 1);
-      minR = Math.min(minR, pt.row);
-      maxR = Math.max(maxR, pt.row + 1);
-    });
-  });
-
-  if (!isFinite(minC)) return '';
-
-  const strokeWidth = 2;
+  const b = layoutBounds(components, wires);
+  if (!b) return '';
   const padPx = 3; // Exactly one line width gap
-  const x = (minC) * SP - padPx;
-  const y = (minR) * SP - padPx;
-  const w = (maxC - minC) * SP + padPx * 2;
-  const h = (maxR - minR) * SP + padPx * 2;
-
-  // rx=7 (4 comp radius + 3 padding) ensures parallel rounding
-  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="${strokeWidth}" stroke-dasharray="8 6" rx="7"/>`;
+  return dashedFrame(b.minC * SP - padPx, b.minR * SP - padPx, (b.maxC - b.minC) * SP + padPx * 2, (b.maxR - b.minR) * SP + padPx * 2);
 }
 
 export function generateBoardSVG(components, wires = [], options = {}) {
@@ -754,7 +952,9 @@ export function generateBoardSVG(components, wires = [], options = {}) {
     wires,
     side: options.side || 'top',
     padding: 3,
-    view: options.view || null
+    view: options.view || null,
+    photos: options.photos || null,
+    mono: !!options.mono
   });
   if (!result) return '';
   const { W, H, inner } = result;
@@ -839,7 +1039,7 @@ export function hitWire(col, row, wires) {
  * into dark ink on white. Copper pads stay as faint shapes, wires keep their net colours but
  * darker, text loses its halo. Works on the finished string so the screen renderer stays as is.
  */
-export function printThemeSVG(svg) {
+export function printThemeSVG(svg, { mono = false } = {}) {
   if (!svg) return svg;
   const swaps = [
     ['#1a1208', '#ffffff'],          // board
@@ -847,16 +1047,16 @@ export function printThemeSVG(svg) {
     ['#0d0a06', '#ffffff'],          // drill hole
     ['#080808', '#ffffff'],          // part body
     ['#0d1117', '#f6f8fa'],          // coordinate gutters
-    ['#050706', '#ffffff'],
+    ['#05070a', '#ffffff'],          // pin-coordinate pills
+    ['#0b0c0e', '#ffffff'],          // part tags
     ['rgba(255,255,255,0.25)', 'rgba(0,0,0,0.35)'],
     ['rgba(255,255,255,0.08)', 'rgba(0,0,0,0.12)'],
-    ['rgba(240,246,252,0.55)', 'rgba(0,0,0,0.55)'],
   ];
   let out = svg;
   for (const [a, b] of swaps) out = out.split(a).join(b);
   const css = `<style>
     text { fill: #111 !important; stroke: none !important; }
-    polyline, line, path { filter: brightness(0.72) saturate(1.5); }
+    polyline, line, path { filter: brightness(0.72) saturate(1.5); }${mono ? '\n    image { filter: grayscale(1) contrast(1.2); }' : ''}
   </style>`;
   return out.replace(/(<svg[^>]*>)/, `$1${css}`);
 }

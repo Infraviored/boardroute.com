@@ -46,7 +46,11 @@ A short curated list (ESP32 boards, common chips, relays, terminals) sits on top
 
 ### Does my circuit leave my computer?
 
-No. boardroute runs entirely in your browser. The layout search runs in a background thread on your own machine, and nothing is uploaded.
+Not unless you want it to. boardroute runs entirely in your browser: the layout search runs in a background thread on your own machine, and nothing is uploaded. Only if you sign in (optional, by a link we mail you) and press Save does a circuit go to boardroute.com, so you can open it on another device or share it with a short link. You can delete it, or the whole account, at any time.
+
+### Do I need an account?
+
+No. Everything works without one, and a share link carries the board inside the link itself. An account only adds saving circuits on boardroute.com and short links to them.
 
 ### Does it work for stripboard (Veroboard)?
 

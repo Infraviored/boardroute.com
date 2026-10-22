@@ -1,5 +1,6 @@
 import React from 'react';
-import { netColor } from '../engine/render-utils.js';
+import { isResistor, bandsOf, parseOhms, ringsFor } from '../engine/resistor-code.js';
+import { netColor, normalizeBoardView, computeBoardFrame } from '../engine/render-utils.js';
 import {
   Settings2,
   Tag,
@@ -10,10 +11,53 @@ import {
   MousePointer2,
   Share2,
   Ruler,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from 'lucide-react';
 
 const SECTIONS_KEY = 'pcb_rsb_sections';
+
+// The board the layout has to fit on (Wire and Compact aim for it); same setting as in Export.
+function BoardSizeRow({ view, setView, components, wires }) {
+  const v = normalizeBoardView(view);
+  const set = (patch) => setView(prev => normalizeBoardView({ ...prev, ...patch }));
+  const sized = !!(v.boardCols || v.boardRows);
+  const frame = sized && components.length ? computeBoardFrame(components, wires, v) : null;
+  return (
+    <div className="rs-board" title="The perfboard you have: Wire and Compact make the layout fit on it. Leave a side empty for any length.">
+      <div className="rs-board-row">
+        <span className="rs-board-l">Board</span>
+        <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board columns" value={v.boardCols ?? ''} onChange={e => set({ boardCols: e.target.value })} />
+        <span className="rs-board-x">×</span>
+        <input type="number" min="1" max="500" inputMode="numeric" placeholder="any" aria-label="Board rows" value={v.boardRows ?? ''} onChange={e => set({ boardRows: e.target.value })} />
+        {sized && <button type="button" className="rs-board-clear" onClick={() => set({ boardCols: null, boardRows: null })} aria-label="Any board size" title="Any board size"><X size={12} /></button>}
+      </div>
+      {frame && <div className="rs-board-row"><span className="rs-board-l" /><span className={`rs-board-fit ${frame.fits ? 'ok' : 'bad'}`}>{frame.fits ? 'layout fits' : `layout is ${frame.need.cols} × ${frame.need.rows}`}</span></div>}
+    </div>
+  );
+}
+
+// Resistor colour rings, switchable right where the selected part is shown: 5 / 4 / off.
+function RingsRow({ comp, onSet }) {
+  const n = bandsOf(comp);
+  const ohms = parseOhms(comp.value);
+  const coded = n && ohms !== null && !ringsFor(ohms, n);
+  return (
+    <div className="rs-rings">
+      <div className="rs-rings-head">
+        <span>Colour rings</span>
+        <div className="rs-seg" role="group" aria-label="Colour rings">
+          {[[5, '5'], [4, '4'], [0, 'Off']].map(([k, l]) => (
+            <button key={k} type="button" className={n === k ? 'active' : ''} aria-pressed={n === k} onClick={() => onSet(k)}
+              title={k === 5 ? '4 colour rings + tolerance (1 %)' : k === 4 ? '3 colour rings + tolerance (5 %)' : 'No rings on the board'}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {ohms === null && n > 0 && <div className="rs-rings-hint">Value is not a resistance (10k, 4k7, 220)</div>}
+      {coded && <div className="rs-rings-hint">{comp.value} needs {n === 4 ? '5' : 'other'} rings</div>}
+    </div>
+  );
+}
 
 export function SidebarRight({
   stats,
@@ -24,6 +68,13 @@ export function SidebarRight({
   selectedNet,
   setSelectedNet,
   activeNets = [],
+  mobileOpen = false,
+  onCloseDrawer,
+  boardView = null,
+  setBoardView = null,
+  components = [],
+  wires = [],
+  onSetBands = null,
 }) {
   // Which accordion sections are open. Component and Network also open on their own when
   // something gets selected.
@@ -57,9 +108,15 @@ export function SidebarRight({
 
   const netCount = Object.keys(nets).length;
   const done = stats.completion >= 100;
+  // a net with a single pin connects nothing (typically left over after a part was changed)
+  const lonely = Object.entries(nets).filter(([, pins]) => pins.length === 1).map(([name]) => name);
 
   return (
-    <aside id="rsb">
+    <aside id="rsb" className={mobileOpen ? 'mobile-open' : ''}>
+      <div className="mobile-sheet-head">
+<div className="mobile-sheet-title">Inspector &amp; stats</div>
+        <button type="button" className="mobile-sheet-close" onClick={onCloseDrawer} aria-label="Close drawer"><X size={18} /></button>
+      </div>
       {/* Board stats: always visible, one compact block */}
       <div className="rs-stats" aria-label="Board stats">
         <div className="rs-stat-grid">
@@ -75,13 +132,19 @@ export function SidebarRight({
           <span>{stats.completion !== null ? (done ? 'All connections wired' : `${stats.completion}% wired`) : 'Not wired yet'}</span>
           {stats.jumpers > 0 && <span className="rs-jumpers">{stats.jumpers} jumper{stats.jumpers === 1 ? '' : 's'}</span>}
         </div>
+        {lonely.length > 0 && (
+          <div className="rs-lonely" title="Give another pin the same net name, or remove the net from that pin">
+            <AlertTriangle size={13} /> <span>{lonely.join(', ')} {lonely.length === 1 ? 'has' : 'have'} only one pin, connected to nothing</span>
+          </div>
+        )}
+        {setBoardView && <BoardSizeRow view={boardView} setView={setBoardView} components={components} wires={wires} />}
       </div>
 
       {/* Selected component */}
       <section className={`rs-sec ${open.comp ? 'open' : ''}`}>
         <button type="button" className="rs-head" onClick={() => toggle('comp')} aria-expanded={!!open.comp}>
           <MousePointer2 size={15} />
-          <span className="rs-title">Component</span>
+          <span className="rs-title">{selectedComp?.name && selectedComp.name !== '?' ? selectedComp.name : 'Component'}</span>
           {selectedComp
             ? <span className="rs-chip">{selectedComp.id}</span>
             : <span className="rs-chip muted">none</span>}
@@ -106,6 +169,7 @@ export function SidebarRight({
                 <div className="prop-label">Value</div>
                 <div className="prop-value">{selectedComp.value}</div>
               </div>
+              {onSetBands && isResistor(selectedComp) && <RingsRow comp={selectedComp} onSet={n => onSetBands(selectedComp.id, n)} />}
               <div className="prop-item">
                 <MapPin size={12} className="prop-icon" />
                 <div className="prop-label">Origin</div>
@@ -153,9 +217,8 @@ export function SidebarRight({
                   onMouseLeave={() => setHoveredNet(null)}
                   onClick={() => setSelectedNet(selectedNet === name ? null : name)}
                 >
-                  <div className="net-dot" style={{ background: netColor(name) }}></div>
-                  <span className="net-name">{name}</span>
-                  <span className="net-count">{pins.length}P</span>
+<span className="net-name">{name}</span>
+                  <span className={`net-count ${pins.length === 1 ? 'lonely' : ''}`} title={pins.length === 1 ? 'Only one pin: connected to nothing' : undefined}>{pins.length}P</span>
                 </div>
               );
             })}
@@ -189,13 +252,7 @@ export function SidebarRight({
            user-select: none;
            cursor: default;
         }
-        .section-header.clickable {
-          cursor: pointer;
-        }
-        .section-header.clickable:hover {
-          background: rgba(255,255,255,0.02);
-        }
-        .section-header h2 {
+.section-header h2 {
            font-size: var(--fs-lg);
            font-weight: 700;
            margin: 0;
@@ -206,22 +263,7 @@ export function SidebarRight({
            color: var(--txt1);
            opacity: 0.6;
         }
-        .toggle-icon-right {
-          margin-left: auto;
-          color: var(--txt1);
-          opacity: 0.3;
-          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
-          transform: rotate(90deg);
-        }
-        .section-header.clickable:hover .toggle-icon-right {
-          opacity: 0.7;
-        }
-        .section-header.open .toggle-icon-right {
-          transform: rotate(0deg);
-          opacity: 0.8;
-          color: var(--blu-bright);
-        }
-        .section-divider {
+.section-divider {
            height: 1px;
            background: linear-gradient(90deg, transparent, var(--border2), transparent);
            margin: 4px 12px 4px 16px;
@@ -301,6 +343,20 @@ export function SidebarRight({
           font-weight: 600;
         }
         .rs-jumpers { color: var(--blu-bright); }
+        .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--org); }
+        .rs-lonely svg { flex: none; margin-top: 1px; }
+        .rs-board { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--txt2); }
+        .rs-board-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
+        .rs-board-l { font-weight: 600; width: 44px; flex: none; }
+        .rs-board input { width: 42px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: 12px; -moz-appearance: textfield; flex: none; }
+        .rs-board input::-webkit-outer-spin-button, .rs-board input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .rs-board input:focus { outline: none; border-color: var(--ui-accent-hover); }
+        .rs-board-x { color: var(--txt2); }
+        .rs-board-clear { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; margin-left: auto; background: none; border: 0; color: var(--txt2); cursor: pointer; }
+        .rs-board-fit { margin-left: 4px; font-weight: 600; white-space: nowrap; }
+        .rs-board-fit.ok { color: var(--grn-bright); }
+        .rs-board-fit.bad { color: var(--org); }
+        .net-count.lonely { color: var(--org); }
 
         /* --- Accordion sections --- */
         .rs-sec { border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -364,18 +420,7 @@ export function SidebarRight({
         }
         #netPanel .rs-hint { padding: 0 2px; }
 
-        .bottom-preview-container {
-          padding-top: 4px;
-        }
-        .bottom-preview-svg {
-          background: rgba(0,0,0,0.2);
-          border-radius: 12px;
-          padding: 8px;
-          border: 1px solid var(--border);
-          box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        .prop-list {
+.prop-list {
           padding: 8px 12px;
           display: flex;
           flex-direction: column;
@@ -390,6 +435,12 @@ export function SidebarRight({
           min-width: 0;
           overflow: hidden;
         }
+        .rs-rings { padding: 6px 0; border-bottom: 1px solid var(--border); }
+        .rs-rings-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); color: var(--txt1); font-weight: 600; }
+        .rs-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
+        .rs-seg button { background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 700; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+        .rs-seg button.active { background: var(--ui-accent); color: #fff; }
+        .rs-rings-hint { margin-top: 4px; font-size: var(--fs-xs); color: var(--txt2); }
         .prop-icon { color: var(--txt2); flex-shrink: 0; }
         .prop-label { font-size: var(--fs-xs); color: var(--txt1); font-weight: 600; width: 45px; flex-shrink: 0; }
         .prop-value { 
@@ -441,24 +492,23 @@ export function SidebarRight({
           gap: 10px;
           border: 1px solid var(--border);
           border-left: 3px solid var(--net-color);
-          background: var(--bg3);
-          border-radius: 6px;
-          transition: all 0.2s;
+          background: var(--ui-neutral);
+          border-radius: var(--radius-md);
+          transition: all 0.15s ease;
           cursor: pointer;
           user-select: none;
         }
         .net-row:hover { 
-          background: var(--bg4); 
+          background: var(--ui-neutral-hover); 
           border-color: var(--border2);
           border-left-color: var(--net-color);
         }
         .net-row.sel {
-           background: var(--bg4);
+           background: var(--ui-neutral-hover);
            border-color: var(--net-color);
            box-shadow: 0 0 0 1px var(--net-color), 0 0 12px color-mix(in srgb, var(--net-color), transparent 60%);
         }
-        .net-dot { display: none; }
-        .net-name { 
+.net-name { 
           flex: 1; 
           font-size: var(--fs-md); 
           color: var(--txt0); 
@@ -474,11 +524,58 @@ export function SidebarRight({
           color: var(--txt2); 
           background: var(--bg2);
           padding: 1px 5px;
-          border-radius: 4px;
+          border-radius: var(--radius-xs);
           border: 1px solid var(--border);
           flex-shrink: 0;
         }
 
+        .mobile-sheet-head { display: none; }
+
+        @media (max-width: 768px) {
+          .mobile-sheet-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px 10px;
+            position: sticky;
+            top: 0;
+            background: var(--bg2);
+            z-index: 20;
+            border-bottom: 1px solid var(--border);
+          }
+.mobile-sheet-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--txt0);
+          }
+          .mobile-sheet-close {
+            background: none;
+            border: none;
+            color: var(--txt1);
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+          }
+          .mobile-sheet-close:active {
+            background: var(--bg4);
+            color: var(--txt0);
+          }
+          .net-row {
+            min-height: 44px;
+            padding: 8px 12px;
+          }
+          .rs-head {
+            min-height: 44px;
+          }
+          .rs-stat {
+            padding: 8px 4px;
+          }
+        }
       `}} />
     </aside>
   );

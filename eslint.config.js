@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', '.claude', '.wt', 'legacy', 'logger.js']),
+  globalIgnores(['dist', '.claude', '.wt', 'legacy', 'logger.js', 'public/ocr', 'server/data']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -27,8 +27,8 @@ export default defineConfig([
     },
   },
   {
-    // Benchmark and build scripts run under Node
-    files: ['bench/**/*.js', 'scripts/**/*.js', 'tools/**/*.js'],
+    // Benchmark and build scripts and the account API run under Node
+    files: ['bench/**/*.js', 'scripts/**/*.js', 'tools/**/*.js', 'server/**/*.js'],
     languageOptions: { globals: globals.node },
   },
 ])

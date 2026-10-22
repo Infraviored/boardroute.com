@@ -27,6 +27,12 @@ function Switch({ checked, onChange, label, disabled = false }) {
   );
 }
 
+// "Numbers" / "Letters" when the two axes differ, else "Columns" / "Rows"
+function axisName(view, axis) {
+  if (view.colStyle === view.rowStyle) return axis === 'col' ? 'Columns' : 'Rows';
+  return (axis === 'col' ? view.colStyle : view.rowStyle) === 'alpha' ? 'Letters' : 'Numbers';
+}
+
 /** "Board" settings: physical board size and how its holes are labelled. */
 export function BoardCard({ view, setView, components, wires }) {
   const set = (patch) => setView(prev => normalizeBoardView({ ...prev, ...patch }));
@@ -52,11 +58,8 @@ export function BoardCard({ view, setView, components, wires }) {
       </div>
       {sized && (
         <div className="bv-row">
-          <span className="bv-label">Margin</span>
+          <span className="bv-label" />
           <div className="bv-size">
-            <input type="number" min="0" max="50" inputMode="numeric" aria-label="Margin in holes"
-              value={view.margin} onChange={(e) => set({ margin: e.target.value === '' ? 0 : e.target.value })} />
-            <span className="bv-unit">holes</span>
             <button type="button" className="bv-mini" onClick={() => set({ boardCols: null, boardRows: null })}>Auto</button>
           </div>
         </div>
@@ -66,8 +69,7 @@ export function BoardCard({ view, setView, components, wires }) {
         <div className="bv-note warn" role="alert">
           <AlertTriangle size={14} />
           <span>
-            Layout doesn't fit: it needs {frame.need.cols} × {frame.need.rows} holes
-            {view.margin > 0 ? ' (incl. margin)' : ''}, the board has {frame.cols} × {frame.rows}.
+            Layout doesn't fit: it needs {frame.need.cols} × {frame.need.rows} holes, the board has {frame.cols} × {frame.rows}.
           </span>
         </div>
       ) : (
@@ -101,6 +103,11 @@ export function BoardCard({ view, setView, components, wires }) {
             ))}
           </div>
         </div>
+        <div className="bv-sub">Solder side (print on the back)</div>
+        <Switch checked={view.solderFlipCols} disabled={labelsOff} onChange={(v) => set({ solderFlipCols: v })}
+          label={`${axisName(view, 'col')} count the other way`} />
+        <Switch checked={view.solderFlipRows} disabled={labelsOff} onChange={(v) => set({ solderFlipRows: v })}
+          label={`${axisName(view, 'row')} count the other way`} />
       </div>
     </div>
   );
@@ -173,7 +180,7 @@ export function BoardSettingsStyles() {
         .bv-size input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .bv-size input::placeholder { color: var(--txt2); font-weight: 600; }
         .bv-size input:focus { outline: none; border-color: var(--blu-bright); }
-        .bv-x, .bv-unit { font-size: var(--fs-xs); color: var(--txt1); }
+        .bv-x { font-size: var(--fs-xs); color: var(--txt1); }
         .bv-mini {
           margin-left: 4px;
           padding: 3px 8px;
@@ -210,6 +217,7 @@ export function BoardSettingsStyles() {
         .bv-seg button:disabled { cursor: default; }
         .bv-seg.disabled button.active { background: var(--bg4); color: var(--txt1); }
 
+        .bv-sub { font-size: var(--fs-xs); font-weight: 700; color: var(--txt2); text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
         .bv-origin { display: grid; grid-template-columns: repeat(2, 22px); gap: 4px; }
         .bv-corner {
           width: 22px; height: 18px;

@@ -1,15 +1,18 @@
 import { route, incrementalReroute } from './router.js';
 import { Grid, BLOCKED_WIRE } from './grid.js';
-import { scoreState, recenterComponents } from './metrics.js';
+import { scoreState, recenterComponents, calculateComponentBounds } from './metrics.js';
 import { netCompletion } from './net-completion.js';
-import { areaLowerBound, isPerfect } from './lower-bound.js';
+import { areaLowerBound, isPerfect, targetExcess } from './lower-bound.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
-import { placeInitial } from './initial-placement.js';
-import { anneal, moveComp, rotateComp90InPlace } from './placer.js';
+import { placeInitial, compOptions } from './initial-placement.js';
+import { anneal, moveComp, rotateComp90InPlace, hasOverlap, anyOverlap } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
 import { analyzeTopology } from './topology.js';
 import { solveBox } from './solver/boxsolver.js';
+import { buildModel, toEngine } from './solver/model.js';
+import { BoxRouter } from './solver/boxrouter.js';
+import { processTemplate, generateJSONFromState, isBands } from './templates.js';
 
 /**
  * AutorouterEngine - A "Headless" wrapper for the PCB autorouting logic.
@@ -34,10 +37,65 @@ function findConflicts(components, wires) {
     }
     const parts = [];
     for (let i = 0; i < components.length; i++) for (let j = i + 1; j < components.length; j++) {
-        const a = components[i], b = components[j];
-        if (a.ox < b.ox + b.w && b.ox < a.ox + a.w && a.oy < b.oy + b.h && b.oy < a.oy + a.h) parts.push(a.id, b.id);
+        if (hasOverlap(components[i], components[j])) parts.push(components[i].id, components[j].id);
     }
     return { cells: [...bad.values()], parts: [...new Set(parts)] };
+}
+
+// The whole layout turned 90° clockwise, in place: hole (x, y) -> (-y, x); parts turn with it
+// (pins, cable side) via rotateComp90InPlace. Callers recentre afterwards.
+function turnBoard90(components, wires) {
+    for (const c of components) {
+        const nx = -(c.oy + c.h - 1), ny = c.ox;
+        rotateComp90InPlace(c);
+        moveComp(c, nx, ny);
+    }
+    for (const w of wires) for (const pt of w.path || []) { const col = -pt.row; pt.row = pt.col; pt.col = col; }
+}
+
+// Wires that start or end in one of `cells` ("col,row") become failed straight lines (ripped up);
+// with `nets`, only wires of those nets.
+function failWiresAt(wires, cells, nets = null) {
+    const at = (pt) => cells.has(`${pt.col},${pt.row}`);
+    return wires.map(w => {
+        if (!w.path || (nets && !nets.has(w.net))) return w;
+        const a = w.path[0], b = w.path[w.path.length - 1];
+        return at(a) || at(b) ? { ...w, failed: true, path: [a, b] } : w;
+    });
+}
+
+// How many pins each net has on the board.
+function netPinCounts(components) {
+    const counts = new Map();
+    for (const c of components) for (const p of c.pins) counts.set(p.net, (counts.get(p.net) || 0) + 1);
+    return counts;
+}
+
+// Wire a board without moving anything, with the solver's negotiating router (much stronger in
+// tight spots than the classic one). Returns the wires, or null if the parts overlap or some net
+// can't be connected.
+export function routeFixed(components) {
+    if (!components.length) return null;
+    // placement is fixed: no cable-side rule (it counts as overlap in the solver's router)
+    const model = buildModel(processTemplate(generateJSONFromState(components)).map(d => ({ ...d, edge: -1 })));
+    const minC = Math.min(...components.map(c => c.ox)) - 1, minR = Math.min(...components.map(c => c.oy)) - 1;
+    const W = Math.max(...components.map(c => c.ox + c.w)) - minC + 1, H = Math.max(...components.map(c => c.oy + c.h)) - minR + 1;
+    const pl = { ox: Int32Array.from(components.map(c => c.ox - minC)), oy: Int32Array.from(components.map(c => c.oy - minR)), rot: new Int32Array(components.length) };
+    const router = new BoxRouter(model, W, H);
+    router.jumpCost = 0;
+    if (router.setPlacement(pl) > 0) return null;
+    const negotiate = () => {
+        let res = null;
+        for (let k = 0; k < 4 && !(res && res.miss === 0 && res.overuse === 0); k++) res = router.negotiate({ maxIter: 60, pres0: 0.6, partial: false });
+        return res;
+    };
+    let r = negotiate();
+    if (r.miss > 0 || r.overuse > 0) {
+        router.jumpCost = 6;
+        r = negotiate();
+    }
+    if (!r || r.miss > 0 || r.overuse > 0 || (r.jumpers || 0) > 1) return null;
+    return toEngine(model, pl, r, W, minC, minR).wires;
 }
 
 export class AutorouterEngine {
@@ -83,6 +141,11 @@ export class AutorouterEngine {
         if (newState.wires) this.wires = newState.wires;
         if (newState.cols) this.cols = newState.cols;
         if (newState.rows) this.rows = newState.rows;
+        this.changed();
+    }
+
+    // a new tick tells the UI the board changed, also where the arrays are the same objects
+    changed() {
         this.tick++;
         this.notify();
     }
@@ -113,8 +176,12 @@ export class AutorouterEngine {
      * solver is looking at right now (onLive); the best layout so far goes to onBestSnapshot.
      * When the run ends, the board is set to the best layout (or back to where it was).
      */
-    async layout(compDefs, { refine = false, firstOnly = false } = {}) {
+    // target = { cols, rows } (either may be null): the board the layout has to fit on. The
+    // search may wander outside it, but a layout that fits always wins, Wire runs until one
+    // fits, and the result is turned 90° when it only fits that way round.
+    async layout(compDefs, { refine = false, firstOnly = false, target: targetIn = null } = {}) {
         if (!compDefs?.length) return null;
+        const target = targetIn && (targetIn.cols || targetIn.rows) ? targetIn : null;
         this.gCancelRequested = false;
 
         const topo = await this.topology(compDefs);
@@ -128,11 +195,13 @@ export class AutorouterEngine {
         // Keep results where the parts were, so the camera doesn't have to chase them.
         let cx = 0, cy = 0;
         if (this.components.length) {
-            const xs = this.components.flatMap(c => [c.ox, c.ox + c.w]), ys = this.components.flatMap(c => [c.oy, c.oy + c.h]);
-            cx = Math.round((Math.min(...xs) + Math.max(...xs)) / 2);
-            cy = Math.round((Math.min(...ys) + Math.max(...ys)) / 2);
+            const b = calculateComponentBounds(this.components);
+            cx = Math.round((b.minCol + b.maxCol + 1) / 2);
+            cy = Math.round((b.minRow + b.maxRow + 1) / 2);
         }
         const place = (components, wires) => {
+            const sc0 = scoreState(components, wires);
+            if (targetExcess(sc0.width, sc0.height, target).turned) turnBoard90(components, wires);
             recenterComponents(components, wires);
             components.forEach(c => moveComp(c, c.ox + cx, c.oy + cy));
             wires.forEach(w => w.path.forEach(pt => { pt.col += cx; pt.row += cy; }));
@@ -141,17 +210,23 @@ export class AutorouterEngine {
             this.components = components;
             this.wires = wires;
             this.conflicts = conflicts;
-            this.tick++;
-            this.notify();
+            this.changed();
         };
         // a jumper counts as 4 holes, like in the solver
-        const keyOf = (m) => m.area + 4 * (m.jumpers || 0);
+        const keyOf = (m) => m.area + 4 * (m.jumpers || 0) + (m.excess > 0 ? 1e6 + 1e4 * m.excess : 0);
         // Provable minimum: a layout that reaches it is perfect and ends the run. A non-planar
         // circuit needs a jumper, which needs 3 holes free of parts.
         const bound = areaLowerBound(compDefs, { jumpers: topo.planar ? 0 : 1 });
-        const judge = (m) => ({ ...m, bound: bound.area, optimal: isPerfect(m.area, m.jumpers, bound, topo.planar) });
+        const judge = (m) => {
+            const tx = targetExcess(m.width, m.height, target);
+            const width = tx.turned ? m.height : m.width;
+            const height = tx.turned ? m.width : m.height;
+            return { ...m, width, height, excess: tx.excess, fits: tx.excess === 0, bound: bound.area, optimal: tx.excess === 0 && isPerfect(m.area, m.jumpers, bound, topo.planar) };
+        };
         const onBest = (components, wires, rawMetrics) => {
             const metrics = judge(rawMetrics);
+            // a board limit: a layout that breaks it is not a result (not shown, not kept)
+            if (target && !metrics.fits) return;
             if (best && (keyOf(metrics) > best.key || (keyOf(metrics) === best.key && metrics.wl >= best.metrics.wl))) return;
             place(components, wires);
             best = { components, wires, metrics, key: keyOf(metrics) };
@@ -172,8 +247,9 @@ export class AutorouterEngine {
         // Stop rule (same as the benchmark-calibrated single solver): no better layout for
         // stallMs, or for half the time it took to find the last one. Never before the first.
         const stalled = () => {
-            if (!best) return false;
-            if (firstOnly || best.metrics.optimal) return true;
+            // nothing that fits the board limit yet: give up after a while instead of the full budget
+            if (!best) return !!target && performance.now() - t0 > Math.max(2 * stallMs, 20000);
+            if (best.metrics.optimal || (firstOnly && best.metrics.fits)) return true;
             return performance.now() - lastImprove > Math.max(stallMs, (lastImprove - t0) * 0.5);
         };
         const nWorkers = typeof Worker === 'undefined' ? 0 : this.workerCount();
@@ -199,11 +275,15 @@ export class AutorouterEngine {
         // starting layout is the best to beat.
         if (initial && before.wires.length) {
             const nc = netCompletion(before.components, before.wires);
-            if (nc.total > 0 && nc.done === nc.total) {
+            const sc0 = scoreState(before.components, before.wires);
+            // with a board limit the starting board only counts if it fits
+            if (nc.total > 0 && nc.done === nc.total && !targetExcess(sc0.width, sc0.height, target).excess) {
+                place(before.components, before.wires);
                 const sc = scoreState(before.components, before.wires);
                 const metrics = judge({ area: sc.area, width: sc.width, height: sc.height, wl: sc.wl, jumpers: before.wires.filter(w => w.jumper && !w.failed).length });
                 best = { components: before.components, wires: before.wires, metrics, key: keyOf(metrics) };
                 lastImprove = t0;
+                show(before.components, before.wires);
                 this.onBestSnapshot?.({ components: before.components, wires: before.wires });
                 this.onStatusUpdate?.({ best: metrics });
             }
@@ -232,36 +312,32 @@ export class AutorouterEngine {
                             const finish = () => { if (!done) { done = true; finishOne(worker); } };
                             worker.onmessage = (e) => {
                                 const m = e.data;
-                                if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly) stopAll(); }
+                                if (m.type === 'best') { onBest(m.components, m.wires, m.metrics); if (firstOnly && best?.metrics.fits) stopAll(); }
                                 else if (m.type === 'live') { if (!stopping) onLive(m.components, m.wires); }
                                 else if (m.type === 'done') finish();
                             };
                             worker.onerror = (err) => { console.error('Solver worker failed', err); finish(); };
                             // the engine decides when to stop (stallMs: null), worker 0 streams its live state
-                            worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, live: this.liveView && i === 0 });
+                            worker.postMessage({ type: 'solve', defs: compDefs, initial, budgetMs, stallMs: null, variant, firstOnly, target, live: this.liveView && i === 0 });
                         }
-                        open = workers.length;
-                        this.activeWorkers = workers;
-                        ranWorkers = true;
-                        if (this.gCancelRequested) stopAll();
                     } catch (err) {
                         console.error('Failed to create solver worker', err);
-                        if (workers.length === 0) {
-                            clearInterval(watchdog);
-                            this.activeWorkers = [];
-                            resolve();
-                        } else {
-                            open = workers.length;
-                            this.activeWorkers = workers;
-                            ranWorkers = true;
-                            if (this.gCancelRequested) stopAll();
-                        }
                     }
+                    if (workers.length === 0) {
+                        clearInterval(watchdog);
+                        this.activeWorkers = [];
+                        resolve();
+                        return;
+                    }
+                    open = workers.length;
+                    this.activeWorkers = workers;
+                    ranWorkers = true;
+                    if (this.gCancelRequested) stopAll();
                 });
             }
             if (!ranWorkers) {
                 await solveBox(compDefs, {
-                    budgetMs, initial, variant,
+                    budgetMs, initial, variant, target,
                     shouldStop: () => this.gCancelRequested || stalled(),
                     onBest,
                     onLive: this.liveView ? onLive : null,
@@ -272,7 +348,7 @@ export class AutorouterEngine {
         }
         if (best) show(best.components, best.wires);
         else show(before.components, before.wires);
-        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null };
+        return { found: !!best, jumpers: best?.metrics.jumpers || 0, optimal: !!best?.metrics.optimal, bound: bound.area, topology: topo, score: best ? scoreState(this.components, this.wires) : null, fits: best ? best.metrics.fits : null, target };
     }
 
     // Planarity check (+ certificate) in a worker so a slow certificate can't freeze the UI.
@@ -297,21 +373,24 @@ export class AutorouterEngine {
         return Math.max(1, Math.min(this.layoutConfig.maxWorkers, hc - 1));
     }
 
-    async optimize() {
-        this.gCancelRequested = false;
-        const options = {
+    // callbacks for the legacy optimizer's compactBoard / optimizeBoard
+    legacyOptions() {
+        return {
             onProgress: this.onProgress,
             onStatusUpdate: this.onStatusUpdate,
             checkCancel: () => this.gCancelRequested,
             onStateChange: (state) => {
                 this.components = state.components;
                 this.wires = state.wires;
-                this.tick++;
-                this.notify();
+                this.changed();
             },
             onBestSnapshot: (snapshot) => { this.onBestSnapshot?.(snapshot); }
         };
+    }
 
+    async optimize() {
+        this.gCancelRequested = false;
+        const options = this.legacyOptions();
         const { compactBoard } = await legacyOptimizer();
         const res = await compactBoard(
             this.components,
@@ -331,19 +410,7 @@ export class AutorouterEngine {
 
     async plateau() {
         this.gCancelRequested = false;
-        const options = {
-            onProgress: this.onProgress,
-            onStatusUpdate: this.onStatusUpdate,
-            checkCancel: () => this.gCancelRequested,
-            onStateChange: (state) => {
-                this.components = state.components;
-                this.wires = state.wires;
-                this.tick++;
-                this.notify();
-            },
-            onBestSnapshot: (snapshot) => { this.onBestSnapshot?.(snapshot); }
-        };
-
+        const options = this.legacyOptions();
         const { optimizeBoard } = await legacyOptimizer();
         const res = await optimizeBoard(
             this.components,
@@ -373,6 +440,43 @@ export class AutorouterEngine {
         this.wires = testWires;
         this.notify();
         return scoreState(this.components, testWires);
+    }
+
+    // After a part's footprint was edited (e.g. a resistor made one hole longer): keep the board
+    // and make it whole again. First just route what broke; if the part now overlaps another one or
+    // its nets don't connect, try it one or two holes off and turned, nearest first, and keep the
+    // first spot where everything is wired. Returns true if the board is fully wired again.
+    async repairPart(id) {
+        const comp = this.components.find(c => c.id === id);
+        if (!comp) return false;
+        const complete = () => { const nc = netCompletion(this.components, this.wires); return nc.done === nc.total; };
+        const overlaps = () => anyOverlap(comp, this.components);
+        const start = { ox: comp.ox, oy: comp.oy, pins: comp.pins.map(p => ({ ...p })), w: comp.w, h: comp.h, edge: comp.edge };
+        // nothing broke on this part (a new picture, a renamed pin): keep the wiring as it is
+        // (only its own nets count: a net left open elsewhere is no reason to re-route)
+        const own = netCompletion(this.components, this.wires, new Set(comp.pins.map(p => p.net).filter(Boolean)));
+        if (!overlaps() && own.done === own.total) return true;
+        const startWires = this.wires;
+        const restore = () => { Object.assign(comp, { ox: start.ox, oy: start.oy, w: start.w, h: start.h, pins: start.pins.map(p => ({ ...p })) }); if (start.edge !== undefined) comp.edge = start.edge; this.wires = startWires; };
+        const shifts = [];
+        for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) shifts.push([dx, dy]);
+        shifts.sort((a, b) => Math.abs(a[0]) + Math.abs(a[1]) - Math.abs(b[0]) - Math.abs(b[1]));
+        for (const turns of [0, 2, 1, 3]) {
+            for (const [dx, dy] of shifts) {
+                restore();
+                for (let t = 0; t < turns; t++) rotateComp90InPlace(comp);
+                // turning keeps the part's centre
+                const cx = start.ox + Math.floor((start.w - comp.w) / 2), cy = start.oy + Math.floor((start.h - comp.h) / 2);
+                moveComp(comp, cx + dx, cy + dy);
+                if (overlaps()) continue;
+                const w = routeFixed(this.components);
+                if (w) this.wires = w;
+                if (w && complete()) { this.components = [...this.components]; this.changed(); return true; }
+            }
+        }
+        restore();
+        await this.routeOnly();
+        return complete();
     }
 
     async route() {
@@ -470,9 +574,17 @@ export class AutorouterEngine {
                 this.updateIncrementalWires(c);
             }
             this.components = [...this.components];
-            this.tick++;
-            this.notify();
+            this.changed();
         }
+    }
+
+    /** Resistor colour rings: 4, 5 or 0 (off); only how the part is drawn. */
+    setBands(id, n) {
+        const c = this.components.find(x => x.id === id);
+        if (!c || !isBands(n)) return;
+        c.bands = n;
+        this.components = [...this.components];
+        this.changed();
     }
 
     rotateComponent(id) {
@@ -483,8 +595,7 @@ export class AutorouterEngine {
                 this.updateIncrementalWires(c);
             }
             this.components = [...this.components];
-            this.tick++;
-            this.notify();
+            this.changed();
         }
     }
 
@@ -495,11 +606,7 @@ export class AutorouterEngine {
 
     async previewManualRoute(startPin, currentPos, targetNet = null) {
         // Fast A* for single path
-        let minCol = Infinity, maxCol = -Infinity, minRow = Infinity, maxRow = -Infinity;
-        this.components.forEach(c => {
-            minCol = Math.min(minCol, c.ox); maxCol = Math.max(maxCol, c.ox + c.w - 1);
-            minRow = Math.min(minRow, c.oy); maxRow = Math.max(maxRow, c.oy + c.h - 1);
-        });
+        const { minCol, maxCol, minRow, maxRow } = calculateComponentBounds(this.components);
         const pad = 15;
         const gridMinC = Math.min(minCol - pad, startPin.pin.col, currentPos.col);
         const gridMinR = Math.min(minRow - pad, startPin.pin.row, currentPos.row);
@@ -564,8 +671,9 @@ export class AutorouterEngine {
         }
 
         // 1. Remove missing components that aren't renames
+        const renamedOld = new Set(renameMap.values());
         for (const id of missingOld) {
-            if (!Array.from(renameMap.values()).includes(id)) {
+            if (!renamedOld.has(id)) {
                 this.deleteComponent(id);
             }
         }
@@ -586,7 +694,8 @@ export class AutorouterEngine {
                 oldComp.name = def.name;
                 oldComp.value = def.value;
                 oldComp.color = def.color;
-                oldComp.routeUnder = def.routeUnder;
+                delete oldComp.swap; delete oldComp.edge; delete oldComp.bands;
+                Object.assign(oldComp, compOptions(def));
 
                 const incomingPins = def.offsets.map((off, idx) => ({
                     dCol: off[0],
@@ -606,17 +715,17 @@ export class AutorouterEngine {
 
                 // Detect topological changes
                 const changedCoords = new Set();
+                const incomingKeys = new Set();
                 incomingPins.forEach(inp => {
                     const key = `${inp.dCol},${inp.dRow}`;
+                    incomingKeys.add(key);
                     const oldP = oldPinsMap.get(key);
                     if (!oldP || oldP.net !== inp.net || oldP.lbl !== inp.lbl) {
                         changedCoords.add(key);
                     }
                 });
                 oldPinsMap.forEach((oldP, key) => {
-                    if (!incomingPins.find(inp => inp.dCol === oldP.dCol && inp.dRow === oldP.dRow)) {
-                        changedCoords.add(key);
-                    }
+                    if (!incomingKeys.has(key)) changedCoords.add(key);
                 });
 
                 if (changedCoords.size > 0 || dimensionsChanged) {
@@ -630,33 +739,20 @@ export class AutorouterEngine {
                     }));
 
                     // Rip-up wires attached to shifted/changed pins
-                    const oldAbsCoords = Array.from(changedCoords).map(key => {
+                    const oldAbsSet = new Set([...changedCoords].map(key => {
                         const [dc, dr] = key.split(',').map(Number);
                         return `${oldComp.ox + dc},${oldComp.oy + dr}`;
-                    });
-                    const oldAbsSet = new Set(oldAbsCoords);
-
-                    this.wires = this.wires.map(w => {
-                        if (!w.path) return w;
-                        const startsAtChanged = oldAbsSet.has(`${w.path[0].col},${w.path[0].row}`);
-                        const endsAtChanged = oldAbsSet.has(`${w.path[w.path.length - 1].col},${w.path[w.path.length - 1].row}`);
-                        if (startsAtChanged || endsAtChanged) {
-                            return { ...w, failed: true, path: [w.path[0], w.path[w.path.length - 1]] };
-                        }
-                        return w;
-                    });
+                    }));
+                    this.wires = failWiresAt(this.wires, oldAbsSet);
                 }
             }
         });
 
         // Cleanup orphaned wires
-        this.wires = this.wires.filter(w => {
-            const pinCount = this.components.reduce((acc, c) => acc + c.pins.filter(p => p.net === w.net).length, 0);
-            return pinCount >= 2;
-        });
+        const counts = netPinCounts(this.components);
+        this.wires = this.wires.filter(w => (counts.get(w.net) || 0) >= 2);
 
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     deleteComponent(id) {
@@ -677,65 +773,32 @@ export class AutorouterEngine {
         // For nets touched by this component, remove wires if the net
         // no longer has at least two pins remaining on the board.
         if (affectedNets.size > 0) {
-            const netPinCounts = new Map();
-
-            // Recompute pin counts for affected nets across remaining components
-            this.components.forEach(c => {
-                if (!Array.isArray(c.pins)) return;
-                c.pins.forEach(p => {
-                    if (!p || p.net == null) return;
-                    if (!affectedNets.has(p.net)) return;
-                    const current = netPinCounts.get(p.net) || 0;
-                    netPinCounts.set(p.net, current + 1);
-                });
-            });
-
             // Drop wires whose nets have fewer than 2 remaining pins
-            this.wires = this.wires.filter(w => {
-                if (!w || w.net == null) return true;
-                if (!affectedNets.has(w.net)) return true;
-                const count = netPinCounts.get(w.net) || 0;
-                return count >= 2;
-            });
+            const counts = netPinCounts(this.components);
+            this.wires = this.wires.filter(w => !w || w.net == null || !affectedNets.has(w.net) || (counts.get(w.net) || 0) >= 2);
 
-            // Cleanup: For nets that still exist, remove any wires that terminate at 
-            // the exact coordinates where the deleted component's pins were.
-            if (comp && Array.isArray(comp.pins)) {
-                const removedCoords = new Set(comp.pins.map(p => `${p.col},${p.row}`));
-                this.wires = this.wires.map(w => {
-                    if (!affectedNets.has(w.net) || !w.path) return w;
-                    const startsAtRemoved = removedCoords.has(`${w.path[0].col},${w.path[0].row}`);
-                    const endsAtRemoved = removedCoords.has(`${w.path[w.path.length - 1].col},${w.path[w.path.length - 1].row}`);
-                    if (startsAtRemoved || endsAtRemoved) {
-                        return { ...w, failed: true, path: [w.path[0], w.path[w.path.length - 1]] };
-                    }
-                    return w;
-                });
-            }
+            // For nets that still exist, rip up wires that end where the deleted pins were
+            this.wires = failWiresAt(this.wires, new Set(comp.pins.map(p => `${p.col},${p.row}`)), affectedNets);
         }
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     deleteWire(net) {
         this.wires = this.wires.filter(w => w.net !== net);
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     updatePinNet(compId, pinIdx, net) {
         const c = this.components.find(x => x.id === compId);
         if (c && c.pins[pinIdx]) {
             c.pins[pinIdx].net = net;
-            this.tick++;
-            this.notify();
+            this.changed();
         }
     }
 
     addManualWire(net, path) {
         this.wires.push({ net, path, failed: false, manual: true });
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 
     mergeNets(oldNet, newNet) {
@@ -750,7 +813,6 @@ export class AutorouterEngine {
         this.wires.forEach(w => {
             if (w.net === oldNet) w.net = newNet;
         });
-        this.tick++;
-        this.notify();
+        this.changed();
     }
 }

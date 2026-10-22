@@ -1,3 +1,5 @@
+import { isBands } from './resistor-code.js';
+
 export const TEMPLATE = {
     components: [
         {
@@ -75,8 +77,12 @@ export function processTemplate(data) {
         }
 
         const normalizedOffsets = offsets.map(off => [off[0] - minCol, off[1] - minRow]);
+        const swap = swapGroups(cd), edge = edgeSide(cd.edge);
 
         return {
+            ...(swap ? { swap } : {}),
+            ...(edge >= 0 ? { edge } : {}),
+            ...(isBands(cd.bands) ? { bands: cd.bands } : {}),
             id: cd.id || ('C' + (idx + 1)),
             name: cd.name || '?',
             value: cd.value || '',
@@ -109,6 +115,40 @@ export function bodyOf(c) {
     return { offset: [0, 0], size: [c.w, c.h] };
 }
 
+// Interchangeable pins: `swap: true` (all pins) or groups of pin labels / indices,
+// e.g. [["+", "-"]]. The solver may then give the pins of a group each other's nets (a screw
+// terminal works either way round). Normalised to [[pinIndex, ...], ...] or null.
+export function swapGroups(cd) {
+    const n = cd.pins?.length || 0;
+    if (!cd.swap || n < 2) return null;
+    const raw = cd.swap === true ? [cd.pins.map((_, i) => i)] : Array.isArray(cd.swap) ? cd.swap : [];
+    const used = new Set(), out = [];
+    for (const g of raw) {
+        if (!Array.isArray(g)) continue;
+        const idx = [...new Set(g.map(x => typeof x === 'number' ? x : cd.pins.findIndex(p => (p.label ?? p.lbl) === x)))]
+            .filter(i => Number.isInteger(i) && i >= 0 && i < n && !used.has(i));
+        if (idx.length < 2) continue;
+        idx.forEach(i => used.add(i));
+        out.push(idx);
+    }
+    return out.length ? out : null;
+}
+// Cable side: `edge: "top" | "right" | "bottom" | "left"` (in the part's own orientation, the
+// same frame as its pin offsets) must face outward: flush with the board's outline, nothing in
+// front of it (wires entering a screw terminal). Which way it ends up pointing is free.
+export const EDGE_SIDES = ['top', 'right', 'bottom', 'left'];
+export const edgeSide = (e) => (Number.isInteger(e) && e >= 0 && e < 4 ? e : EDGE_SIDES.indexOf(String(e ?? '').toLowerCase()));
+// Resistor colour rings: 4, 5 or 0 (off) are the valid settings.
+export { isBands };
+
+// the JSON form: true when one group holds every pin, else the index groups
+export function swapJSON(c) {
+    const s = swapGroups(c);
+    if (!s) return undefined;
+    if (s.length === 1 && s[0].length === (c.pins?.length || 0)) return true;
+    return s;
+}
+
 export function generateJSONFromState(components) {
     const json = { components: [] };
     components.forEach(c => {
@@ -124,6 +164,10 @@ export function generateJSONFromState(components) {
             }))
         };
         if (c.routeUnder === false) compJson.routeUnder = false;
+        const swap = swapJSON(c);
+        if (swap !== undefined) compJson.swap = swap;
+        if (c.edge >= 0) compJson.edge = EDGE_SIDES[c.edge];
+        if (isBands(c.bands)) compJson.bands = c.bands;
         const body = bodyOf(c);
         if (body) compJson.body = body;
         json.components.push(compJson);

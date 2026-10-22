@@ -12,12 +12,18 @@
 //     c: [[id, name, value, w, h, ox, oy, pins, extra?], ...]
 //          pins  = flat [dCol, dRow, net, label, ...] in the part's current rotation;
 //                  net = index into n plus 1, 0 = unconnected
-//          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour
+//          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour,
+//                  { s: [[pinIndex, ...], ...] } for interchangeable pins,
+//                  { e: 0..3 } for the cable side that must face outward (top, right, bottom, left),
+//                  { r: 0 | 4 | 5 } resistor colour rings (absent = 5, 0 = none)
 //     w: [[net, flags, col, row, steps], ...]          flags: 1 = jumper, 2 = failed
 //          steps = run-length unit steps "r3d2l" (r/l/u/d), any other step as "~dc,dr;" }
 //
 // The circuit JSON in the Circuit Definition box is derived from the placed components (their
 // pins in the current rotation, body = w x h box), so the components carry the circuit too.
+
+import { swapGroups, edgeSide, isBands } from './templates.js';
+import { SAFE_IMG } from './render-utils.js';
 
 const VERSION = '1';
 const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
@@ -90,6 +96,10 @@ export function packBoard(components, wires) {
     const extra = {};
     if (comp.routeUnder === false) extra.u = 0;
     if (comp.color) extra.k = comp.color;
+    const swap = swapGroups(comp);
+    if (swap?.length) extra.s = swap;
+    if (comp.edge >= 0) extra.e = comp.edge;
+    if (isBands(comp.bands)) extra.r = comp.bands;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
     return row;
@@ -137,6 +147,19 @@ export function unpackBoard(data) {
         if (!isStr(extra.k, 40)) throw new ShareError(`bad colour for ${id}`);
         comp.color = extra.k;
       }
+      if (extra.s !== undefined) {
+        const n = pins.length / 4;
+        if (!Array.isArray(extra.s) || !extra.s.every(g => Array.isArray(g) && g.length >= 2 && g.every(i => isInt(i, 0, n - 1)))) throw new ShareError(`bad interchangeable pins on ${id}`);
+        comp.swap = extra.s;
+      }
+      if (extra.e !== undefined) {
+        if (!isInt(extra.e, 0, 3)) throw new ShareError(`bad cable side on ${id}`);
+        comp.edge = extra.e;
+      }
+      if (extra.r !== undefined) {
+        if (!isBands(extra.r)) throw new ShareError(`bad colour rings on ${id}`);
+        comp.bands = extra.r;
+      }
     }
     const seen = new Set();
     for (let i = 0; i < pins.length; i += 4) {
@@ -147,6 +170,8 @@ export function unpackBoard(data) {
       if (!isStr(lbl, 40)) throw new ShareError(`bad pin label on ${id}`);
       comp.pins.push({ dCol, dRow, col: ox + dCol, row: oy + dRow, net: netName(n), lbl });
     }
+    const s = swapGroups(comp);
+    if (s) comp.swap = s; else delete comp.swap;
     return comp;
   });
 
@@ -198,7 +223,21 @@ export async function encodeShare(components, wires, { compress = true } = {}) {
 }
 
 /** Fragment value -> { components, wires }. Throws ShareError with a readable message. */
+// Chat apps and autolinkers drop trailing '_' / '-' from a URL (they look like punctuation),
+// which cuts the end off the compressed data. Such a link is retried with them put back.
 export async function decodeShare(value) {
+  try {
+    return await decodeShareExact(value);
+  } catch (err) {
+    if (!(err instanceof ShareError) || typeof value !== 'string' || value[1] !== 'd') throw err;
+    for (const tail of ['_', '-', '__', '_-', '-_', '--']) {
+      try { return await decodeShareExact(value + tail); } catch { /* try the next */ }
+    }
+    throw err;
+  }
+}
+
+async function decodeShareExact(value) {
   if (typeof value !== 'string' || value.length < 3) throw new ShareError('the link is empty or cut off');
   if (value.length > MAX_PAYLOAD) throw new ShareError('the link is too long');
   if (value[0] !== VERSION) throw new ShareError('the link was made by a newer version of boardroute');
@@ -225,4 +264,110 @@ export function shareFromHash(hash) {
 export async function shareUrl(components, wires) {
   const { origin, pathname } = window.location;
   return `${origin}${pathname}#b=${await encodeShare(components, wires)}`;
+}
+
+/** Validate and normalise cloud / project board data with the same checks as unpackBoard. Returns null if invalid. */
+export function validateBoardData(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (!Array.isArray(data.components) || !data.components.length || data.components.length > MAX_PARTS) return null;
+  const ids = new Set();
+  const cleanComps = [];
+  for (const c of data.components) {
+    if (!c || typeof c !== 'object') return null;
+    const { id, name = '', value = '', w, h, ox = 0, oy = 0, pins, edge, color, routeUnder } = c;
+    if (!isStr(id, 40) || !id || ids.has(id)) return null;
+    ids.add(id);
+    if (!isStr(name) || !isStr(value)) return null;
+    if (!isInt(w, 1, 200) || !isInt(h, 1, 200) || !isInt(ox) || !isInt(oy)) return null;
+    if (!Array.isArray(pins) || !pins.length || pins.length > MAX_PINS) return null;
+    const comp = {
+      id,
+      name,
+      value,
+      color: isStr(color, 40) ? color : null,
+      routeUnder: routeUnder !== false,
+      w,
+      h,
+      ox,
+      oy,
+      pins: []
+    };
+    if (edge != null && edge !== -1) {
+      const e = typeof edge === 'string' ? edgeSide(edge) : edge;
+      if (!isInt(e, 0, 3)) return null;
+      comp.edge = e;
+    }
+    if (c.swap != null && c.swap !== true) {
+      if (!Array.isArray(c.swap) || !c.swap.every(g => Array.isArray(g))) return null;
+    }
+    const seen = new Set();
+    for (const p of pins) {
+      if (!p || typeof p !== 'object') return null;
+      const dCol = p.dCol ?? p.offset?.[0];
+      const dRow = p.dRow ?? p.offset?.[1];
+      if (!isInt(dCol, 0, w - 1) || !isInt(dRow, 0, h - 1)) return null;
+      const key = dCol * 1000 + dRow;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      const lbl = p.lbl ?? p.label ?? '';
+      if (!isStr(lbl, 40)) return null;
+      const net = p.net ? String(p.net) : null;
+      if (net && !isStr(net, 200)) return null;
+      comp.pins.push({
+        dCol,
+        dRow,
+        col: isInt(p.col) ? p.col : ox + dCol,
+        row: isInt(p.row) ? p.row : oy + dRow,
+        net,
+        lbl
+      });
+    }
+    const s = swapGroups(c);
+    if (s) comp.swap = s; else delete comp.swap;
+    if (isBands(c.bands)) comp.bands = c.bands;
+    cleanComps.push(comp);
+  }
+  const cleanWires = [];
+  if (data.wires !== undefined) {
+    if (!Array.isArray(data.wires) || data.wires.length > MAX_WIRES) return null;
+    for (const wr of data.wires) {
+      if (!wr || typeof wr !== 'object') return null;
+      const net = wr.net ? String(wr.net) : null;
+      if (net && !isStr(net, 200)) return null;
+      if (!Array.isArray(wr.path)) return null;
+      const path = [];
+      for (const pt of wr.path) {
+        if (!pt || !isInt(pt.col) || !isInt(pt.row)) return null;
+        path.push({ col: pt.col, row: pt.row });
+      }
+      cleanWires.push({
+        net,
+        failed: !!wr.failed,
+        jumper: !!wr.jumper,
+        path
+      });
+    }
+  }
+  const cols = isInt(data.cols, 1, 1000) ? data.cols : undefined;
+  const rows = isInt(data.rows, 1, 1000) ? data.rows : undefined;
+  let partImages;
+  if (data.partImages && typeof data.partImages === 'object' && !Array.isArray(data.partImages)) {
+    partImages = {};
+    for (const [id, img] of Object.entries(data.partImages)) {
+      const rec = cleanPicture(img);
+      if (rec) partImages[id] = rec;
+    }
+  }
+  return { components: cleanComps, wires: cleanWires, cols, rows, partImages };
+}
+
+// A part picture as the photo dialog stores it; anything else is dropped (it comes from a file
+// or another account and is drawn on every render).
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= MAX_COORD;
+function cleanPicture(img) {
+  if (!img || typeof img !== 'object' || typeof img.src !== 'string' || !SAFE_IMG.test(img.src)) return null;
+  const { x, y, w, h, fw, fh, offs } = img;
+  if (![x, y, w, h].every(isNum) || !isInt(fw, 1, 1000) || !isInt(fh, 1, 1000)) return null;
+  if (!Array.isArray(offs) || offs.length > 1000 || !offs.every(o => Array.isArray(o) && isInt(o[0]) && isInt(o[1]))) return null;
+  return { src: img.src, x, y, w, h, fw, fh, offs: offs.map(o => [o[0], o[1]]) };
 }

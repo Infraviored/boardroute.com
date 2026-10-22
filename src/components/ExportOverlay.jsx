@@ -1,26 +1,45 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
-import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG } from '../engine/render-utils.js';
+import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG, photoTurn } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
+// segmented buttons: options = [[value, label, title?]]
+function Seg({ value, options, onChange }) {
+    return (
+        <div className="ex-seg">
+            {options.map(([v, label, title]) => (
+                <button key={v} className={value === v ? 'active' : ''} onClick={() => onChange(v)} title={title}>{label}</button>
+            ))}
+        </div>
+    );
+}
+
 // Export with a live preview: the picture on the left is the exact SVG that gets downloaded or
 // printed, so every option (side, board size, hole coordinates) is visible before exporting.
-export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink }) {
+export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot, boardView = null, setBoardView = null, onSaveProject, onShareLink, partImages = null }) {
     const [copied, setCopied] = useState(false);
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
-    const [side, setSide] = useState('top');     // 'top' | 'bottom' | 'both'
-    const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing)
+    const [side, setSide] = useState('both');    // 'top' | 'bottom' | 'both' (both by default)
+    const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing) | 'mono' (black & white printer)
     const [actualSize, setActualSize] = useState(true);
+    const [pictures, setPictures] = useState(true); // the parts' photos in the export
 
     const source = bestSnapshot || { components, wires };
+    // photos that still fit their part (a changed footprint hides it, as on the board)
+    const photos = useMemo(() => {
+        const out = {};
+        for (const c of source.components || []) if (partImages?.[c.id] && photoTurn(c, partImages[c.id]) >= 0) out[c.id] = partImages[c.id];
+        return Object.keys(out).length ? out : null;
+    }, [source.components, partImages]);
     const svg = useMemo(() => {
         if (!isOpen || !source.components?.length) return '';
+        const opts = { padding: 3, view: boardView, photos: pictures ? photos : null, mono: look === 'mono' };
         const raw = side === 'both'
-            ? generateCombinedSVG(source.components, source.wires, { padding: 3, view: boardView })
-            : generateBoardSVG(source.components, source.wires, { padding: 3, view: boardView, side });
-        return look === 'paper' ? printThemeSVG(raw) : raw;
-    }, [isOpen, source.components, source.wires, side, boardView, look]);
+            ? generateCombinedSVG(source.components, source.wires, opts)
+            : generateBoardSVG(source.components, source.wires, { ...opts, side });
+        return look === 'screen' ? raw : printThemeSVG(raw, { mono: look === 'mono' });
+    }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures]);
 
     const previewUrl = useMemo(() => (svg ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) : ''), [svg]);
     useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -49,7 +68,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     const print = () => {
         if (!svg) return;
         // paper always gets the light colours, whatever the preview shows
-        const light = look === 'paper' ? svg : printThemeSVG(svg);
+        const light = look === 'screen' ? printThemeSVG(svg) : svg;
         const out = actualSize ? realSizeSVG(light) : light;
         const frame = document.createElement('iframe');
         frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
@@ -86,11 +105,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
                     <div className="ex-group">
                         <div className="ex-label">View</div>
-                        <div className="ex-seg">
-                            <button className={side === 'top' ? 'active' : ''} onClick={() => setSide('top')}>Top</button>
-                            <button className={side === 'bottom' ? 'active' : ''} onClick={() => setSide('bottom')} title="Solder side, mirrored like the board turned over">Solder side</button>
-                            <button className={side === 'both' ? 'active' : ''} onClick={() => setSide('both')}>Both</button>
-                        </div>
+                        <Seg value={side} onChange={setSide} options={[['top', 'Top'], ['bottom', 'Solder side', 'Solder side, mirrored like the board turned over'], ['both', 'Both']]} />
                     </div>
 
                     {fp && <div className="ex-size">Layout {fp.width} × {fp.height} holes · {mm(fp.width)} × {mm(fp.height)} mm at 2.54 mm pitch</div>}
@@ -104,20 +119,15 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
                     <div className="ex-group">
                         <div className="ex-label">Colours</div>
-                        <div className="ex-seg">
-                            <button className={look === 'screen' ? 'active' : ''} onClick={() => setLook('screen')}>Dark (screen)</button>
-                            <button className={look === 'paper' ? 'active' : ''} onClick={() => setLook('paper')}>Light (paper)</button>
-                        </div>
+                        <Seg value={look} onChange={setLook} options={[['screen', 'Dark (screen)'], ['paper', 'Light (paper)'], ['mono', 'Black & white', 'For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend']]} />
+                        {photos && <label className="ex-check"><input type="checkbox" checked={pictures} onChange={e => setPictures(e.target.checked)} /> Part pictures (photos)</label>}
                         <label className="ex-check"><input type="checkbox" checked={actualSize} onChange={e => setActualSize(e.target.checked)} /> Print at actual size (1 hole = 2.54 mm)</label>
-                        <div className="ex-hint">Print always uses the light colours.</div>
+                        <div className="ex-hint">{look === 'mono' ? 'Connections are told apart by line style; the legend is below the board.' : 'Print always uses the light colours. Black & white printer? Pick Black & white.'}</div>
                     </div>
 
                     <div className="ex-group">
                         <div className="ex-label">Format</div>
-                        <div className="ex-seg">
-                            <button className={format === 'svg' ? 'active' : ''} onClick={() => setFormat('svg')}>SVG (vector)</button>
-                            <button className={format === 'png' ? 'active' : ''} onClick={() => setFormat('png')}>PNG (image)</button>
-                        </div>
+                        <Seg value={format} onChange={setFormat} options={[['svg', 'SVG (vector)'], ['png', 'PNG (image)']]} />
                     </div>
 
                     <div className="ex-group">
@@ -140,16 +150,16 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
             <BoardSettingsStyles />
             <style dangerouslySetInnerHTML={{
                 __html: `
-        .export-modal { max-width: 1200px; width: calc(100% - 32px); height: calc(100vh - 32px); max-height: 900px; padding: 0; gap: 0; flex-direction: row; overflow: hidden; }
+        .export-modal { max-width: 1200px; width: calc(100% - 32px); height: calc(100vh - 32px); max-height: 900px; padding: 0; gap: 0; flex-direction: row; overflow: hidden; border-radius: var(--radius-xl); }
         .ex-preview { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: repeating-conic-gradient(#0b0e12 0% 25%, #080a0d 0% 50%) 50% / 24px 24px; }
         .ex-preview img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 30px rgba(0,0,0,.6)); }
         .ex-empty { color: var(--txt2); font-size: var(--fs-sm); }
         .ex-side { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px; border-left: 1px solid var(--border); overflow-y: auto; background: var(--bg2); }
         .ex-group { display: flex; flex-direction: column; gap: 8px; }
-        .ex-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
-        .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
-        .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: 6px; cursor: pointer; }
-        .ex-seg button.active { background: var(--blu); color: #fff; }
+        .ex-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt1); }
+        .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
+        .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s ease; }
+        .ex-seg button.active { background: var(--ui-accent); color: #fff; }
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
         .ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
@@ -157,13 +167,51 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-more { display: flex; gap: 8px; }
         .ex-more .ex-btn { font-size: var(--fs-sm); padding: 8px; }
         .ex-actions { display: flex; gap: 8px; margin-top: auto; padding: 12px 0 0; position: sticky; bottom: -20px; background: var(--bg2); padding-bottom: 4px; }
-        .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; }
-        .ex-btn.primary { background: var(--blu); border-color: var(--blu-bright); }
+        .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+        .ex-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
+        .ex-btn:active { background: var(--ui-neutral-active); }
+        .ex-btn.primary { background: var(--ui-accent); border-color: rgba(240, 246, 252, 0.1); color: var(--ui-accent-text); }
+        .ex-btn.primary:hover { background: var(--ui-accent-hover); }
+        .ex-btn.primary:active { background: var(--ui-accent-active); }
         .ex-btn:disabled { opacity: .5; cursor: default; }
-        @media (max-width: 760px) {
-          .export-modal { flex-direction: column; height: calc(100dvh - 16px); width: calc(100% - 16px); }
-          .ex-preview { flex: 0 0 42%; padding: 12px; }
-          .ex-side { width: auto; border-left: 0; border-top: 1px solid var(--border); padding: 16px; }
+        @media (max-width: 768px) {
+          .export-modal {
+            flex-direction: column;
+            height: 100dvh;
+            width: 100vw;
+            max-height: 100dvh;
+            border-radius: 0;
+            border: none;
+          }
+          .ex-preview {
+            flex: 0 0 28vh;
+            max-height: 28vh;
+            padding: 8px;
+          }
+          .ex-side {
+            flex: 1;
+            width: auto;
+            border-left: 0;
+            border-top: 1px solid var(--border);
+            padding: 14px 16px;
+            overflow-y: auto;
+          }
+          .ex-actions {
+            position: sticky;
+            bottom: 0;
+            margin-top: 12px;
+            padding: 12px 0 env(safe-area-inset-bottom, 8px);
+            background: var(--bg2);
+            border-top: 1px solid var(--border);
+            z-index: 10;
+          }
+          .ex-btn {
+            min-height: 44px;
+            font-size: 0.92rem;
+          }
+          .ex-seg button {
+            min-height: 38px;
+          }
         }
       `}} />
         </div>

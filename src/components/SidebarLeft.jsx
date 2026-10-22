@@ -44,7 +44,9 @@ export function SidebarLeft({
   onOpenExamples,
   onOpenFile,
   onLoadCircuit,
-  exampleTitle = null
+  exampleTitle = null,
+  mobileOpen = false,
+  onCloseDrawer
 }) {
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [edited, setEdited] = React.useState(false);
@@ -85,7 +87,13 @@ export function SidebarLeft({
     : `${plural(summary.parts, 'part')} · ${plural(summary.nets, 'net')}`;
 
   return (
-    <aside id="lsb" className={editorOpen ? 'json-open' : ''}>
+    <aside id="lsb" className={`${editorOpen ? 'json-open' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+      <div className="mobile-sheet-head">
+        <div className="mobile-sheet-handle" />
+        <div className="mobile-sheet-title">Parts &amp; Circuit</div>
+        <button type="button" className="mobile-sheet-close" onClick={onCloseDrawer} aria-label="Close drawer"><X size={18} /></button>
+      </div>
+
       {/* Circuit card: what is loaded, and the ways to get a circuit in */}
       <section className="sidebar-section">
         <div className="section-header">
@@ -207,7 +215,7 @@ export function SidebarLeft({
                     <button
                       className="edit-mini-btn"
                       onClick={(e) => { e.stopPropagation(); onEditComponent(c.id); }}
-                      title="Edit Component"
+                      title="Edit component"
                     >
                       <Pencil size={11} />
                     </button>
@@ -430,14 +438,112 @@ export function SidebarLeft({
         .jd-load:hover:not(:disabled) { background: #388bfd; }
         .jd-load:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 
-        @media (max-width: 700px) {
-          #lsb.json-open { z-index: 10; }
+        .mobile-sheet-head { display: none; }
+
+        @media (max-width: 768px) {
+          .mobile-sheet-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px 10px;
+            position: sticky;
+            top: 0;
+            background: var(--bg2);
+            z-index: 20;
+            border-bottom: 1px solid var(--border);
+          }
+          .mobile-sheet-handle { display: none !important; }
+          .mobile-sheet-handle-unused {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 36px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.25);
+          }
+          .mobile-sheet-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--txt0);
+          }
+          .mobile-sheet-close {
+            background: none;
+            border: none;
+            color: var(--txt1);
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+          }
+          .mobile-sheet-close:active {
+            background: var(--bg4);
+            color: var(--txt0);
+          }
+
+          #lsb.json-open { z-index: 500; }
           .json-drawer {
-            position: static;
-            width: auto;
-            height: 60dvh;
-            margin: 0 12px 8px 16px;
-            animation: none;
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            z-index: 500 !important;
+            background: var(--bg0) !important;
+            border: none !important;
+            animation: none !important;
+          }
+          .jd-head {
+            padding: 14px 16px;
+            min-height: 52px;
+            background: var(--bg2);
+          }
+          .jd-title { font-size: 1.1rem; }
+          .jd-close {
+            width: 40px;
+            height: 40px;
+          }
+          .jd-mini {
+            padding: 6px 12px;
+            font-size: var(--fs-sm);
+            min-height: 36px;
+          }
+          #lsb .jd-text {
+            flex: 1;
+            font-size: 14px !important;
+            padding: 14px 16px;
+          }
+          .jd-foot {
+            padding: 12px 16px;
+            min-height: 64px;
+            background: var(--bg2);
+            border-top: 1px solid var(--border);
+          }
+          .jd-load {
+            min-height: 44px;
+            padding: 10px 24px;
+            font-size: 1rem;
+          }
+
+          .comp-card {
+            min-height: 48px;
+            padding: 8px 12px;
+          }
+          .edit-mini-btn {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+          }
+          .cc-btn {
+            min-height: 40px;
+            font-size: 0.85rem;
           }
         }
 
@@ -454,19 +560,20 @@ export function SidebarLeft({
           padding: 1px 8px;
         }
         .tplbtn {
-          padding: 6px 10px;
-          border-radius: 8px;
+          height: 28px;
+          padding: 0 10px;
+          border-radius: var(--radius-md);
           cursor: pointer;
           font-size: var(--fs-xs);
           font-weight: 600;
-          background: var(--bg3);
+          background: var(--ui-neutral);
           border: 1px solid var(--border);
-          color: var(--txt1);
+          color: var(--txt0);
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
-          transition: 0.2s;
+          transition: 0.15s;
           flex: 1;
           min-width: 80px;
           white-space: nowrap;
@@ -474,9 +581,23 @@ export function SidebarLeft({
           text-overflow: ellipsis;
         }
         .tplbtn:hover {
-          background: var(--bg4);
-          border-color: var(--blu-bright);
+          background: var(--ui-neutral-hover);
+          border-color: var(--border2);
           color: var(--txt0);
+        }
+        .tplbtn:active {
+          background: var(--ui-neutral-active);
+        }
+        .tplbtn.grn-bg {
+          background: var(--ui-primary);
+          border-color: var(--ui-primary-border);
+          color: var(--ui-primary-text);
+        }
+        .tplbtn.grn-bg:hover {
+          background: var(--ui-primary-hover);
+        }
+        .tplbtn.grn-bg:active {
+          background: var(--ui-primary-active);
         }
 
         .comp-list {

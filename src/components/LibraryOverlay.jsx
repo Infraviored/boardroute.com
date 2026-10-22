@@ -1,22 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { MOBILE_MQ, isMobile, isTouch } from '../mobile.js';
 import { Camera, X } from 'lucide-react';
 import { compColor } from '../engine/render-utils.js';
+import { indexPart, matches, squash } from '../engine/part-lookup.js';
 
-const CURATED = 'Curated';
 const PAGE = 120; // rendered rows per "show more" step; the KiCad set has ~1,100 parts
-
-// lower-case text plus a copy without separators, so "dip8", "DIP 8" and "DIP-8" all match "DIP-8_W7.62mm"
-const squash = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
-
-function indexPart(c, origin) {
-    const text = [c.name, c.value, c.desc, c.category, c.source, ...(c.aka || [])].filter(Boolean).join(' ').toLowerCase();
-    return { c, origin, category: c.category || CURATED, text, flat: squash(text), name: c.name.toLowerCase() };
-}
-
-// every search word must match; parts whose name starts with the query come first
-function matches(entry, words) {
-    return words.every(w => entry.text.includes(w) || (squash(w) && entry.flat.includes(squash(w))));
-}
 
 // footprint thumbnail: body box + pins, in holes
 function Thumb({ part }) {
@@ -48,6 +36,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
     const [category, setCategory] = useState('All');
     const [limit, setLimit] = useState(PAGE);
     const kicadRequested = useRef(false);
+    const searchRef = useRef(null);
 
     useEffect(() => {
         fetch('/component_database.json')
@@ -105,13 +94,22 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
                     )}
                     <button className="close-btn" onClick={onClose} aria-label="Close library"><X size={18} /></button>
                 </div>
-                <input
-                    type="text"
-                    placeholder="Search, e.g. ESP32, DIP-8, TO-220, relay…"
-                    value={search}
-                    onChange={(e) => setQuery(e.target.value)}
-                    autoFocus
-                />
+                <div className="lib-search">
+                    {/* no autofocus on touch: it would pop up the keyboard over the list */}
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        placeholder={isMobile() ? 'Search: ESP32, DIP-8, relay…' : 'Search, e.g. ESP32, DIP-8, TO-220, relay…'}
+                        value={search}
+                        onChange={(e) => setQuery(e.target.value)}
+                        autoFocus={!isTouch()}
+                    />
+                    {search && (
+                        <button type="button" className="lib-clear" onClick={() => { setQuery(''); searchRef.current?.focus(); }} aria-label="Clear search" title="Clear search">
+                            <X size={15} />
+                        </button>
+                    )}
+                </div>
                 <div className="lib-cats">
                     {[['All', entries.length], ...categories].map(([cat, n]) => (
                         <button key={cat} className={'lib-cat' + (cat === category ? ' active' : '')} onClick={() => pickCategory(cat)}>
@@ -163,6 +161,11 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
         .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--ui-accent); color: var(--ui-accent-hover); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; background: none; font-family: inherit; transition: all 0.15s ease; }
         .lib-photo:hover { background: rgba(31,111,235,.15); }
         .lib-photo:active { background: rgba(31,111,235,.25); }
+        .lib-search { position: relative; flex-shrink: 0; }
+        .lib-search input { width: 100%; padding-right: 34px; }
+        .lib-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--txt1); cursor: pointer; }
+        .lib-clear:hover { color: var(--txt0); background: var(--ui-ghost-hover); }
+        .lib-photo { white-space: nowrap; flex: none; }
         .lib-cats { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
         .lib-cat {
           font-size: .7em; padding: 3px 8px; border-radius: var(--radius-full); cursor: pointer;
@@ -199,7 +202,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
         .lib-credit { font-size: .65em; color: var(--txt2); line-height: 1.4; }
         .lib-credit a { color: var(--txt1); }
 
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .lib-modal {
             width: 100vw;
             height: 100dvh;
@@ -213,11 +216,14 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
             gap: 8px;
             margin-bottom: 8px;
           }
+          .lib-modal .modal-header h3 { min-width: 0; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .lib-photo {
-            height: 36px;
+            height: 40px;
             padding: 0 12px;
             font-size: 0.85rem;
           }
+          .lib-search input { padding-right: 44px; }
+          .lib-clear { width: 40px; height: 40px; right: 1px; }
           .lib-modal .close-btn {
             width: 40px;
             height: 40px;
@@ -241,7 +247,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
             padding-right: 16px;
           }
           .lib-cat {
-            min-height: 38px;
+            min-height: 40px;
             padding: 8px 14px;
             font-size: 0.82rem;
             border-radius: 999px;

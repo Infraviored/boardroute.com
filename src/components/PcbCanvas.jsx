@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
+import { MOBILE_MQ, LANDSCAPE_MQ, isMobile } from '../mobile.js';
 import {
     SP,
     generateWiresSVG,
@@ -30,9 +31,13 @@ const clampZoom = (z) => Math.min(Math.max(z, 0.1), 10.0);
 function fitView(b, viewport) {
     const bbW = (b.maxCol - b.minCol + 1) * SP;
     const bbH = (b.maxRow - b.minRow + 1) * SP;
-    const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
-    const targetCoverageX = isMobilePortrait ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE;
-    const targetCoverageY = isMobilePortrait ? 0.70 : CAMERA_CONFIG.TARGET_COVERAGE;
+    // phones fill more of their small screen; sideways the height is what is short
+    const mobile = isMobile();
+    const portrait = viewport.height > viewport.width;
+    // phones: keep the board clear of the Parts / Inspector edge tabs (24 px + a gap each side)
+    const tabRoom = mobile && viewport.width > 0 ? (viewport.width - 64) / viewport.width : 1;
+    const targetCoverageX = Math.min(mobile ? 0.88 : CAMERA_CONFIG.TARGET_COVERAGE, tabRoom);
+    const targetCoverageY = mobile ? (portrait ? 0.70 : 0.80) : CAMERA_CONFIG.TARGET_COVERAGE;
     return {
         targetCX: (b.minCol + b.maxCol + 1) / 2 * SP,
         targetCY: (b.minRow + b.maxRow + 1) / 2 * SP,
@@ -351,6 +356,41 @@ export function PcbCanvas({
         return showBoardLayer ? computeBoardFrame(components, wires, boardView) : null;
     }, [showBoardLayer, components, wires, boardView, tick]);
 
+    // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
+    // bumps tick, so the array references alone don't change when the board does. Each memo
+    // reads tick explicitly so the dependency is real (an exhaustive-deps suppression would
+    // also switch off the React Compiler lint rules for this whole component).
+    // Solder side: mirror every column about the layout's bounds (same convention as the export).
+    const solder = side === 'bottom';
+    const mCenter = useMemo(() => {
+        void tick;
+        let minC = Infinity, maxC = -Infinity;
+        for (const c of components) {
+            minC = Math.min(minC, c.ox);
+            maxC = Math.max(maxC, c.ox + c.w);
+        }
+        for (const w of wires) {
+            if (!w.path) continue;
+            for (const p of w.path) {
+                minC = Math.min(minC, p.col);
+                maxC = Math.max(maxC, p.col + 1);
+            }
+        }
+        if (boardFrame?.sized) {
+            minC = Math.min(minC, boardFrame.c0);
+            maxC = Math.max(maxC, boardFrame.c0 + boardFrame.cols);
+        }
+        return isFinite(minC) ? minC + maxC : cols;
+    }, [components, wires, boardFrame, tick, cols]);
+    const view = useMemo(() => {
+        void tick;
+        if (!solder) return { components, wires };
+        return {
+            components: components.map(c => ({ ...c, ox: mCenter - c.ox - c.w, pins: c.pins.map(p => ({ ...p, col: mCenter - p.col - 1 })) })),
+            wires: wires.map(w => ({ ...w, path: w.path?.map(pt => ({ ...pt, col: mCenter - pt.col - 1 })) })),
+        };
+    }, [solder, components, wires, mCenter, tick]);
+
     const bounds = useMemo(() => {
         void tick; // the engine moves parts in place (manual wires, a Compact that keeps its start)
         if (components.length === 0 && wires.length === 0) {
@@ -372,6 +412,18 @@ export function PcbCanvas({
                 maxRow = Math.max(maxRow, p.row + 1);
             }
         }
+        // Part name tags outside their parts belong to the picture too (else Fit cuts them off).
+        // Laid out on the drawn (possibly mirrored) parts; the layout's own extent is the same
+        // both ways round, as the mirror axis is its centre.
+        const tags = layoutPartLabels(view.components);
+        for (const id in tags) {
+            const L = tags[id];
+            if (L.mode !== 'out') continue;
+            minCol = Math.min(minCol, Math.floor(L.x / SP));
+            minRow = Math.min(minRow, Math.floor(L.y / SP));
+            maxCol = Math.max(maxCol, Math.ceil((L.x + L.w) / SP));
+            maxRow = Math.max(maxRow, Math.ceil((L.y + L.h) / SP));
+        }
         if (boardFrame) {
             // Frame the whole physical board plus its label strips, not just the layout.
             const g = coordGutters(boardFrame, boardView, side);
@@ -384,7 +436,7 @@ export function PcbCanvas({
         if (minCol === maxCol) maxCol += 1;
         if (minRow === maxRow) maxRow += 1;
         return { minCol, minRow, maxCol, maxRow };
-    }, [components, wires, cols, rows, boardFrame, boardView, side, tick]);
+    }, [components, wires, cols, rows, boardFrame, boardView, side, tick, view]);
 
     const snapLockRef = useRef(null);
     const lastSnapStep = useRef(0);
@@ -498,7 +550,9 @@ export function PcbCanvas({
                 const worldCY = smoothCenterRef.current.y;
 
                 // Adaptive Viewport: Dodge the bottom bar if it's there
-                const pbHeight = isProcessing ? 240 : 0;
+                // (phones: the bar is as tall as its content, ProcessingBar writes it into --pb-h)
+                const pbHeight = !isProcessing ? 0
+                    : (isMobile() && parseFloat(svgRef.current?.closest('#ca-col')?.style.getPropertyValue('--pb-h'))) || 240;
                 const targetAvailableHeight = viewport.height - pbHeight;
 
                 const targetViewportCX = viewport.width / 2;
@@ -515,9 +569,9 @@ export function PcbCanvas({
                 const deadzoneX = viewport.width * CAMERA_CONFIG.PAN_DEADZONE_X;
                 const deadzoneY = targetAvailableHeight * CAMERA_CONFIG.PAN_DEADZONE_Y;
 
-                const isMobilePortrait = viewport.width <= 768 && viewport.height > viewport.width;
-                const zoomOutThresh = isMobilePortrait ? 0.95 : CAMERA_CONFIG.ZOOM_OUT_THRESHOLD;
-                const zoomInThresh = isMobilePortrait ? 0.65 : CAMERA_CONFIG.ZOOM_IN_THRESHOLD;
+                const mobile = isMobile();
+                const zoomOutThresh = mobile ? 0.95 : CAMERA_CONFIG.ZOOM_OUT_THRESHOLD;
+                const zoomInThresh = mobile ? 0.65 : CAMERA_CONFIG.ZOOM_IN_THRESHOLD;
                 const isZoomViolated = currentCoverage > zoomOutThresh || currentCoverage < zoomInThresh;
                 const isPanViolated = Math.abs(errorX) > deadzoneX || Math.abs(errorY) > deadzoneY;
 
@@ -581,40 +635,6 @@ export function PcbCanvas({
 
     // Keep the vignette centred on the board; repaint whenever React renders (data changed).
     useLayoutEffect(() => { boundsRef.current = bounds; paintCamera(); });
-    // `tick` is load-bearing: the engine mutates the components/wires arrays in place and only
-    // bumps tick, so the array references alone don't change when the board does. Each memo
-    // reads tick explicitly so the dependency is real (an exhaustive-deps suppression would
-    // also switch off the React Compiler lint rules for this whole component).
-    // Solder side: mirror every column about the layout's bounds (same convention as the export).
-    const solder = side === 'bottom';
-    const mCenter = useMemo(() => {
-        void tick;
-        let minC = Infinity, maxC = -Infinity;
-        for (const c of components) {
-            minC = Math.min(minC, c.ox);
-            maxC = Math.max(maxC, c.ox + c.w);
-        }
-        for (const w of wires) {
-            if (!w.path) continue;
-            for (const p of w.path) {
-                minC = Math.min(minC, p.col);
-                maxC = Math.max(maxC, p.col + 1);
-            }
-        }
-        if (boardFrame?.sized) {
-            minC = Math.min(minC, boardFrame.c0);
-            maxC = Math.max(maxC, boardFrame.c0 + boardFrame.cols);
-        }
-        return isFinite(minC) ? minC + maxC : cols;
-    }, [components, wires, boardFrame, tick, cols]);
-    const view = useMemo(() => {
-        void tick;
-        if (!solder) return { components, wires };
-        return {
-            components: components.map(c => ({ ...c, ox: mCenter - c.ox - c.w, pins: c.pins.map(p => ({ ...p, col: mCenter - p.col - 1 })) })),
-            wires: wires.map(w => ({ ...w, path: w.path?.map(pt => ({ ...pt, col: mCenter - pt.col - 1 })) })),
-        };
-    }, [solder, components, wires, mCenter, tick]);
     const wiresSvg = useMemo(() => { void tick; return generateWiresSVG(view.wires, activeNets, { solderSide: solder }); }, [view, activeNets, solder, tick]);
     const ratsnestSvg = useMemo(() => { void tick; return solder ? '' : generateRatsnestSVG(components, wires); }, [solder, components, wires, tick]);
     const labelKey = useMemo(() => {
@@ -844,7 +864,7 @@ export function PcbCanvas({
                 .pcb-comp { transition: filter 0.2s ease; }
                 .pcb-comp:hover { filter: brightness(1.2); }
 
-                @media (max-width: 768px) {
+                @media ${MOBILE_MQ} {
                   .canvas-controls {
                     right: 12px;
                     bottom: calc(12px + var(--bottom-nav-height, 54px));
@@ -852,8 +872,10 @@ export function PcbCanvas({
                     grid-template-columns: repeat(2, 40px);
                     gap: 6px;
                   }
+                  /* above the processing bar, whose height ProcessingBar writes into --pb-h */
                   .canvas-container.pb-active .canvas-controls {
-                    bottom: calc(12px + var(--bottom-nav-height, 54px) + 140px);
+                    bottom: calc(12px + var(--bottom-nav-height, 54px) + var(--pb-h, 140px));
+                    grid-template-columns: repeat(6, 40px); /* one row: keeps clear of the edge tabs */
                   }
                   .cbtn {
                     width: 40px;
@@ -864,6 +886,10 @@ export function PcbCanvas({
                     width: 18px;
                     height: 18px;
                   }
+                }
+                /* phone sideways: clear of the Inspector edge tab, which sits at mid height */
+                @media ${LANDSCAPE_MQ} {
+                  .canvas-controls, .canvas-container.pb-active .canvas-controls { right: max(34px, calc(10px + env(safe-area-inset-right))); grid-template-columns: repeat(2, 40px); }
                 }
             `}} />
         </div>

@@ -13,16 +13,19 @@ import { ConfirmOverlay } from './components/ConfirmOverlay.jsx';
 import { ExportOverlay } from './components/ExportOverlay.jsx';
 import { ExamplesOverlay } from './components/ExamplesOverlay.jsx';
 import { ResultCard } from './components/ResultCard.jsx';
+import { PartActions } from './components/PartActions.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
 import { decodeShare, shareFromHash, shareUrl, validateBoardData } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES, isBands } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
+import { isShortCircuit, resolveCircuit, loadLibrary } from './engine/part-lookup.js';
 import { scoreState } from './engine/metrics.js';
 import { netCompletion } from './engine/net-completion.js';
 import { useBoardView } from './hooks/useBoardView.js';
 import { normalizeBoardView, photoTurn } from './engine/render-utils.js';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { MOBILE_MQ, isMobile } from './mobile.js';
 
 // localStorage write that never throws; null/undefined removes the key
 function persist(key, value) {
@@ -176,11 +179,11 @@ const [board, setBoard] = useState(() => {
   const [mobileDrawer, setMobileDrawer] = useState(null); // null | 'parts' | 'inspector'
   // phone: a swipe in from a screen edge opens that side's panel; swiping it back closes it
   useEffect(() => {
-    if (!window.matchMedia?.('(max-width: 768px)').matches) return;
     let start = null;
     const down = (e) => {
       const t = e.touches[0], w = window.innerWidth;
-      if (document.querySelector('.overlay-bg')) { start = null; return; }
+      // checked per touch: turning the phone can switch between the phone and desktop layout
+      if (!isMobile() || document.querySelector('.overlay-bg')) { start = null; return; }
       start = { x: t.clientX, y: t.clientY, edge: t.clientX < 24 ? 'left' : t.clientX > w - 24 ? 'right' : null };
     };
     const up = (e) => {
@@ -303,18 +306,36 @@ const [board, setBoard] = useState(() => {
   }, [engine, saveHistory, setPictures]);
 
   // Parse the circuit JSON; problems become a visible notice instead of a silent no-op.
-  const parseCircuit = useCallback(() => {
+  // The short format (parts by name + net list) gets its footprints from the library first.
+  // Returns the part defs, plus `notes` (library guesses the user should check).
+  const parseCircuit = useCallback(async () => {
     let data;
     try { data = JSON.parse(jsonInput); } catch (e) {
       setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it under Circuit → Edit JSON.` });
       return null;
     }
+    let notes = [];
+    if (isShortCircuit(data)) {
+      let lib;
+      try { lib = await loadLibrary(); } catch (e) {
+        setNotice({ kind: 'error', title: 'The part library could not be loaded', text: `${e.message}. Check the connection and try again.` });
+        return null;
+      }
+      const r = resolveCircuit(data, lib);
+      if (r.problems.length) {
+        setNotice({ kind: 'error', title: r.problems.length === 1 ? 'One thing in the circuit needs fixing' : `${r.problems.length} things in the circuit need fixing`, text: r.problems.slice(0, 6).join('\n') + (r.problems.length > 6 ? `\n… and ${r.problems.length - 6} more` : '') });
+        return null;
+      }
+      data = { components: r.components };
+      notes = r.notes;
+    }
     let defs = null;
     try { defs = processTemplate(data); } catch (e) { console.error(e); }
     if (!defs?.length) {
-      setNotice({ kind: 'error', title: 'No parts found', text: 'The JSON needs a "components" list, each part with an "id" and its "pins" (offset, net, label).' });
+      setNotice({ kind: 'error', title: 'No parts found', text: 'The JSON needs a "parts" list (each with an "id" and a "part" name) and a "nets" list.' });
       return null;
     }
+    defs.notes = notes;
     for (const d of defs) {
       const seen = new Set();
       for (const [col, row] of d.offsets) {
@@ -329,10 +350,12 @@ const [board, setBoard] = useState(() => {
     return defs;
   }, [jsonInput]);
 
-  const handleLoadCircuit = useCallback(() => {
-    const defs = parseCircuit();
+  const handleLoadCircuit = useCallback(async () => {
+    const defs = await parseCircuit();
     if (!defs) return false;
-    setNotice(null);
+    setNotice(defs.notes.length
+      ? { kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') }
+      : null);
     engine.mergeBoard(defs);
     setWorkflowStep(1); setSnapCounter(c => c + 1); saveHistory();
     return true;
@@ -342,7 +365,7 @@ const [board, setBoard] = useState(() => {
   // Compact (step 3): shrink from the current board (also after moving parts by hand).
   const layoutRun = useRef(null); // the running engine.layout(), if any
   const runLayout = useCallback(async (refine) => {
-    const defs = parseCircuit();
+    const defs = await parseCircuit();
     if (!defs) return;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
@@ -467,6 +490,14 @@ const [board, setBoard] = useState(() => {
     else if (selectedNet) setConfirmData({ isOpen: true, type: 'net', targetId: selectedNet });
   }, [activePin, selectedId, selectedNet]);
 
+  // open a part of the board in the editor (pencil in the Parts list, Edit for the selected part)
+  const handleEditComp = useCallback((id) => {
+    setEditorMode('edit'); setEditorPhoto(null);
+    const c = board.components.find(x => x.id === id);
+    setEditingComp(c && partImages[id] ? { ...c, image: partImages[id] } : c);
+    setIsEditorOpen(true);
+  }, [board.components, partImages]);
+
   const handleConfirmDelete = useCallback(() => {
     if (confirmData.type === 'pin' && confirmData.activePin) { 
       const p = confirmData.activePin;
@@ -517,6 +548,7 @@ const [board, setBoard] = useState(() => {
       const comp = { ...updated, pins: updated.pins.map(p => ({ ...p, col: updated.ox + p.dCol, row: updated.oy + p.dRow })) };
       engine.setState({ components: [...board.components, comp], wires: board.wires });
       setIsEditorOpen(false); setEditingComp(null); setEditorMode('edit');
+      setMobileDrawer(null); // phone: show the board with the new part, not the parts panel
       setSelectedId(comp.id); saveHistory();
       return;
     }
@@ -825,7 +857,12 @@ const [board, setBoard] = useState(() => {
           onOpenFile={handleImportState}
           jsonInput={jsonInput} setJsonInput={setJsonInput}
           exampleTitle={exampleTitle}
-          onLoadCircuit={(edited) => { const ok = handleLoadCircuit(); if (ok && edited) setExampleTitle(null); return ok; }}
+          onLoadCircuit={async (edited) => {
+            const ok = await handleLoadCircuit();
+            if (ok && edited) setExampleTitle(null);
+            if (ok) setMobileDrawer(null); // phones: show the board the parts landed on
+            return ok;
+          }}
           components={board.components} selectedId={selectedId}
           onSelectComponent={selectComp}
           onOpenLibrary={() => setIsLibraryOpen(true)}
@@ -837,7 +874,7 @@ const [board, setBoard] = useState(() => {
               pins: [{ lbl: '1', net: '', dCol: 0, dRow: 0 }, { lbl: '2', net: '', dCol: 1, dRow: 0 }] });
             setIsEditorOpen(true);
           }}
-          onEditComponent={(id) => { setEditorMode('edit'); setEditorPhoto(null); const c = board.components.find(x => x.id === id); setEditingComp(c && partImages[id] ? { ...c, image: partImages[id] } : c); setIsEditorOpen(true); }}
+          onEditComponent={handleEditComp}
           mobileOpen={mobileDrawer === 'parts'}
           onCloseDrawer={() => setMobileDrawer(null)}
         />
@@ -876,6 +913,9 @@ const [board, setBoard] = useState(() => {
               onShare={handleShareLink}
             />
           )}
+          {!status.isProcessing && (
+            <PartActions comp={selectedComp} onRotate={handleRotateComp} onEdit={handleEditComp} onDelete={requestDelete} canRotate={viewSide === 'top'} />
+          )}
           <ProcessingBar
             status={status}
             bestSnapshot={bestSnapshot}
@@ -899,6 +939,7 @@ const [board, setBoard] = useState(() => {
         </div>
         <div className="resizer r" onMouseDown={(e) => { e.preventDefault(); setResizing('r'); }}></div>
         <SidebarRight stats={stats} selectedComp={selectedComp} nets={netsMap} onSetBands={handleSetBands}
+          onRotateComp={status.isProcessing ? null : handleRotateComp} onEditComp={handleEditComp} onDeleteComp={requestDelete} canRotate={viewSide === 'top'}
           hoveredNet={hoveredNet} setHoveredNet={setHoveredNet}
           selectedNet={selectedNet} setSelectedNet={setSelectedNet}
           activeNets={activeNets}
@@ -953,13 +994,13 @@ const [board, setBoard] = useState(() => {
         .notice-title { font-weight: 600; margin-bottom: 4px; }
         .notice-banner.error .notice-title { color: #ff7b72; }
         .notice-banner.warn .notice-title { color: #e3b341; }
-        .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); }
+        .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); white-space: pre-line; }
         .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
         .notice-close:hover { opacity: 1; }
 
         .mobile-drawer-backdrop, .mobile-edge { display: none; }
 
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .app-main {
             height: 100dvh;
             width: 100vw;
@@ -1002,6 +1043,10 @@ const [board, setBoard] = useState(() => {
           .mobile-edge.right { right: 0; border-right: 0; border-radius: 10px 0 0 10px; }
           .mobile-edge.left span { transform: rotate(180deg); }
           .mobile-edge.hide { opacity: 0; pointer-events: none; }
+          /* 40 px wide hit area, the tab itself stays slim */
+          .mobile-edge::before { content: ''; position: absolute; top: 0; bottom: 0; width: 40px; }
+          .mobile-edge.left::before { left: 0; }
+          .mobile-edge.right::before { right: 0; }
 
           /* Backdrop */
           .mobile-drawer-backdrop {

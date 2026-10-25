@@ -11,6 +11,6 @@
     "node": ">=22.13"
   },
   "dependencies": {
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^10.2.1"
   }
 }

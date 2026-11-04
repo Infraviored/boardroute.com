@@ -1075,13 +1075,13 @@ export function printPageHTML(svg, title, mode, pct = 200, date = new Date().toL
     const scaled = mode === 'actual' ? realSizeSVG(svg) : mode === 'custom' ? scaledSVG(svg, pct / 100) : svg;
     const note = mode === 'actual' ? ' · 1:1, 2.54 mm pitch' : mode === 'custom' ? ` · ${pct} %, ${(2.54 * pct / 100).toFixed(2)} mm pitch` : ' · fit to page';
     const fill = mode === 'fill';
-    // fill: the sheet takes the page box minus the header (~10 mm), the svg keeps its aspect ratio inside it
+    // fill: sheet fits printable area (page height minus both 12 mm margins, 10 mm header, and 2 mm buffer)
     return `<!doctype html><html><head><title>boardroute</title><style>
             @page { margin: 12mm; }
             html, body { margin: 0; }
             body { font: 11px system-ui, sans-serif; color: #333; }
             header { display: flex; justify-content: space-between; margin-bottom: 6mm; height: 4mm; }
-            .sheet { ${fill ? 'width: 100%; height: calc(100vh - 12mm - 2mm); overflow: hidden;' : ''} }
+            .sheet { ${fill ? 'width: 100%; height: calc(100vh - 24mm - 10mm - 2mm); overflow: hidden;' : ''} }
             .sheet svg { display: block; ${fill ? 'width: 100%; height: 100%;' : ''} }
         </style></head><body><header><span>${title}</span><span>boardroute.com · ${date}${note}</span></header><div class="sheet">${scaled}</div></body></html>`;
 }

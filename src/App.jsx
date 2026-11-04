@@ -663,6 +663,8 @@ const [board, setBoard] = useState(() => {
         text: mappedByNumber ? 'Connections moved by pin number, check them.' : 'All connections moved to the pins with the same name.',
       });
     }
+    // engine is the one instance; wires.length is read at call time, not a render dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.components, replacing, applyEditedParts, saveHistory, setPictures]);
 
   // the project file: board plus the pictures of its parts (also what an account saves)

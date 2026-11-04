@@ -987,9 +987,20 @@ export function generateCombinedSVG(components, wires = [], options = {}) {
   const W = Math.max(topW, bottomW);
   const H = Math.max(topH, bottomH);
 
-  // stack: 'vertical' puts the solder side below the top side (fills a portrait page); default is side by side
-  const vertical = options.stack === 'vertical';
   const gap = 30;
+  // stack: 'vertical' puts the solder side below the top side; 'auto' stacks vertically when side-by-side overflows portrait page width
+  let vertical = options.stack === 'vertical';
+  if (!vertical && options.stack === 'auto') {
+    const k = options.scale || 1;
+    const sideBySideW = ((W * 2 + gap) / SP * 2.54) * k;
+    const stackedW = (W / SP * 2.54) * k;
+    const stackedH = ((H * 2 + 105) / SP * 2.54) * k;
+    // Portrait printable width ~186 mm (A4 210 - 24 mm margins); height ~245 mm (Letter 279.4 - 24 - 10 mm header)
+    const PAGE_W = 186, PAGE_H = 245;
+    if (sideBySideW > PAGE_W && (stackedH <= PAGE_H || stackedW <= PAGE_W)) {
+      vertical = true;
+    }
+  }
   const totalW = vertical ? W : W * 2 + gap;
   const totalH = vertical ? H * 2 + 105 : H + 60; // Extra room for labels + 15px bottom margin
   const bottomPos = vertical ? `0, ${45 + H + 45}` : `${W + gap}, 45`;

@@ -103,14 +103,15 @@ export function kicadText() {
   // a name that squashes to one already taken (a curated module, another library) cannot be told apart: listed once
   const taken = new Set(curated.map(c => squash(c.name)));
   for (const [cat, list] of [...byCat].sort((a, b) => a[0].localeCompare(b[0]))) {
-    out.push('', `## ${cat} (${list.length})`);
+    const lines = [];
     for (const c of list) {
       if (taken.has(squash(c.name))) { skipped.push(c.name); continue; }
       taken.add(squash(c.name));
       const ls = labels(c);
       checkName(c.name, c.name, ls);
-      out.push(isSeq(ls) ? `${c.name} | ${ls.length} pins` : `${c.name} | ${ls.length} pins: ${ls.join(', ')}`);
+      lines.push(isSeq(ls) ? `${c.name} | ${ls.length} pins` : `${c.name} | ${ls.length} pins: ${ls.join(', ')}`);
     }
+    out.push('', `## ${cat} (${lines.length})`, ...lines);
   }
   return out;
 }
@@ -149,7 +150,7 @@ export function circuitLink(circuit) {
   return `${SITE}/#circuit=${encodeURIComponent(JSON.stringify(circuit)).replace(/\(/g, '%28').replace(/\)/g, '%29')}`;
 }
 
-const POWER = /^(GND|VCC|VIN|VDD|VSS|3V3|5V|3\.3V|\+|-|EN|RST|RESET|NC)\b/i;
+const POWER = /^(?:(GND|VCC|VIN|VDD|VSS|3V3|5V|3\.3V|EN|RST|RESET|NC)\b|\+|-)/i;
 // a small circuit using the part: a resistor and an LED between a signal pin and ground
 export function exampleFor(m) {
   const n = m.ls.length;

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import assert from 'assert';
 import { fileURLToPath } from 'url';
-import { resolveCircuit, indexPart, isShortCircuit, parsePartString } from '../src/engine/part-lookup.js';
+import { resolveCircuit, indexPart, isShortCircuit, parsePartString, findPin } from '../src/engine/part-lookup.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (f) => JSON.parse(fs.readFileSync(f, 'utf-8'));
@@ -152,6 +152,35 @@ test('old-format files in tools/part-lookup resolve without problems', () => {
     assert.deepStrictEqual(r.problems, [], f);
     assert(r.components.every(c => !c.placeholder), f);
   }
+});
+
+test('findPin: D26 finds the plain-number label, exact labels still win', () => {
+  const esp = { pins: [{ label: '25' }, { label: '26' }, { label: 'GND' }] };
+  assert.strictEqual(findPin(esp.pins, 'D26'), 1);
+  assert.strictEqual(findPin([{ label: 'D5' }, { label: '5' }], 'D5'), 0);
+  assert.strictEqual(findPin([{ label: 'D0/RX' }, { label: 'D1/TX' }], 'D1'), 1);
+  const r = resolveCircuit({ parts: { U1: 'ESP32 DevKit V1', R1: 'resistor, 1k' }, connections: [['U1.D26', 'R1.1']] }, lib);
+  assert(!r.notes.some(n => /left out/.test(n)), r.notes.join('\n'));
+});
+
+test('TO-92 / TO-220 pin roles by value', () => {
+  const roles = (part) => resolveCircuit({ parts: { Q1: part }, connections: [] }, lib).components[0].pins.map(p => p.label).join(' ');
+  assert.strictEqual(roles('TO-220, 7805'), 'IN GND OUT');
+  assert.strictEqual(roles('TO-220, 7905'), 'GND IN OUT');
+  assert.strictEqual(roles('TO-220, LM317'), 'ADJ OUT IN');
+  assert.strictEqual(roles('TO-220, AMS1117'), 'ADJ OUT IN');
+  assert.strictEqual(roles('TO-220, IRLZ44N'), 'G D S');
+  assert.strictEqual(roles('TO-220, IRF540'), 'G D S');
+  assert.strictEqual(roles('TO-220, TIP120'), 'B C E');
+  assert.strictEqual(roles('TO-92, BC547'), 'C B E');
+  assert.strictEqual(roles('TO-92, 2N3904'), 'E B C');
+  assert.strictEqual(roles('TO-92, 2N7000'), 'S G D');
+  assert.strictEqual(roles('TO-92'), '1 2 3');
+  // roles and numbers both resolve
+  const r = resolveCircuit({ parts: { U1: 'TO-220, 7805', R1: 'resistor', R2: 'resistor' }, connections: [['U1.IN', 'R1.1'], ['U1.1', 'R2.1'], ['U1.3', 'R2.2'], ['U1.OUT', 'R1.2']] }, lib);
+  assert.deepStrictEqual(r.notes.filter(n => /left out/.test(n)), []);
+  assert.strictEqual(netOf(r, 'R1', '1'), netOf(r, 'R2', '1'));
+  assert.strictEqual(netOf(r, 'R1', '2'), netOf(r, 'R2', '2'));
 });
 
 let failed = 0;

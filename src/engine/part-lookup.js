@@ -67,7 +67,20 @@ function generic(query, lib) {
   return null;
 }
 
-// --- pins: "D5", "GND", "3", "+" -> the index of the pin in the footprint ---
+// pin roles of the common TO-92 / TO-220 parts by value, in pin order (first match wins)
+const ROLES = [
+  [/2N7000/, ['S', 'G', 'D']],
+  [/IRL|IRF/, ['G', 'D', 'S']],
+  [/78\d\d/, ['IN', 'GND', 'OUT']],
+  [/79\d\d/, ['GND', 'IN', 'OUT']],
+  [/LM317|LM1117|AMS1117|LD1117/, ['ADJ', 'OUT', 'IN']],
+  [/BC5\d\d/, ['C', 'B', 'E']],
+  [/2N2222|2N3904|2N3906/, ['E', 'B', 'C']],
+  [/TIP(12\d|3\d)/, ['B', 'C', 'E']],
+];
+const rolesFor = (text) => { const t = String(text).toUpperCase().replace(/[^A-Z0-9]/g, ''); return ROLES.find(([re]) => re.test(t))?.[1]; };
+
+// --- pins: "D5","GND", "3", "+" -> the index of the pin in the footprint ---
 const pinKey = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9+-]/g, '');
 const PIN_ALIASES = { ANODE: 'A', CATHODE: 'K', C: 'K', PLUS: '+', POS: '+', MINUS: '-', NEG: '-', VCC: '+', GND: '-' };
 
@@ -81,7 +94,7 @@ export function findPin(pins, ref) {
   i = pins.findIndex(p => String(p.label ?? '').split('/').some(n => pinKey(n) === k));
   if (i >= 0) return i;
   // "GPIO5" for "5", "D5" for "5", or "1:GND"-style labels
-  i = labels.findIndex(l => l.replace(/^(GPIO|IO|PIN|P)/, '') === k.replace(/^(GPIO|IO|PIN|P)/, ''));
+  i = labels.findIndex(l => l.replace(/^(GPIO|IO|PIN|P|D)/, '') === k.replace(/^(GPIO|IO|PIN|P|D)/, ''));
   if (i >= 0) return i;
   if (PIN_ALIASES[k]) { i = labels.indexOf(PIN_ALIASES[k]); if (i >= 0) return i; }
   // a pin number: the pin of that label, else the n-th pin
@@ -257,6 +270,11 @@ export function resolveCircuit(data, lib) {
     const pins = foot.pins.map(pin => ({ offset: [pin.offset[0], pin.offset[1]], label: pin.label ?? '', net: pin.net || '' }));
     // "labels": the part's own pin names in pin order (a module on a plain pin header)
     if (Array.isArray(p.labels)) p.labels.slice(0, pins.length).forEach((l, k) => { if (l != null && l !== '') pins[k].label = String(l); });
+    // a generic TO-92 / TO-220 with a known value: pins named by role (the numbers still work)
+    if (!placeholder && !p.labels && pins.length === 3 && (foot.name === 'TO-92' || foot.name === 'Transistor TO-220')) {
+      const roles = rolesFor(`${p.value ?? ''} ${p.part ?? p.name ?? ''}`);
+      if (roles) roles.forEach((l, k) => { pins[k].label = l; });
+    }
     const comp = {
       id,
       name: foot.name,

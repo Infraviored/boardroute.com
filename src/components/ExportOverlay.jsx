@@ -227,7 +227,11 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 }
 
 const PCT_MIN = 25, PCT_MAX = 1000, PCT_DEFAULT = 200;
-const clampPct = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(PCT_MAX, Math.max(PCT_MIN, Math.round(n))) : PCT_DEFAULT; };
+const clampPct = (v) => {
+    if (v === '' || v === null || v === undefined) return PCT_DEFAULT;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.min(PCT_MAX, Math.max(PCT_MIN, Math.round(n))) : PCT_DEFAULT;
+};
 
 // the old checkbox ("pcb_print_actual"-less) defaulted to actual size; keep that unless a mode was saved
 function loadPrintSize() {

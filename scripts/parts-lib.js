@@ -149,7 +149,7 @@ export function circuitLink(circuit) {
   return `${SITE}/#circuit=${encodeURIComponent(JSON.stringify(circuit)).replace(/\(/g, '%28').replace(/\)/g, '%29')}`;
 }
 
-const POWER = /^(GND|VCC|VIN|VDD|VSS|3V3|5V|3\.3V|\+|-|EN|RST|RESET|NC)\b/i;
+const POWER = /^(?:(GND|VCC|VIN|VDD|VSS|3V3|5V|3\.3V|EN|RST|RESET|NC)\b|\+|-)/i;
 // a small circuit using the part: a resistor and an LED between a signal pin and ground
 export function exampleFor(m) {
   const n = m.ls.length;

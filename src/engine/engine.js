@@ -5,7 +5,7 @@ import { netCompletion } from './net-completion.js';
 import { areaLowerBound, isPerfect, targetExcess } from './lower-bound.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
-import { placeInitial, compOptions } from './initial-placement.js';
+import { placeInitial, compOptions, makeComp } from './initial-placement.js';
 import { anneal, moveComp, rotateComp90InPlace, hasOverlap, anyOverlap } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
 import { analyzeTopology } from './topology.js';
@@ -148,7 +148,7 @@ export class AutorouterEngine {
             if (this.components.length) {
                 const b = calculateComponentBounds(this.components);
                 if (Math.max(Math.abs(b.minCol), Math.abs(b.maxCol), Math.abs(b.minRow), Math.abs(b.maxRow)) > FAR) {
-                    recenterComponents(this.components, newState.wires || this.wires);
+                    recenterComponents(this.components, Array.isArray(newState.wires) ? newState.wires : null);
                 }
             }
         }
@@ -698,16 +698,13 @@ export class AutorouterEngine {
             const oldComp = this.components.find(c => c.id === searchId);
             if (!oldComp) {
                 // Add new
-                // next to the board, not at (cols, rows): coordinates stay near the origin
+                // fully right of the board, not at (cols, rows): coordinates stay near the origin with no overlap
                 let x = 0, y = 0;
                 if (this.components.length) {
                     const b = calculateComponentBounds(this.components);
-                    x = b.maxCol + 6; y = Math.round((b.minRow + b.maxRow) / 2);
+                    x = b.maxCol + 3; y = Math.round((b.minRow + b.maxRow - def.h) / 2);
                 }
-                const freshComps = placeInitial([def], x, y);
-                if (freshComps && freshComps.length > 0) {
-                    this.components.push(freshComps[0]); 
-                }
+                this.components.push(makeComp(def, x, y));
             } else {
                 // Update in-place
                 oldComp.id = def.id; // Apply rename if occurred

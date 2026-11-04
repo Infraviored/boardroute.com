@@ -453,7 +453,9 @@ function resistorBodySVG(c, rings) {
 
 // opts.photoOpacity: how strongly the part's photo shows (board 0.3: wires under it stay visible);
 // opts.mirrorPhoto: the solder-side view (the part's box is mirrored, the photo with it);
-// opts.text: BOARD_TEXT (default) or EXPORT_TEXT
+// opts.text: BOARD_TEXT (default) or EXPORT_TEXT;
+// opts.mark === false: no stand-in marking (the export/print)
+export const STANDIN_COLOR = '#d29922'; // = --org
 export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null, opts = {}) {
   const T = opts.text || BOARD_TEXT;
   const { x: bx, y: by, w: bw, h: bh } = bodyRect(c);
@@ -493,7 +495,13 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   // the side that faces out: a small arrow just outside the middle of that edge
   if (c.edge >= 0) out += `<path d="${edgeArrowPath(bx, by, bw, bh, c.edge)}" fill="none" stroke="${mainColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none"/>`;
 
+  // a stand-in part (not in any library): dashed amber outline and a "?" badge on the corner
   let labelsOut = '';
+  if (c.placeholder && opts.mark !== false) {
+    labelsOut += `<rect x="${bx - 3}" y="${by - 3}" width="${bw + 6}" height="${bh + 6}" rx="6" fill="none" class="pcb-standin" stroke="${STANDIN_COLOR}" stroke-width="1.8" stroke-dasharray="5 3" style="pointer-events:none"/>`
+      + `<circle cx="${bx + bw}" cy="${by}" r="8" fill="${STANDIN_COLOR}" stroke="#000" stroke-width="1" style="pointer-events:none"/>`
+      + `<text x="${bx + bw}" y="${by}" dy=".35em" text-anchor="middle" fill="#000" font-family="'Outfit', sans-serif" font-weight="900" font-size="11" style="pointer-events:none;user-select:none">?</text>`;
+  }
   const pinText = `fill="#fff" font-family="'Outfit', sans-serif" font-weight="900"`;
   const pinTextEnd = `text-anchor="middle" paint-order="stroke" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;user-select:none"`;
   // 2. Draw Pins
@@ -927,7 +935,7 @@ export function generatePrunedSVG({ components, wires, side = 'top', padding = 3
     ox: c.ox - minC,
     oy: c.oy - minR,
     pins: c.pins.map(p => ({ ...p, col: p.col - minC, row: p.row - minR }))
-  }, 'split', null, photos?.[c.id] || null, partLabels[c.id], { photoOpacity: 0.55, mirrorPhoto: isBottom, text: EXPORT_TEXT, mono }));
+  }, 'split', null, photos?.[c.id] || null, partLabels[c.id], { photoOpacity: 0.55, mirrorPhoto: isBottom, text: EXPORT_TEXT, mono, mark: false }));
   const bases = rendered.map(r => r.base).join(''), compLabels = rendered.map(r => r.labels).join('');
   // top: wires -> parts -> jumpers (component side); bottom: parts -> wires -> part labels on top
   const content = isBottom ? bases + wiresContent + jumpersContent + compLabels : wiresContent + bases + compLabels + jumpersContent;

@@ -42,6 +42,7 @@ PART NAMES
 - DIP-N for a bare chip, e.g. "DIP-8, NE555" (pins 1..N in datasheet order)
 - Modules, with the pin names printed on them: Wemos D1 Mini, ESP32 DevKit V1, ESP32-C3 SuperMini, ESP32-S2 Mini, Arduino Nano, DHT11, Relay SRD-05VDC (COM, NO, NC, A1, A2), LCD 16x2
 - Any other module (sensor board, converter, display): its name, then its pins in order in brackets, as U2 above. Give each pin a different name.
+- More parts and their pin names: https://boardroute.com/parts.txt
 
 CHECK: every ID in "connections" is in "parts"; every pin of a resistor, capacitor, LED and diode is connected; every powered part has GND and its supply.
 

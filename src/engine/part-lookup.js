@@ -68,7 +68,7 @@ function generic(query, lib) {
 }
 
 // pin roles of the common TO-92 / TO-220 parts by value, in pin order (first match wins)
-const ROLES = [
+export const ROLES = [
   [/2N7000/, ['S', 'G', 'D']],
   [/IRL|IRF/, ['G', 'D', 'S']],
   [/78\d\d/, ['IN', 'GND', 'OUT']],
@@ -78,7 +78,7 @@ const ROLES = [
   [/2N2222|2N3904|2N3906/, ['E', 'B', 'C']],
   [/TIP(12\d|3\d)/, ['B', 'C', 'E']],
 ];
-const rolesFor = (text) => { const t = String(text).toUpperCase().replace(/[^A-Z0-9]/g, ''); return ROLES.find(([re]) => re.test(t))?.[1]; };
+export const rolesFor = (text) => { const t = String(text).toUpperCase().replace(/[^A-Z0-9]/g, ''); return ROLES.find(([re]) => re.test(t))?.[1]; };
 
 // --- pins: "D5","GND", "3", "+" -> the index of the pin in the footprint ---
 const pinKey = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9+-]/g, '');
@@ -117,6 +117,9 @@ function search(query, lib, pinRefs) {
 
 /** Finds the footprint for a part name: { part, guess } or { part: null, suggestions }. */
 export function lookupPart(query, lib, pinRefs = []) {
+  // the full name of a library part ("Electrolytic Cap 10mm", "DIP-8_W10.16mm") is that part, not the generic it starts with
+  const exact = lib.find(e => squash(e.c.name) === squash(query));
+  if (exact) return { part: exact.c, guess: false };
   const g = generic(query, lib);
   if (g) return { part: g, guess: false };
   const hits = search(query, lib, pinRefs);
@@ -152,6 +155,8 @@ function genericPrefix(s, lib) {
   return 0;
 }
 export function parsePartString(str, lib) {
+  const whole = String(str).trim();
+  if (lib.some(e => squash(e.c.name) === squash(whole))) return { part: whole, value: '', brk: null }; // a library part's full name, commas and all
   let [head, tail] = splitTop(String(str).trim());
   let brk = null;
   const grab = (t) => {
@@ -162,7 +167,7 @@ export function parsePartString(str, lib) {
   };
   head = grab(head);
   let value = tail == null ? '' : grab(tail);
-  if (tail == null) {
+  if (tail == null && !lib.some(e => squash(e.c.name) === squash(head))) { // a library part's full name stays whole
     const n = genericPrefix(head, lib);
     if (n > 0 && head.slice(n).trim()) {
       value = head.slice(n).trim().replace(/^(capacitor|cap|kondensator|resistor|widerstand|led|diode)\s+/i, '');

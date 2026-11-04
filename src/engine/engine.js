@@ -714,7 +714,7 @@ export class AutorouterEngine {
                 oldComp.name = def.name;
                 oldComp.value = def.value;
                 oldComp.color = def.color;
-                delete oldComp.swap; delete oldComp.edge; delete oldComp.bands;
+                delete oldComp.swap; delete oldComp.edge; delete oldComp.bands; delete oldComp.placeholder;
                 Object.assign(oldComp, compOptions(def));
 
                 const incomingPins = def.offsets.map((off, idx) => ({

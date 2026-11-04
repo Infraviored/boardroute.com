@@ -77,6 +77,7 @@ export function SidebarRight({
   components = [],
   wires = [],
   onSetBands = null,
+  onReplaceStandIn = null, // { library(id), photo(id), keep(id) } for a stand-in part
   onRotateComp = null, // Rotate / Edit / Delete buttons for the selected part (null while a run is busy)
   onEditComp = null,
   onDeleteComp = null,
@@ -161,6 +162,18 @@ export function SidebarRight({
           <div id="selInfo">
             {onRotateComp && onEditComp && onDeleteComp && (
               <PartActions variant="inspector" comp={selectedComp} onRotate={onRotateComp} onEdit={onEditComp} onDelete={onDeleteComp} canRotate={canRotate} />
+            )}
+            {selectedComp.placeholder && (
+              <div className="rs-standin">
+                <div className="rs-standin-head"><AlertTriangle size={13} /> <span>Stand-in — check pins. Not in any library, drawn as a plain pin header.</span></div>
+                {onReplaceStandIn && (
+                  <div className="rs-standin-btns" role="group" aria-label="Replace…">
+                    <button type="button" onClick={() => onReplaceStandIn.library(selectedComp.id)} title="Search the library for the real part; connections move to the pins with the same name">Pick from library</button>
+                    <button type="button" onClick={() => onReplaceStandIn.photo(selectedComp.id)} title="Pins and outline from a photo of the part">Footprint from a photo</button>
+                    <button type="button" onClick={() => onReplaceStandIn.keep(selectedComp.id)} title="It is right as it is: remove the stand-in marking">Keep as pin header</button>
+                  </div>
+                )}
+              </div>
             )}
             <div className="prop-list">
               <div className="prop-item">
@@ -353,6 +366,12 @@ export function SidebarRight({
         }
         .rs-jumpers { color: var(--blu-bright); }
         .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--org); }
+        .rs-standin { margin: 8px 12px 0; padding: 8px 10px; border: 1px dashed var(--org); border-radius: 8px; }
+        .rs-standin-head { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; line-height: 1.35; color: var(--org); }
+        .rs-standin-head svg { flex: none; margin-top: 1px; }
+        .rs-standin-btns { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+        .rs-standin-btns button { text-align: left; padding: 6px 10px; font-size: 12px; font-weight: 600; background: var(--bg3, transparent); color: var(--txt0); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+        .rs-standin-btns button:hover { border-color: var(--org); }
         .rs-lonely svg { flex: none; margin-top: 1px; }
         .rs-board { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--txt2); }
         .rs-board-row { display: flex; align-items: center; gap: 5px; min-width: 0; }

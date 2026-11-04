@@ -28,7 +28,7 @@ function Thumb({ part }) {
     );
 }
 
-export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
+export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitle = null, initialSearch = null }) {
     const [curated, setCurated] = useState([]);
     const [kicad, setKicad] = useState(null); // null = not loaded yet
     const [kicadError, setKicadError] = useState(false);
@@ -54,6 +54,14 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
             .then(d => setKicad(d.parts || []))
             .catch(err => { console.error(err); setKicadError(true); setKicad([]); });
     }, [isOpen]);
+
+    // replacing a stand-in part: start with a search for its name (state adjusted while rendering)
+    const [seeded, setSeeded] = useState(null);
+    const seed = isOpen && initialSearch !== null ? initialSearch : null;
+    if (seed !== seeded) {
+        setSeeded(seed);
+        if (seed !== null) { setSearch(seed); setCategory('All'); setLimit(PAGE); }
+    }
 
     const entries = useMemo(() => [
         ...curated.map(c => indexPart(c, 'curated')),
@@ -86,7 +94,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto }) {
         <div className="overlay-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="modal lib-modal">
                 <div className="modal-header">
-                    <h3>Component library</h3>
+                    <h3>{replaceTitle || 'Component library'}</h3>
                     {onPhoto && (
                         <button className="lib-photo" onClick={onPhoto} title="Photo, pasted image or URL of the part: pins and size are read from it">
                             <Camera size={14} /> From a photo

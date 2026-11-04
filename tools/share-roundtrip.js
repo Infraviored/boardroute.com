@@ -13,7 +13,7 @@ const fail = (msg) => { failures++; console.log('  FAIL', msg); };
 
 const normComp = (c) => JSON.stringify({
   id: c.id, name: c.name || '', value: c.value || '', color: c.color || null, routeUnder: c.routeUnder !== false,
-  swap: c.swap?.length ? c.swap : null, edge: c.edge >= 0 ? c.edge : null,
+  swap: c.swap?.length ? c.swap : null, edge: c.edge >= 0 ? c.edge : null, placeholder: !!c.placeholder,
   w: c.w, h: c.h, ox: c.ox, oy: c.oy,
   pins: c.pins.map(p => [p.dCol, p.dRow, p.col, p.row, p.net || '', p.lbl ?? '']),
 });
@@ -55,13 +55,14 @@ for (const ex of examples) {
   comps[3].name = 'Relais "groß" ✓';
   comps[0].swap = [[0, 1]];
   comps[0].edge = 1;
+  comps[4].placeholder = true;
   const wires = [
     { net: 'VCC', failed: false, path: [{ col: comps[0].pins[0].col, row: comps[0].pins[0].row }, { col: comps[0].pins[0].col + 1, row: comps[0].pins[0].row }, { col: comps[0].pins[0].col + 1, row: comps[0].pins[0].row + 3 }] },
     { net: 'GND', failed: true, path: [{ col: 1, row: 1 }, { col: 2, row: 1 }] },
     { net: 'GATE', failed: false, jumper: true, path: [{ col: 3, row: 2 }, { col: 3, row: -2 }] },
   ];
   await check('synthetic', comps, wires);
-  console.log('synthetic (rotations, colour, routeUnder:false, swap, edge, failed + jumper wire, non-unit step, unicode): checked');
+  console.log('synthetic (rotations, colour, routeUnder:false, swap, edge, stand-in, failed + jumper wire, non-unit step, unicode): checked');
 }
 
 // Damaged links must fail with a ShareError, never with something else.

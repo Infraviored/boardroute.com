@@ -313,13 +313,15 @@ function insideLabel(c, title, sub, T) {
 export function layoutPartLabels(components, opts = {}) {
   const res = {};
   const rects = components.map(c => bodyRect(c));
+  const shadows = rects.map(o => ({ x: o.x, y: o.y - SP, w: o.w, h: o.h + 2 * SP }));
   const tags = [];
   const prevIndices = opts.prevIndices;
   const T = opts.text || BOARD_TEXT;
   const HYSTERESIS_MARGIN = 2.0;
   const avoid = opts.avoid || [], B = opts.bounds;
 
-  for (const c of components) {
+  for (let cIdx = 0; cIdx < components.length; cIdx++) {
+    const c = components[cIdx];
     const title = partTitle(c);
     const sub = title && title.toLowerCase() !== String(c.id).toLowerCase() ? c.id : null;
     const fit = insideLabel(c, title, sub, T);
@@ -327,11 +329,17 @@ export function layoutPartLabels(components, opts = {}) {
 
     const fs = T.tag, text = title || c.id;
     const w = (sub ? textWidth(`${c.id} `, fs) : 0) + textWidth(text, fs) + 6, h = fs + 5;
-    const b = bodyRect(c), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    const b = rects[cIdx], cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     const cands = [];
     for (const g of [SP * .45, SP * 1.1]) {
       cands.push([cx - w / 2, b.y - g - h], [cx - w / 2, b.y + b.h + g], [b.x + b.w + g, cy - h / 2], [b.x - g - w, cy - h / 2],
         [b.x + b.w + g * .5, b.y - g - h], [b.x - g * .5 - w, b.y - g - h], [b.x + b.w + g * .5, b.y + b.h + g], [b.x - g * .5 - w, b.y + b.h + g]);
+    }
+    // Edge-aligned below/above (left edges or right edges flush): a tag much wider than a small part
+    // then runs one way instead of sticking out on both sides under the neighbours. Appended after
+    // the centred ones so the remembered candidate indices stay valid.
+    for (const g of [SP * .45, SP * 1.1]) {
+      cands.push([b.x, b.y + b.h + g], [b.x + b.w - w, b.y + b.h + g], [b.x, b.y - g - h], [b.x + b.w - w, b.y - g - h]);
     }
 
     let best = null;
@@ -341,14 +349,21 @@ export function layoutPartLabels(components, opts = {}) {
     cands.forEach(([x, y], i) => {
       const r = { x, y, w, h };
       const tx = r.x + r.w / 2, ty = r.y + r.h / 2;
-      const ax = Math.min(Math.max(tx, b.x), b.x + b.w), ay = Math.min(Math.max(ty, b.y), b.y + b.h);
+      // the part's middle is under/over the tag: drop straight down from it
+      const ax = cx >= r.x && cx <= r.x + r.w ? cx : Math.min(Math.max(tx, b.x), b.x + b.w);
+      const ay = Math.min(Math.max(ty, b.y), b.y + b.h);
       const lx = Math.min(Math.max(ax, r.x), r.x + r.w), ly = Math.min(Math.max(ay, r.y), r.y + r.h);
 
       let score = i * 0.01; // on a tie, the earlier (closer) spot
-      for (const o of rects) {
+      for (let oi = 0; oi < rects.length; oi++) {
+        const o = rects[oi];
         score += overlap(r, o);
-        if (o !== b && segmentIntersectsRect(ax, ay, lx, ly, o.x, o.y, o.w, o.h)) {
-          score += 500;
+        if (oi !== cIdx) {
+          // a tag one row above/below another part reads as that part's tag: small "shadow" penalty
+          score += 0.5 * overlap(r, shadows[oi]);
+          if (segmentIntersectsRect(ax, ay, lx, ly, o.x, o.y, o.w, o.h)) {
+            score += 500;
+          }
         }
       }
       for (const t of tags) score += 2 * overlap(r, t);

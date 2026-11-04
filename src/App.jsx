@@ -531,6 +531,7 @@ const [board, setBoard] = useState(() => {
     const s = swapGroups(compDef) || swapGroups(def);
     const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, ...(s ? { swap: s } : {}), ...(def.edge >= 0 ? { edge: def.edge } : {}), w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     // Show it big in the editor first (pins, nets, body can be adjusted); "Add to circuit" adds it.
+    setReplacing(null);
     setIsLibraryOpen(false);
     setEditorPhoto(photo);
     setEditorMode('add');
@@ -544,12 +545,13 @@ const [board, setBoard] = useState(() => {
     const newJson = generateJSONFromState(newComps);
     setJsonInput(JSON.stringify(newJson, null, 2));
     const defs = processTemplate(newJson);
-    if (!defs) return;
+    if (!defs) return false;
     engine.mergeBoard(defs);
     setStatus(prev => ({ ...prev, isProcessing: true }));
     let whole = true;
     try { whole = await engine.repairPart(changedId); } finally { setStatus(prev => ({ ...prev, isProcessing: false })); }
     if (!whole && engine.wires.length) setNotice({ kind: 'warn', title: `${changedId} no longer fits where it was`, text: 'Some connections broke. Press Compact to rearrange the board around the changed part.' });
+    return whole;
   }, [engine]);
 
   const handleSaveEdit = useCallback(async (edited) => {
@@ -599,17 +601,39 @@ const [board, setBoard] = useState(() => {
     const def = processTemplate({ components: [{ ...compDef, id: old.id }] })?.[0];
     if (!def) return;
     const free = new Set(old.pins.map((_, i) => i));
-    const take = (test) => { for (const i of free) if (test(old.pins[i], i)) { free.delete(i); return i; } return -1; };
+    const take = (test) => {
+      let candidate = -1;
+      for (const i of free) {
+        if (test(old.pins[i], i)) {
+          if (old.pins[i].net) { free.delete(i); return i; }
+          if (candidate < 0) candidate = i;
+        }
+      }
+      if (candidate >= 0) free.delete(candidate);
+      return candidate;
+    };
     const lbl = (s) => String(s ?? '').trim();
     const src = def.pinLbls.map(() => -1);
     const passes = [
       (l) => (p) => lbl(p.lbl) === l,
       (l) => (p) => lbl(p.lbl).toLowerCase() === l.toLowerCase(),
-      (l) => (p, i) => /^\d+$/.test(l) && (String(i + 1) === l || lbl(p.lbl) === l),
+      (l) => (p, i) => /^\d+$/.test(l) && String(i + 1) === l,
     ];
-    for (const pass of passes) def.pinLbls.forEach((l, k) => { if (src[k] < 0 && lbl(l)) src[k] = take(pass(lbl(l))); });
+    let mappedByNumber = false;
+    for (const pass of passes.slice(0, 2)) def.pinLbls.forEach((l, k) => { if (src[k] < 0 && lbl(l)) src[k] = take(pass(lbl(l))); });
+    def.pinLbls.forEach((l, k) => {
+      if (src[k] < 0 && lbl(l)) {
+        const i = take(passes[2](lbl(l)));
+        if (i >= 0) { src[k] = i; mappedByNumber = true; }
+      }
+    });
     // a pin number of the new part (its position in the list) also finds an old pin with that label
-    def.pinLbls.forEach((l, k) => { if (src[k] < 0) src[k] = take(p => lbl(p.lbl) === String(k + 1)); });
+    def.pinLbls.forEach((l, k) => {
+      if (src[k] < 0) {
+        const i = take(p => lbl(p.lbl) === String(k + 1));
+        if (i >= 0) { src[k] = i; mappedByNumber = true; }
+      }
+    });
     const lost = [...free].filter(i => old.pins[i].net).map(i => `${old.pins[i].lbl || i + 1} (${old.pins[i].net})`);
     const comp = {
       id: old.id, name: compDef.name, value: old.value || compDef.value || '', color: old.color || compDef.color || null,
@@ -618,11 +642,27 @@ const [board, setBoard] = useState(() => {
       pins: def.offsets.map(([dc, dr], k) => ({ dCol: dc, dRow: dr, col: old.ox + dc, row: old.oy + dr, lbl: def.pinLbls[k], net: src[k] >= 0 ? old.pins[src[k]].net || '' : '' })),
     };
     setPictures(prev => { const next = { ...prev }; delete next[old.id]; return next; });
-    await applyEditedParts(board.components.map(c => c.id === old.id ? comp : c), old.id);
+    const whole = await applyEditedParts(board.components.map(c => c.id === old.id ? comp : c), old.id);
     setSelectedId(old.id); saveHistory();
-    setNotice(lost.length
-      ? { kind: 'warn', title: `${old.id}: ${lost.length} connection${lost.length === 1 ? '' : 's'} could not be moved to ${compDef.name}`, text: `No pin of the new part matches: ${lost.join(', ')}. Connect ${lost.length === 1 ? 'it' : 'them'} again with the pins of the new part.` }
-      : { kind: 'info', title: `${old.id} is now ${compDef.name}`, text: 'All connections moved to the pins with the same name.' });
+    if (!whole && engine.wires.length) {
+      setNotice({
+        kind: 'warn',
+        title: `${old.id} no longer fits where it was`,
+        text: `Some connections broke. Press Compact to rearrange the board around the changed part.${lost.length ? ` ${lost.length} connection${lost.length === 1 ? '' : 's'} could not be moved: ${lost.join(', ')}.` : (mappedByNumber ? ' Connections moved by pin number, check them.' : '')}`,
+      });
+    } else if (lost.length) {
+      setNotice({
+        kind: 'warn',
+        title: `${old.id}: ${lost.length} connection${lost.length === 1 ? '' : 's'} could not be moved to ${compDef.name}`,
+        text: `No pin of the new part matches: ${lost.join(', ')}. Connect ${lost.length === 1 ? 'it' : 'them'} again with the pins of the new part.${mappedByNumber ? ' Other connections moved by pin number, check them.' : ''}`,
+      });
+    } else {
+      setNotice({
+        kind: 'info',
+        title: `${old.id} is now ${compDef.name}`,
+        text: mappedByNumber ? 'Connections moved by pin number, check them.' : 'All connections moved to the pins with the same name.',
+      });
+    }
   }, [board.components, replacing, applyEditedParts, saveHistory, setPictures]);
 
   // the project file: board plus the pictures of its parts (also what an account saves)
@@ -912,7 +952,7 @@ const [board, setBoard] = useState(() => {
           }}
           components={board.components} selectedId={selectedId}
           onSelectComponent={selectComp}
-          onOpenLibrary={() => setIsLibraryOpen(true)}
+          onOpenLibrary={() => { setReplacing(null); setIsLibraryOpen(true); }}
           onAddNewComponent={() => {
             setEditorPhoto(null);
             setEditorMode('edit');
@@ -1009,8 +1049,8 @@ const [board, setBoard] = useState(() => {
       <FastTooltips />
       <LibraryOverlay isOpen={isLibraryOpen} onClose={() => { setIsLibraryOpen(false); setReplacing(null); }} onSelect={(c) => (replacing ? handleReplaceWith(c) : handleAddFromLibrary(c))}
         replaceTitle={replacing ? `Replace ${replacing}` : null} initialSearch={replacing ? standInQuery(board.components.find(c => c.id === replacing)) : null}
-        onPhoto={() => handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, 'pick')} />
-      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} photo={editorPhoto} />
+        onPhoto={() => { setReplacing(null); handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, 'pick'); }} />
+      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setReplacing(null); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} photo={editorPhoto} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay
         isOpen={confirmData.isOpen}

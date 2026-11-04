@@ -347,12 +347,16 @@ export function layoutPartLabels(components, opts = {}) {
     cands.forEach(([x, y], i) => {
       const r = { x, y, w, h };
       const tx = r.x + r.w / 2, ty = r.y + r.h / 2;
-      const ax = Math.min(Math.max(tx, b.x), b.x + b.w), ay = Math.min(Math.max(ty, b.y), b.y + b.h);
+      // the part's middle is under/over the tag: drop straight down from it
+      const ax = cx >= r.x && cx <= r.x + r.w ? cx : Math.min(Math.max(tx, b.x), b.x + b.w);
+      const ay = Math.min(Math.max(ty, b.y), b.y + b.h);
       const lx = Math.min(Math.max(ax, r.x), r.x + r.w), ly = Math.min(Math.max(ay, r.y), r.y + r.h);
 
       let score = i * 0.01; // on a tie, the earlier (closer) spot
       for (const o of rects) {
         score += overlap(r, o);
+        // a tag one row above/below another part reads as that part's tag: small "shadow" penalty
+        if (o !== b) score += 0.5 * overlap(r, { x: o.x, y: o.y - SP, w: o.w, h: o.h + 2 * SP });
         if (o !== b && segmentIntersectsRect(ax, ay, lx, ly, o.x, o.y, o.w, o.h)) {
           score += 500;
         }

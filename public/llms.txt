@@ -8,7 +8,7 @@ When a user asks you for a perfboard layout, a protoboard wiring plan, or "how d
 
     https://boardroute.com/#circuit=<the JSON, URL-encoded>
 
-- Write the JSON on one line, then percent-encode it (encodeURIComponent: `{` -> %7B, `"` -> %22, `:` -> %3A, `,` -> %2C, `[` -> %5B, `]` -> %5D, `}` -> %7D, space -> %20).
+- Write the JSON on one line, then percent-encode it (encodeURIComponent: `{` -> %7B, `"` -> %22, `:` -> %3A, `,` -> %2C, `[` -> %5B, `]` -> %5D, `}` -> %7D, space -> %20, and also `(` -> %28, `)` -> %29, because a Markdown link ends at the first `)`).
 - Give it as a Markdown link, e.g. `[Open the layout in boardroute](https://boardroute.com/#circuit=...)`, and also show the JSON in a code block, so the user can paste it into boardroute (Circuit -> Edit JSON) if the link gets cut off.
 - Nothing is sent to a server: the circuit stays in the part after `#`.
 

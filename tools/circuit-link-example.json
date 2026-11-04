@@ -1,0 +1,14 @@
+{
+  "parts": [
+    { "id": "U1", "part": "Wemos D1 Mini" },
+    { "id": "R1", "part": "resistor", "value": "220" },
+    { "id": "D1", "part": "LED", "value": "red" },
+    { "id": "SW1", "part": "button" }
+  ],
+  "nets": {
+    "GND": ["U1.GND", "D1.K", "SW1.2"],
+    "LED": ["U1.D5", "R1.1"],
+    "LEDA": ["R1.2", "D1.A"],
+    "BTN": ["U1.D6", "SW1.1"]
+  }
+}

@@ -16,6 +16,7 @@ import { ResultCard } from './components/ResultCard.jsx';
 import { PartActions } from './components/PartActions.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
+import { circuitFromLocation, withoutCircuit } from './circuit-link.js';
 import { decodeShare, shareFromHash, shareUrl, validateBoardData } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES, isBands } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
@@ -308,9 +309,9 @@ const [board, setBoard] = useState(() => {
   // Parse the circuit JSON; problems become a visible notice instead of a silent no-op.
   // The short format (parts by name + net list) gets its footprints from the library first.
   // Returns the part defs, plus `notes` (library guesses the user should check).
-  const parseCircuit = useCallback(async () => {
+  const parseCircuit = useCallback(async (text = jsonInput) => {
     let data;
-    try { data = JSON.parse(jsonInput); } catch (e) {
+    try { data = JSON.parse(text); } catch (e) {
       setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it under Circuit → Edit JSON.` });
       return null;
     }
@@ -364,9 +365,9 @@ const [board, setBoard] = useState(() => {
   // Wire (step 2): fresh placement, rearranged only until every net is connected.
   // Compact (step 3): shrink from the current board (also after moving parts by hand).
   const layoutRun = useRef(null); // the running engine.layout(), if any
-  const runLayout = useCallback(async (refine) => {
-    const defs = await parseCircuit();
-    if (!defs) return;
+  const runLayout = useCallback(async (refine, text) => {
+    const defs = await parseCircuit(text);
+    if (!defs) return false;
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
     setResultCard(null);
@@ -421,6 +422,7 @@ const [board, setBoard] = useState(() => {
       });
     }
     setSnapCounter(c => c + 1); saveHistory();
+    return !!res?.found;
   }, [engine, parseCircuit, saveHistory, boardView]);
 
   const handleShareLink = useCallback(() => {
@@ -720,7 +722,9 @@ const [board, setBoard] = useState(() => {
   const [shareValue] = useState(() => shareFromHash(window.location.hash));
   // a circuit shared from an account: /?c=<slug>
   const [sharedSlug] = useState(() => new URLSearchParams(window.location.search).get('c'));
-  const [shareState, setShareState] = useState(shareValue || sharedSlug ? 'pending' : 'none'); // none | pending | done | failed
+  // circuit link (#circuit=<JSON> or ?circuit=, see circuit-link.js): '' = unreadable
+  const [circuitValue] = useState(() => circuitFromLocation(window.location.hash, window.location.search));
+  const [shareState, setShareState] = useState(shareValue || sharedSlug || circuitValue != null ? 'pending' : 'none'); // none | pending | done | failed
   const loadShare = useCallback((value) => decodeShare(value).then(({ components, wires }) => {
     engine.setState({ components, wires });
     // Pictures are not in share links. Keep the ones that still fit a part of the same id and
@@ -753,9 +757,33 @@ const [board, setBoard] = useState(() => {
     boardLoaded(wires.length ? 2 : 1, { current });
     return true;
   }, [engine, boardLoaded, setPictures]);
+  // Circuit link: put the circuit on a fresh board (Undo returns), then Wire and, if that
+  // found a layout, Compact. The text is passed on explicitly (state is not updated yet).
+  const loadCircuitLink = useCallback(async (text) => {
+    window.history.replaceState(null, '', withoutCircuit(window.location.pathname, window.location.hash, window.location.search));
+    if (!text) {
+      setNotice({ kind: 'error', title: 'This circuit link could not be opened', text: 'The circuit in the link is not valid JSON. Ask for the link again, and make sure it was copied completely.' });
+      setShareState('failed');
+      return;
+    }
+    const defs = await parseCircuit(text);
+    if (!defs) { setShareState('failed'); return; }
+    const pretty = JSON.stringify(JSON.parse(text), null, 2);
+    setJsonInput(pretty);
+    setPictures({});
+    engine.initializeBoard(defs);
+    boardLoaded(1);
+    if (defs.notes.length) setNotice({ kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') });
+    setShareState('done');
+    window.goatcounter?.count?.({ path: 'circuit-link', title: `${defs.length} parts`, event: true });
+    if (await runLayout(false, pretty) && engine.wires.length) await runLayout(true, pretty);
+    // layout runs clear the notice; keep the library guesses visible unless something more important came up
+    if (defs.notes.length) setNotice(prev => prev || { kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') });
+  }, [engine, parseCircuit, boardLoaded, setPictures, runLayout]);
   const shareStarted = useRef(false);
   useEffect(() => {
     if (shareStarted.current) return;
+    if (circuitValue != null) { shareStarted.current = true; loadCircuitLink(circuitValue); return; }
     if (shareValue) { shareStarted.current = true; loadShare(shareValue); return; }
     if (!sharedSlug) return;
     shareStarted.current = true;
@@ -770,7 +798,7 @@ const [board, setBoard] = useState(() => {
       setNotice({ kind: 'error', title: 'This shared circuit could not be opened', text: err.code === 'NOT_FOUND' ? 'Its owner stopped sharing it or deleted it.' : err.message });
       setShareState('failed');
     }).finally(() => window.history.replaceState(null, '', window.location.pathname + window.location.hash));
-  }, [shareValue, loadShare, sharedSlug, applySaved]);
+  }, [shareValue, loadShare, sharedSlug, applySaved, circuitValue, loadCircuitLink]);
 
   // Account: who is signed in; a sign-in link (#signin=<token>) from the mail signs in here
   useEffect(() => {
@@ -796,13 +824,14 @@ const [board, setBoard] = useState(() => {
     // a running Wire/Compact would put its own layout back when it ends: stop it first
     const onHash = async () => {
       const v = shareFromHash(window.location.hash);
-      if (!v) return;
+      const c = v ? null : circuitFromLocation(window.location.hash, '');
+      if (!v && c == null) return;
       if (layoutRun.current) { engine.cancel(); await layoutRun.current.catch(() => {}); }
-      loadShare(v);
+      if (v) loadShare(v); else loadCircuitLink(c);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
-  }, [loadShare, engine]);
+  }, [loadShare, loadCircuitLink, engine]);
 
   const examplesStarted = useRef(false);
   useEffect(() => {

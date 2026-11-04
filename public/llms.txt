@@ -54,6 +54,8 @@ Part names:
 - Modules, with the pin names printed on them: Wemos D1 Mini, ESP32 DevKit V1, ESP32-C3 SuperMini, ESP32-S2 Mini, Arduino Nano, DHT11, Relay SRD-05VDC (COM, NO, NC, A1, A2), LCD 16x2
 - Any other module (sensor board, converter, display): its name, then its pins in order in brackets, like U2 above. Give each pin a different name. boardroute places it as a pin header with those pins.
 
+Full list of the parts boardroute knows and their pin names, as plain text: https://boardroute.com/parts.txt (pinouts with footprint drawings: https://boardroute.com/parts/). Check a name and its pins there before you write it.
+
 Other names are looked up in a library of about 1,150 through-hole KiCad footprints (e.g. "DIP-14", "BarrelJack"). A part that is not found never stops the circuit: it becomes a pin header with the pins you used, marked for the user to check.
 
 Check before answering: every ID in "connections" is in "parts"; every pin of a resistor, capacitor, LED and diode is connected; every powered part has GND and its supply.

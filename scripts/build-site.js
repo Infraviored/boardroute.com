@@ -13,6 +13,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { Marked } from 'marked';
 import { generateBoardSVG } from '../src/engine/render-utils.js';
+import { modules, modulePath, exampleFor, footprintSvg, circuitLink } from './parts-lib.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'docs', 'how-it-works');
@@ -110,13 +111,14 @@ ${ANALYTICS}
 <body>
 <header class="site-head">
   <a class="logo" href="/">board<em>route.com</em></a>
-  <nav><a href="${BASE}">How it works</a><a href="${BASE}faq/">FAQ</a></nav>
+  <nav><a href="${BASE}">How it works</a><a href="${BASE}faq/">FAQ</a><a href="/parts/">Parts</a></nav>
   <a class="cta" href="/">Open the autorouter →</a>
 </header>
 ${body}
 <footer class="site-foot">
   <div class="foot-cols">
     <div><a class="logo" href="/">board<em>route.com</em></a><p>Free perfboard autorouter that runs in your browser. Nothing is uploaded.</p><p class="legal"><a href="/imprint/">Imprint</a> · <a href="/privacy/">Privacy</a></p></div>
+    <div><h4>Parts</h4><ul><li><a href="/parts/">Pinouts for perfboard</a></li><li><a href="/parts.txt">parts.txt (for AI assistants)</a></li></ul></div>
     <div><h4>How it works</h4><ul>${files.map(f => `<li><a href="${urlOf(f)}">${esc(summaries.get(f)?.nav || slugOf(f))}</a></li>`).join('')}</ul></div>
   </div>
 </footer>
@@ -204,8 +206,52 @@ for (const [file, slug, title] of [['imprint.md', 'imprint', 'Imprint'], ['priva
     }).replace('<meta name="viewport"', '<meta name="robots" content="noindex">\n<meta name="viewport"'));
 }
 
+// Parts: /parts/ (index by category) and /parts/<slug>/ per curated module
+const partPages = [];
+{
+    const cats = [...new Set(modules.map(m => m.cat))];
+    const code = (obj) => esc(JSON.stringify(obj, null, 2));
+    for (const m of modules) {
+        const example = exampleFor(m);
+        const link = circuitLink(example);
+        const path = modulePath(m);
+        const body = `<main class="article-layout legal-page"><article class="prose">
+  <p class="crumbs"><a href="/parts/">Parts</a> · ${esc(m.cat)}</p>
+  <h1>${esc(m.name)} pinout for perfboard</h1>
+  <p>${esc(m.name)}${m.value ? ` (${esc(m.value)})` : ''}: ${m.ls.length} pins, shown here as boardroute places it on a 2.54 mm perfboard. Write it as <code>${esc(m.name)}</code> in the "parts" of a boardroute circuit and refer to the pins by the names below.</p>
+  <figure class="board">${footprintSvg(m)}<figcaption>${esc(m.name)} footprint on the perfboard grid.</figcaption></figure>
+  <h2>Pins</h2>
+  <div class="table-wrap"><table><thead><tr><th>#</th><th>Pin name</th></tr></thead><tbody>${m.ls.map((l, i) => `<tr><td>${i + 1}</td><td><code>${esc(l)}</code></td></tr>`).join('')}</tbody></table></div>
+  <h2>Example</h2>
+  <p>A resistor and an LED on one pin of the ${esc(m.name)}:</p>
+  <pre><code>${code(example)}</code></pre>
+  <p><a class="try-link" href="${esc(link)}">Open in boardroute →</a></p>
+</article></main>`;
+        const description = `${m.name} pinout: ${m.ls.length} pins (${m.ls.slice(0, 8).join(', ')}${m.ls.length > 8 ? ', …' : ''}) and its footprint on a 2.54 mm perfboard. Open it in the boardroute autorouter.`;
+        const dir = join(OUT, 'parts', m.slug);
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, 'index.html'), page({
+            title: `${m.name} pinout for perfboard · boardroute`, description, path, body,
+            jsonld: [breadcrumb([['boardroute', '/'], ['Parts', '/parts/'], [m.name, path]])],
+        }));
+        partPages.push(path);
+    }
+    const body = `<main class="article-layout legal-page"><article class="prose">
+  <h1>Parts and pinouts for perfboard</h1>
+  <p>The ready-made boards and parts boardroute knows by name, with their pin names and footprints. AI assistants can read the full list, including about 1,150 KiCad through-hole footprints, as plain text: <a href="/parts.txt">parts.txt</a>. How to write a circuit: <a href="/llms.txt">llms.txt</a>.</p>
+  ${cats.map(c => `<h2>${esc(c)}</h2><ul>${modules.filter(m => m.cat === c).map(m => `<li><a href="${modulePath(m)}">${esc(m.name)}</a>${m.value ? ` <span style="color:var(--txt2)">${esc(m.value)}, ${m.ls.length} pins</span>` : ''}</li>`).join('')}</ul>`).join('\n  ')}
+</article></main>`;
+    mkdirSync(join(OUT, 'parts'), { recursive: true });
+    writeFileSync(join(OUT, 'parts', 'index.html'), page({
+        title: 'Parts and pinouts for perfboard · boardroute',
+        description: 'Pin names and perfboard footprints of the boards and parts boardroute knows: ESP32, Wemos D1 Mini, Arduino Nano, NE555, relays, displays and more.',
+        path: '/parts/', body, type: 'website',
+        jsonld: [breadcrumb([['boardroute', '/'], ['Parts', '/parts/']])],
+    }));
+}
+
 // Sitemap + robots
-const urls = ['/', BASE, ...articles.map(a => a.path)];
+const urls = ['/', BASE, ...articles.map(a => a.path), '/parts/', ...partPages];
 writeFileSync(join(OUT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${SITE}${u}</loc><lastmod>${TODAY}</lastmod></url>`).join('\n')}
@@ -214,4 +260,4 @@ ${urls.map(u => `  <url><loc>${SITE}${u}</loc><lastmod>${TODAY}</lastmod></url>`
 writeFileSync(join(OUT, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /stats/\n\nSitemap: ${SITE}/sitemap.xml\n`);
 
 if (!existsSync(join(OUT, 'index.html'))) console.warn(`note: ${OUT}/index.html missing -- run vite build first`);
-console.log(`site: ${articles.length} articles + hub, sitemap with ${urls.length} URLs -> ${OUT}`);
+console.log(`site: ${articles.length} articles + hub, ${partPages.length} part pages, sitemap with ${urls.length} URLs -> ${OUT}`);

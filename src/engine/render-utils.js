@@ -976,12 +976,16 @@ export function generateCombinedSVG(components, wires = [], options = {}) {
   // Extract inner content from both SVGs
   const getInner = (s) => s.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '');
 
-  // Get dimensions from one of them
-  const match = topSvg.match(/width="(\d+)" height="(\d+)"/);
-  if (!match) return '';
-  const [_, W_str, H_str] = match;
-  const W = parseInt(W_str);
-  const H = parseInt(H_str);
+  // Get dimensions from both views (take max to prevent clipping if mirrored labels differ)
+  const topMatch = topSvg.match(/width="(\d+)" height="(\d+)"/);
+  const bottomMatch = bottomSvg.match(/width="(\d+)" height="(\d+)"/);
+  if (!topMatch && !bottomMatch) return '';
+  const topW = topMatch ? parseInt(topMatch[1]) : 0;
+  const topH = topMatch ? parseInt(topMatch[2]) : 0;
+  const bottomW = bottomMatch ? parseInt(bottomMatch[1]) : 0;
+  const bottomH = bottomMatch ? parseInt(bottomMatch[2]) : 0;
+  const W = Math.max(topW, bottomW);
+  const H = Math.max(topH, bottomH);
 
   // stack: 'vertical' puts the solder side below the top side (fills a portrait page); default is side by side
   const vertical = options.stack === 'vertical';

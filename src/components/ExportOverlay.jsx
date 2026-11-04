@@ -34,15 +34,16 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         for (const c of source.components || []) if (partImages?.[c.id] && photoTurn(c, partImages[c.id]) >= 0) out[c.id] = partImages[c.id];
         return Object.keys(out).length ? out : null;
     }, [source.components, partImages]);
-    const stack = printSize === 'fill' && side === 'both' ? 'vertical' : undefined;
+    const stack = side === 'both' ? (printSize === 'fill' ? 'vertical' : 'auto') : undefined;
+    const scale = printSize === 'custom' ? clampPct(customPct) / 100 : 1;
     const svg = useMemo(() => {
         if (!isOpen || !source.components?.length) return '';
-        const opts = { padding: 3, stack, view: boardView, photos: pictures ? photos : null, mono: look === 'mono' };
+        const opts = { padding: 3, stack, scale, view: boardView, photos: pictures ? photos : null, mono: look === 'mono' };
         const raw = side === 'both'
             ? generateCombinedSVG(source.components, source.wires, opts)
             : generateBoardSVG(source.components, source.wires, { ...opts, side });
         return look === 'screen' ? raw : printThemeSVG(raw, { mono: look === 'mono' });
-    }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures, stack]);
+    }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures, stack, scale]);
 
     const previewUrl = useMemo(() => (svg ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) : ''), [svg]);
     useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -226,7 +227,11 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 }
 
 const PCT_MIN = 25, PCT_MAX = 1000, PCT_DEFAULT = 200;
-const clampPct = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(PCT_MAX, Math.max(PCT_MIN, Math.round(n))) : PCT_DEFAULT; };
+const clampPct = (v) => {
+    if (v === '' || v === null || v === undefined) return PCT_DEFAULT;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.min(PCT_MAX, Math.max(PCT_MIN, Math.round(n))) : PCT_DEFAULT;
+};
 
 // the old checkbox ("pcb_print_actual"-less) defaulted to actual size; keep that unless a mode was saved
 function loadPrintSize() {

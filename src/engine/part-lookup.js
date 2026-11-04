@@ -94,11 +94,16 @@ export function findPin(pins, ref) {
   i = pins.findIndex(p => String(p.label ?? '').split('/').some(n => pinKey(n) === k));
   if (i >= 0) return i;
   // "GPIO5" for "5", "D5" for "5", or "1:GND"-style labels
-  i = labels.findIndex(l => l.replace(/^(GPIO|IO|PIN|P|D)/, '') === k.replace(/^(GPIO|IO|PIN|P|D)/, ''));
+  i = labels.findIndex(l => l.replace(/^(GPIO|IO|PIN|P|D)(?=\d)/, '') === k.replace(/^(GPIO|IO|PIN|P|D)(?=\d)/, ''));
   if (i >= 0) return i;
   if (PIN_ALIASES[k]) { i = labels.indexOf(PIN_ALIASES[k]); if (i >= 0) return i; }
-  // a pin number: the pin of that label, else the n-th pin
-  if (/^\d+$/.test(k)) { const n = +k; if (n >= 1 && n <= pins.length) return n - 1; }
+  // a pin number: check for label starting with "<n>:" (e.g. "1:GN", "8:VC" on NE555 Timer), else the n-th pin
+  if (/^\d+$/.test(k)) {
+    i = pins.findIndex(p => new RegExp(`^${k}\\s*:`).test(String(p.label ?? '')));
+    if (i >= 0) return i;
+    const n = +k;
+    if (n >= 1 && n <= pins.length) return n - 1;
+  }
   return -1;
 }
 
@@ -122,6 +127,8 @@ export function lookupPart(query, lib, pinRefs = []) {
   if (exact) return { part: exact.c, guess: false };
   const g = generic(query, lib);
   if (g) return { part: g, guess: false };
+  const suf = genericSuffix(query, lib);
+  if (suf) { const gs = generic(suf.trail, lib); if (gs) return { part: gs, guess: false }; }
   const hits = search(query, lib, pinRefs);
   const best = hits[0];
   // every word found and every named pin present: sure; every word but not the pins: a guess
@@ -154,24 +161,54 @@ function genericPrefix(s, lib) {
   }
   return 0;
 }
+function genericSuffix(s, lib) {
+  const words = s.trim().split(/\s+/);
+  for (let i = 1; i < words.length; i++) {
+    const trail = words.slice(i).join(' ');
+    if (generic(trail, lib)) {
+      return { lead: words.slice(0, i).join(' '), trail };
+    }
+  }
+  return null;
+}
 export function parsePartString(str, lib) {
   const whole = String(str).trim();
   if (lib.some(e => squash(e.c.name) === squash(whole))) return { part: whole, value: '', brk: null }; // a library part's full name, commas and all
   let [head, tail] = splitTop(String(str).trim());
   let brk = null;
-  const grab = (t) => {
+  const grabHead = (t) => {
     const m = t.match(BRACKET);
     if (!m) return t.trim();
     brk ||= m[1].split(/[,;|]/).map(x => x.trim()).filter(Boolean);
     return t.replace(BRACKET, '').trim();
   };
-  head = grab(head);
-  let value = tail == null ? '' : grab(tail);
+  const grabTail = (t) => {
+    if (brk) return t.trim();
+    const m = t.match(BRACKET);
+    if (!m) return t.trim();
+    const list = m[1].split(/[,;|]/).map(x => x.trim()).filter(Boolean);
+    if (list.length >= 2) {
+      brk = list;
+      return t.replace(BRACKET, '').trim();
+    }
+    return t.trim();
+  };
+  head = grabHead(head);
+  let value = tail == null ? '' : grabTail(tail);
   if (tail == null && !lib.some(e => squash(e.c.name) === squash(head))) { // a library part's full name stays whole
     const n = genericPrefix(head, lib);
     if (n > 0 && head.slice(n).trim()) {
       value = head.slice(n).trim().replace(/^(capacitor|cap|kondensator|resistor|widerstand|led|diode)\s+/i, '');
       head = head.slice(0, n).trim();
+    }
+  }
+  if (!generic(head, lib)) {
+    const suf = genericSuffix(head, lib);
+    if (suf) {
+      head = suf.trail;
+      value = suf.lead + (value ? `, ${value}` : '');
+    } else if (generic(value, lib)) {
+      const tmp = head; head = value; value = tmp;
     }
   }
   return { part: head, value, brk: brk?.length ? brk : null };
@@ -208,13 +245,23 @@ export function resolveCircuit(data, lib) {
   // --- parts: an array of objects (old) or an object id -> "name (pins), value" ---
   const parts = [];
   if (Array.isArray(data.parts)) {
-    data.parts.filter(p => p && typeof p === 'object').forEach((p, i) => parts.push({ ...p, id: String(p.id || `P${i + 1}`) }));
+    data.parts.filter(p => p && typeof p === 'object').forEach((p, i) => {
+      const q = parsePartString(String(p.part || p.name || p.footprint || ''), lib);
+      parts.push({
+        ...p,
+        id: String(p.id != null && p.id !== '' ? p.id : `P${i + 1}`),
+        part: q.part || p.part,
+        value: p.value ?? (q.value || undefined),
+        brk: p.brk ?? q.brk,
+      });
+    });
   } else if (data.parts && typeof data.parts === 'object') {
     for (const [id, v] of Object.entries(data.parts)) {
+      const sid = String(id);
       if (v && typeof v === 'object' && !Array.isArray(v)) {
         const q = parsePartString(String(v.part ?? v.name ?? v.footprint ?? ''), lib);
-        parts.push({ ...v, id, part: q.part, value: v.value ?? q.value, brk: q.brk });
-      } else parts.push({ id, ...parsePartString(Array.isArray(v) ? v.join(', ') : String(v ?? ''), lib) });
+        parts.push({ ...v, id: sid, part: q.part, value: v.value ?? q.value, brk: q.brk });
+      } else parts.push({ id: sid, ...parsePartString(Array.isArray(v) ? v.join(', ') : String(v ?? ''), lib) });
     }
   } else problems.push('"parts" must be a list or an object');
   if (!parts.length && !problems.length) problems.push('The circuit has no parts');
@@ -229,7 +276,7 @@ export function resolveCircuit(data, lib) {
     const refs = [];
     for (const s of list) {
       const m = String(s).match(REF);
-      if (m) refs.push({ id: m[1], pin: m[2] }); else bad(`"${s}"${name ? ` in net ${name}` : ''}: write it as PART.PIN, e.g. "R1.1"`);
+      if (m) refs.push({ id: String(m[1]), pin: m[2] }); else bad(`"${s}"${name ? ` in net ${name}` : ''}: write it as PART.PIN, e.g. "R1.1"`);
     }
     return { refs, name };
   };
@@ -238,17 +285,17 @@ export function resolveCircuit(data, lib) {
   if (data.nets && typeof data.nets === 'object') for (const [name, refs] of Object.entries(data.nets)) groups.push(mk(typeof refs === 'string' || Array.isArray(refs) ? items(refs) : [], name, n => problems.push(n)));
   for (const p of parts) {
     if (p.pins && typeof p.pins === 'object' && !Array.isArray(p.pins)) {
-      for (const [pin, net] of Object.entries(p.pins)) if (net) groups.push({ refs: [{ id: p.id, pin: String(pin) }], name: String(net) });
+      for (const [pin, net] of Object.entries(p.pins)) if (net) groups.push({ refs: [{ id: String(p.id), pin: String(pin) }], name: String(net) });
     }
   }
   const want = new Map(); // id -> pins named in the groups, in order of first appearance
-  for (const g of groups) for (const r of g.refs) { if (!want.has(r.id)) want.set(r.id, []); if (!want.get(r.id).includes(r.pin)) want.get(r.id).push(r.pin); }
+  for (const g of groups) for (const r of g.refs) { const rid = String(r.id); if (!want.has(rid)) want.set(rid, []); if (!want.get(rid).includes(r.pin)) want.get(rid).push(r.pin); }
 
   // --- footprints ---
   const byId = new Map();
   const components = [];
   for (const p of parts) {
-    const id = p.id;
+    const id = String(p.id);
     if (byId.has(id)) { problems.push(`Two parts are called ${id}`); continue; }
     const mine = want.get(id) || [];
     let foot, placeholder = false;
@@ -286,7 +333,7 @@ export function resolveCircuit(data, lib) {
       value: String(p.value ?? foot.value ?? ''),
       pins,
       ...(foot.body ? { body: foot.body } : {}),
-      ...(foot.swap ? { swap: foot.swap } : {}),
+      ...(p.swap || foot.swap ? { swap: p.swap || foot.swap } : {}),
       ...(p.edge || foot.edge ? { edge: p.edge || foot.edge } : {}),
       ...(placeholder ? { placeholder: true } : {}),
     };
@@ -305,19 +352,27 @@ export function resolveCircuit(data, lib) {
   for (const g of groups) {
     const keys = [];
     for (const r of g.refs) {
-      const c = byId.get(r.id);
-      if (!c) { if (!said.has(r.id)) { said.add(r.id); notes.push(`The connections name ${r.id}, but there is no part ${r.id}; those connections were left out.`); } continue; }
-      const k = findPin(c.pins, r.pin);
-      if (k < 0) {
-        if (!said.has(r.id + '|' + r.pin)) { said.add(r.id + '|' + r.pin); notes.push(`${r.id} has no pin "${r.pin}" (pins: ${c.pins.map(q => q.label).join(', ')}); that connection was left out.`); }
+      const rid = String(r.id);
+      const c = byId.get(rid);
+      if (!c) {
+        if (!said.has(rid)) {
+          said.add(rid);
+          const kind = strict ? 'nets' : 'connections';
+          notes.push(`The ${kind} name ${rid}, but there is no part ${rid}; those ${kind} were left out.`);
+        }
         continue;
       }
-      const key = r.id + '\0' + k;
+      const k = findPin(c.pins, r.pin);
+      if (k < 0) {
+        if (!said.has(rid + '|' + r.pin)) { said.add(rid + '|' + r.pin); notes.push(`${rid} has no pin "${r.pin}" (pins: ${c.pins.map(q => q.label).join(', ')}); that connection was left out.`); }
+        continue;
+      }
+      const key = rid + '\0' + k;
       if (strict && g.name != null) {
-        if (pinNet.has(key) && pinNet.get(key) !== g.name) { problems.push(`${r.id}.${r.pin} is in two nets: ${pinNet.get(key)} and ${g.name}`); continue; }
+        if (pinNet.has(key) && pinNet.get(key) !== g.name) { problems.push(`${rid}.${r.pin} is in two nets: ${pinNet.get(key)} and ${g.name}`); continue; }
         pinNet.set(key, g.name);
       }
-      if (!nodes.has(key)) { nodes.set(key, { id: r.id, k, pin: r.pin }); parent.set(key, key); }
+      if (!nodes.has(key)) { nodes.set(key, { id: rid, k, pin: r.pin }); parent.set(key, key); }
       if (!keys.includes(key)) keys.push(key);
     }
     keys.forEach(k => union(keys[0], k));
@@ -339,8 +394,12 @@ export function resolveCircuit(data, lib) {
       }
     }
     if (best) return best.name;
-    const top = list.reduce((a, n) => (byId.get(n.id).pins.length > byId.get(a.id).pins.length ? n : a));
-    const l = String(byId.get(top.id).pins[top.k].label ?? '').split('/')[0].replace(/[^A-Za-z0-9_+.-]/g, '');
+    const cleanLabel = (n) => String(byId.get(n.id).pins[n.k].label ?? '').split('/')[0].replace(/[^A-Za-z0-9_+.-]/g, '');
+    const hasLetters = (n) => /[A-Za-z]/.test(cleanLabel(n));
+    const letterNodes = list.filter(hasLetters);
+    const candidates = letterNodes.length ? letterNodes : list;
+    const top = candidates.reduce((a, n) => (byId.get(n.id).pins.length > byId.get(a.id).pins.length ? n : a));
+    const l = cleanLabel(top);
     return /[A-Za-z]/.test(l) ? l : null;
   };
   for (const [root, list] of members) {

@@ -183,6 +183,116 @@ test('TO-92 / TO-220 pin roles by value', () => {
   assert.strictEqual(netOf(r, 'R1', '2'), netOf(r, 'R2', '2'));
 });
 
+test('findPin: prefix stripping only when followed by a digit', () => {
+  const mosfet = { pins: [{ label: 'G' }, { label: 'D' }, { label: 'S' }] };
+  assert.strictEqual(findPin(mosfet.pins, 'P'), -1);
+  assert.strictEqual(findPin(mosfet.pins, 'D'), 1);
+  assert.strictEqual(findPin(mosfet.pins, 'PIN'), -1);
+  assert.strictEqual(findPin(mosfet.pins, 'IO'), -1);
+});
+
+test('parsePartString: single parenthetical note in value stays in value', () => {
+  const p = (s) => { const { part, value, brk } = parsePartString(s, lib); return [part, value, brk]; };
+  assert.deepStrictEqual(p('Wemos D1 Mini, ESP8266 (v2)'), ['Wemos D1 Mini', 'ESP8266 (v2)', null]);
+  assert.deepStrictEqual(p('resistor, 10k (5%)'), ['resistor', '10k (5%)', null]);
+  assert.deepStrictEqual(p('relay module, 5V (VCC, GND, IN)'), ['relay module', '5V', ['VCC', 'GND', 'IN']]);
+  // missing pin on library part with parenthetical note in value keeps library footprint
+  const r = resolveCircuit({
+    parts: { U1: 'Wemos D1 Mini, ESP8266 (v2)', R1: 'resistor, 1k' },
+    connections: [['U1.D5', 'R1.1'], ['U1.D9', 'R1.2']],
+  }, lib);
+  assert.deepStrictEqual(r.problems, []);
+  assert(!comp(r, 'U1').placeholder);
+  assert.strictEqual(comp(r, 'U1').name, 'Wemos D1 Mini');
+  assert.strictEqual(comp(r, 'U1').value, 'ESP8266 (v2)');
+  assert(r.notes.some(n => n.includes('U1 has no pin "D9"')));
+});
+
+test('missing part notes mention "nets" for old format and "connections" for new format', () => {
+  const rOld = resolveCircuit({
+    parts: [{ id: 'R1', part: 'resistor' }],
+    nets: { GND: ['R1.1', 'Q9.1'] },
+  }, lib);
+  assert(rOld.notes.some(n => n.includes('The nets name Q9, but there is no part Q9; those nets were left out.')));
+
+  const rNew = resolveCircuit({
+    parts: { R1: 'resistor' },
+    connections: [['R1.1', 'Q9.1']],
+  }, lib);
+  assert(rNew.notes.some(n => n.includes('The connections name Q9, but there is no part Q9; those connections were left out.')));
+});
+
+test('pickName: prefers part whose pin label has letters over bigger part with numeric labels', () => {
+  const r = resolveCircuit({
+    parts: { J1: 'pin header 40', U1: 'Wemos D1 Mini' },
+    connections: [['J1.5', 'U1.D5']],
+  }, lib);
+  assert.strictEqual(netOf(r, 'U1', 'D5'), 'D5');
+  assert.strictEqual(netOf(r, 'J1', '5'), 'D5');
+});
+
+test('findPin: pin numbers on parts whose labels carry "<n>:" (NE555 Timer)', () => {
+  const ne555 = lib.find(e => e.c.name === 'NE555 Timer')?.c;
+  assert(ne555);
+  // NE555 pin array order is 1:GN, 2:TR, 3:OU, 4:RS, 8:VC, 7:DI, 6:TH, 5:CV
+  assert.strictEqual(findPin(ne555.pins, '1'), 0); // 1:GN
+  assert.strictEqual(findPin(ne555.pins, '4'), 3); // 4:RS
+  assert.strictEqual(findPin(ne555.pins, '8'), 4); // 8:VC (not index 7)
+  assert.strictEqual(findPin(ne555.pins, '7'), 5); // 7:DI (not index 6)
+  assert.strictEqual(findPin(ne555.pins, '5'), 7); // 5:CV (not index 4)
+  const r = resolveCircuit({
+    parts: { U1: 'NE555 Timer', R1: 'resistor, 1k' },
+    connections: [['U1.8', 'R1.1'], ['U1.5', 'R1.2']],
+  }, lib);
+  assert.strictEqual(comp(r, 'U1').pins[4].net, comp(r, 'R1').pins[0].net); // pin 8 (8:VC)
+  assert.strictEqual(comp(r, 'U1').pins[7].net, comp(r, 'R1').pins[1].net); // pin 5 (5:CV)
+});
+
+test('numeric part ids coerced to strings everywhere', () => {
+  const r = resolveCircuit({
+    parts: [{ id: 1, part: 'resistor', value: '100' }, { id: 2, part: 'resistor', value: '200' }],
+    nets: { GND: ['1.1', '2.1'] },
+  }, lib);
+  assert.deepStrictEqual(r.problems, []);
+  assert.strictEqual(comp(r, '1').value, '100');
+  assert.strictEqual(comp(r, '2').value, '200');
+  assert.strictEqual(netOf(r, '1', '1'), 'GND');
+  assert.strictEqual(netOf(r, '2', '1'), 'GND');
+});
+
+test('generics with leading value or adjective ("10k resistor", "red LED", "100nF capacitor")', () => {
+  const p = (s) => { const { part, value, brk } = parsePartString(s, lib); return [part, value, brk]; };
+  assert.deepStrictEqual(p('10k resistor'), ['resistor', '10k', null]);
+  assert.deepStrictEqual(p('red LED'), ['LED', 'red', null]);
+  assert.deepStrictEqual(p('100nF capacitor'), ['capacitor', '100nF', null]);
+  assert.deepStrictEqual(p('10k, resistor'), ['resistor', '10k', null]);
+
+  const r = resolveCircuit({
+    parts: { R1: '10k resistor', D1: 'red LED', C1: '100nF capacitor' },
+    connections: [['R1.1', 'D1.A'], ['D1.K', 'C1.1']],
+  }, lib);
+  assert.deepStrictEqual(r.problems, []);
+  assert.strictEqual(comp(r, 'R1').name, 'Resistor');
+  assert.strictEqual(comp(r, 'R1').value, '10k');
+  assert.strictEqual(comp(r, 'D1').name, 'LED');
+  assert.strictEqual(comp(r, 'D1').value, 'red');
+  assert.strictEqual(comp(r, 'C1').name, 'Capacitor');
+  assert.strictEqual(comp(r, 'C1').value, '100nF');
+});
+
+test('p.swap on library-looked-up part is preserved', () => {
+  const r = resolveCircuit({
+    parts: [
+      { id: 'U1', part: 'Wemos D1 Mini', swap: true },
+      { id: 'U2', part: 'NE555 Timer', swap: [['1', '2']] },
+    ],
+    nets: {},
+  }, lib);
+  assert.deepStrictEqual(r.problems, []);
+  assert.strictEqual(comp(r, 'U1').swap, true);
+  assert.deepStrictEqual(comp(r, 'U2').swap, [['1', '2']]);
+});
+
 let failed = 0;
 for (const [name, fn] of cases) {
   try { fn(); console.log('ok   ', name); } catch (e) { failed++; console.log('FAIL ', name, '\n', e.message); }

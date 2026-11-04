@@ -62,7 +62,7 @@ export function genericsText() {
     const ls = labels(r.part);
     const hasValue = rest.length ? ' (value after a comma, optional)' : '';
     checkName(head, r.part.name, /^TO-/.test(head) ? rolesFor(rest[0]) ?? ls : ls, rest[0]);
-    out.push(`${g.title} | write e.g. "${g.example}"${hasValue} | pins: ${pinText(ls)}${/^(pin header|screw|DIP)/.test(g.title) ? ' (N = number of pins)' : ''}`);
+    out.push(`${g.title} | write e.g. "${g.example}"${hasValue} | pins: ${pinText(ls)}${/2xN/.test(g.title) ? ' (2·N pins)' : /^(pin header|screw|DIP)/.test(g.title) ? ' (N = number of pins)' : ''}`);
   }
   out.push('');
   out.push('Pin roles of TO-92 and TO-220 parts: with a known value in the part string the role names work (the numbers 1, 2, 3 always work, in datasheet order).');

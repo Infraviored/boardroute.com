@@ -17,7 +17,7 @@ import { PartActions } from './components/PartActions.jsx';
 import { AccountOverlay } from './components/AccountOverlay.jsx';
 import { cloud, signInFromHash } from './cloud.js';
 import { circuitFromLocation, withoutCircuit } from './circuit-link.js';
-import { decodeShare, shareFromHash, shareUrl, validateBoardData } from './engine/share.js';
+import { MAX_PAYLOAD, MAX_PARTS, decodeShare, shareFromHash, shareUrl, validateBoardData } from './engine/share.js';
 import { TEMPLATE, processTemplate, generateJSONFromState, bodyOf, swapJSON, swapGroups, EDGE_SIDES, isBands } from './engine/templates.js';
 import { getAllNets } from './engine/router.js';
 import { isShortCircuit, resolveCircuit, loadLibrary } from './engine/part-lookup.js';
@@ -313,6 +313,11 @@ const [board, setBoard] = useState(() => {
     let data;
     try { data = JSON.parse(text); } catch (e) {
       setNotice({ kind: 'error', title: 'The circuit description is not valid JSON', text: `${e.message}. Ask your AI to output only the raw JSON, or fix it under Circuit → Edit JSON.` });
+      return null;
+    }
+    const partCount = Array.isArray(data?.parts) ? data.parts.length : Array.isArray(data?.components) ? data.components.length : 0;
+    if (partCount > MAX_PARTS) {
+      setNotice({ kind: 'error', title: 'This circuit has too many parts', text: `This circuit has ${partCount} parts, but boardroute supports at most ${MAX_PARTS} parts.` });
       return null;
     }
     let notes = [];
@@ -761,30 +766,41 @@ const [board, setBoard] = useState(() => {
   // found a layout, Compact. The text is passed on explicitly (state is not updated yet).
   const loadCircuitLink = useCallback(async (text) => {
     window.history.replaceState(null, '', withoutCircuit(window.location.pathname, window.location.hash, window.location.search));
-    if (!text) {
-      setNotice({ kind: 'error', title: 'This circuit link could not be opened', text: 'The circuit in the link is not valid JSON. Ask for the link again, and make sure it was copied completely.' });
+    try {
+      if (!text) {
+        setNotice({ kind: 'error', title: 'This circuit link could not be opened', text: 'The circuit in the link is not valid JSON. Ask for the link again, and make sure it was copied completely.' });
+        setShareState('failed');
+        return;
+      }
+      if (text === 'TOO_LONG' || text.length > MAX_PAYLOAD) {
+        setNotice({ kind: 'error', title: 'This circuit link could not be opened', text: `The circuit in the link is too long (over ${MAX_PAYLOAD.toLocaleString()} characters).` });
+        setShareState('failed');
+        return;
+      }
+      const defs = await parseCircuit(text);
+      if (!defs) { setShareState('failed'); return; }
+      const pretty = JSON.stringify(JSON.parse(text), null, 2);
+      setJsonInput(pretty);
+      setPictures({});
+      engine.initializeBoard(defs);
+      boardLoaded(1);
+      if (defs.notes.length) setNotice({ kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') });
+      setShareState('done');
+      window.goatcounter?.count?.({ path: 'circuit-link', title: `${defs.length} parts`, event: true });
+      if (await runLayout(false, pretty) && engine.wires.length) await runLayout(true, pretty);
+      // layout runs clear the notice; keep the library guesses visible unless something more important came up
+      if (defs.notes.length) setNotice(prev => prev || { kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') });
+    } catch (err) {
+      console.error('circuit link', err);
+      setNotice({ kind: 'error', title: 'This circuit link could not be opened', text: `${err.message ? err.message[0].toUpperCase() + err.message.slice(1) : 'Unknown error'}. Ask for the link again, and make sure it was copied completely.` });
       setShareState('failed');
-      return;
     }
-    const defs = await parseCircuit(text);
-    if (!defs) { setShareState('failed'); return; }
-    const pretty = JSON.stringify(JSON.parse(text), null, 2);
-    setJsonInput(pretty);
-    setPictures({});
-    engine.initializeBoard(defs);
-    boardLoaded(1);
-    if (defs.notes.length) setNotice({ kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') });
-    setShareState('done');
-    window.goatcounter?.count?.({ path: 'circuit-link', title: `${defs.length} parts`, event: true });
-    if (await runLayout(false, pretty) && engine.wires.length) await runLayout(true, pretty);
-    // layout runs clear the notice; keep the library guesses visible unless something more important came up
-    if (defs.notes.length) setNotice(prev => prev || { kind: 'info', title: 'Check these parts', text: defs.notes.join('\n') });
   }, [engine, parseCircuit, boardLoaded, setPictures, runLayout]);
   const shareStarted = useRef(false);
   useEffect(() => {
     if (shareStarted.current) return;
-    if (circuitValue != null) { shareStarted.current = true; loadCircuitLink(circuitValue); return; }
     if (shareValue) { shareStarted.current = true; loadShare(shareValue); return; }
+    if (circuitValue != null) { shareStarted.current = true; loadCircuitLink(circuitValue); return; }
     if (!sharedSlug) return;
     shareStarted.current = true;
     cloud.shared(sharedSlug).then(({ data }) => {

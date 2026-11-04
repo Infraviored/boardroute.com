@@ -26,8 +26,8 @@ import { swapGroups, edgeSide, isBands } from './templates.js';
 import { SAFE_IMG } from './render-utils.js';
 
 const VERSION = '1';
-const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
-const MAX_PARTS = 500, MAX_PINS = 400, MAX_WIRES = 5000, MAX_STEPS = 20000, MAX_COORD = 2000000;
+export const MAX_PAYLOAD = 200000;   // characters of the encoded fragment
+export const MAX_PARTS = 500, MAX_PINS = 400, MAX_WIRES = 5000, MAX_STEPS = 20000, MAX_COORD = 2000000;
 
 export class ShareError extends Error {}
 

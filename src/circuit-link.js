@@ -1,11 +1,13 @@
 // Circuit links: https://boardroute.com/#circuit=<URL-encoded JSON> (or ?circuit=...) open a circuit
 // (short AI format or full format) and lay it out. AIs paste these links, so decoding is forgiving.
 
+import { MAX_PAYLOAD } from './engine/share.js';
+
 const tryParse = (s) => { try { return JSON.parse(s) && s; } catch { return null; } };
 
 // raw URL value -> clean JSON text, or null
 export function cleanCircuit(raw) {
-  if (!raw) return null;
+  if (!raw || raw.length > MAX_PAYLOAD) return null;
   let v = raw;
   try { v = decodeURIComponent(raw); } catch { /* keep the raw string */ }
   const variants = (s) => {
@@ -31,6 +33,7 @@ export function circuitParam(hash, search) {
 export function circuitFromLocation(hash, search) {
   const raw = circuitParam(hash, search);
   if (raw == null) return null;
+  if (raw.length > MAX_PAYLOAD) return 'TOO_LONG';
   return cleanCircuit(raw) ?? '';
 }
 

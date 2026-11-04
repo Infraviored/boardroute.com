@@ -1,0 +1,20 @@
+{
+  "parts": [
+    { "id": "U1", "part": "Wemos D1 Mini", "value": "ESP8266" },
+    { "id": "U2", "part": "pin header 4", "value": "Mini560 5V", "labels": ["IN+", "IN-", "OUT+", "OUT-"] },
+    { "id": "Q1", "part": "TO-220", "value": "IRLB8721" },
+    { "id": "R1", "part": "resistor", "value": "100" },
+    { "id": "R2", "part": "resistor", "value": "10k" },
+    { "id": "C1", "part": "electrolytic capacitor", "value": "1000uF" },
+    { "id": "J1", "part": "screw terminal 2", "value": "12V in" },
+    { "id": "J2", "part": "screw terminal 2", "value": "LED strip" }
+  ],
+  "nets": {
+    "12V": ["J1.1", "U2.IN+", "C1.+", "J2.1"],
+    "GND": ["J1.2", "U2.IN-", "C1.-", "R2.2", "U1.GND", "Q1.3", "U2.OUT-"],
+    "3V3": ["U2.OUT+", "U1.3V3"],
+    "GATE": ["U1.D5", "R1.1"],
+    "GATE_DRV": ["R1.2", "R2.1", "Q1.1"],
+    "LED_DRAIN": ["Q1.2", "J2.2"]
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { MOBILE_MQ } from '../mobile.js';
 import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
 import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG, photoTurn } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
@@ -174,7 +175,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-btn.primary:hover { background: var(--ui-accent-hover); }
         .ex-btn.primary:active { background: var(--ui-accent-active); }
         .ex-btn:disabled { opacity: .5; cursor: default; }
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .export-modal {
             flex-direction: column;
             height: 100dvh;
@@ -210,7 +211,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
             font-size: 0.92rem;
           }
           .ex-seg button {
-            min-height: 38px;
+            min-height: 40px;
           }
         }
       `}} />

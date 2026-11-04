@@ -1,4 +1,6 @@
 import React from 'react';
+import { MOBILE_MQ } from '../mobile.js';
+import { PartActions } from './PartActions.jsx';
 import { isResistor, bandsOf, parseOhms, ringsFor } from '../engine/resistor-code.js';
 import { netColor, normalizeBoardView, computeBoardFrame } from '../engine/render-utils.js';
 import {
@@ -75,6 +77,10 @@ export function SidebarRight({
   components = [],
   wires = [],
   onSetBands = null,
+  onRotateComp = null, // Rotate / Edit / Delete buttons for the selected part (null while a run is busy)
+  onEditComp = null,
+  onDeleteComp = null,
+  canRotate = true,
 }) {
   // Which accordion sections are open. Component and Network also open on their own when
   // something gets selected.
@@ -153,6 +159,9 @@ export function SidebarRight({
 
         {open.comp && (selectedComp ? (
           <div id="selInfo">
+            {onRotateComp && onEditComp && onDeleteComp && (
+              <PartActions variant="inspector" comp={selectedComp} onRotate={onRotateComp} onEdit={onEditComp} onDelete={onDeleteComp} canRotate={canRotate} />
+            )}
             <div className="prop-list">
               <div className="prop-item">
                 <Tag size={12} className="prop-icon" />
@@ -531,7 +540,7 @@ export function SidebarRight({
 
         .mobile-sheet-head { display: none; }
 
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .mobile-sheet-head {
             display: flex;
             align-items: center;
@@ -553,8 +562,8 @@ export function SidebarRight({
             background: none;
             border: none;
             color: var(--txt1);
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;

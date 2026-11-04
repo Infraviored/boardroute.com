@@ -1,63 +1,67 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { ModalShell, Button } from './ui';
+import { MOBILE_MQ } from '../mobile.js';
 
 export function PromptOverlay({ isOpen, onClose }) {
   const [copied, setCopied] = useState(false);
 
-  const promptText = `Act as an expert Electronic Design Automation (EDA) engineer. I need you to generate a circuit specification in a specific JSON format for my custom autorouting tool.
+  const promptText = `You turn a circuit description into JSON for a perfboard layout tool. Answer with ONLY the JSON, no text before or after it.
 
-### CONCEPTUAL ARCHITECTURE
-The system operates on a unit-grid (holes on a board). Your task is to define components by their physical pin layout and then "wire" them together using Net names.
-
-### 1. COMPONENT GEOMETRY (The "Offset" System)
-Every component is a collection of pins. You must define the position of every pin relative to the component's top-left corner (0,0).
-- RESISTORS/DIODES: Usually two pins. For a resistor spanning 3 holes horizontally, use offsets [0,0] and [2,0].
-- INTEGRATED CIRCUITS (DIP): If it has two rows of pins 3 holes apart, Row 1 pins are at [0,0], [0,1], [0,2]... and Row 2 pins are at [3,0], [3,1], [3,2]...
-- MODULES (ESP32/Arduino): You must map the exact physical pinout. If the module is 7 holes wide, the left pins are at x=0 and right pins are at x=6.
-- BODIES (optional): if the part's housing is larger than its pin area (relay, electrolytic capacitor, screw terminal, standing TO-220, a dev board whose PCB extends past its pin rows), add "body": { "offset": [x,y], "size": [w,h] }: the rectangle of holes the housing covers, in the same coordinates as the pin offsets (it may start at negative values). No other part may sit inside it; wires underneath are fine. 1 hole = 2.54 mm, round up. Example, 5 V relay (19 x 15.5 mm) with its coil pins at [0,0] and [0,1]: "body": { "offset": [-1,-2], "size": [8,6] }. Leave it out for resistors, diodes, DIP chips and pin headers.
-- INTERCHANGEABLE PINS (optional): if it does not matter which of some pins gets which net (screw terminal, non-polarised capacitor, resistor, fuse, switch), add "swap": true for all pins, or groups of pin labels like "swap": [["1","2"]]. The router then picks whichever order wires better.
-- CABLE SIDE (optional): if wires from outside enter the part from one side (screw terminal, DC jack, USB socket), add "edge": "top" | "right" | "bottom" | "left" (that side in the same coordinates as the pin offsets). The router keeps that side on the board's edge, facing outward.
-
-### 2. LOGICAL CONNECTIVITY (Nets)
-To connect two or more pins, assign them the EXACT same string in their "net" field. 
-- A pin with "net": null is physically present but electrically unconnected.
-- Use descriptive names like "GND", "VCC", "SIGNAL_1", "I2C_SDA".
-
-### 3. JSON STRUCTURE
+FORMAT (a complete example)
 {
-  "components": [
-    {
-      "id": "U1",
-      "name": "ESP32-C3 SuperMini",
-      "value": "MCU",
-      "pins": [
-        { "offset": [0,0], "label": "5V", "net": "5V" },
-        { "offset": [0,1], "label": "GND", "net": "GND" },
-        { "offset": [6,5], "label": "IO5", "net": "LED_CONTROL" }
-      ],
-      "body": { "offset": [0,-1], "size": [7,10] }
-    },
-    {
-      "id": "R1",
-      "name": "Resistor",
-      "value": "220",
-      "pins": [
-        { "offset": [0,0], "label": "1", "net": "LED_CONTROL" },
-        { "offset": [2,0], "label": "2", "net": "LED_ANODE" }
-      ]
-    }
-  ]
+  "parts": [
+    { "id": "U1", "part": "Wemos D1 Mini", "value": "ESP8266" },
+    { "id": "R1", "part": "resistor", "value": "220" },
+    { "id": "D1", "part": "LED", "value": "red" },
+    { "id": "Q1", "part": "TO-220", "value": "IRLZ44N" },
+    { "id": "J1", "part": "screw terminal 2", "value": "12V in" }
+  ],
+  "nets": {
+    "GND": ["U1.GND", "D1.K", "Q1.3", "J1.2"],
+    "PWM": ["U1.D5", "R1.1"],
+    "LED_A": ["R1.2", "D1.A"]
+  }
 }
 
-### YOUR MISSION
-1. Analyze the requested circuit.
-2. Breakdown the components needed.
-3. Calculate precise [x,y] offsets for every pin of every component to ensure they "fit" the physical dimensions.
-4. Assign consistent Nets to create the electrical pathways.
-5. Output ONLY the raw JSON.
+RULES
+1. "parts": every physical part once. "id" is short and unique: R1, R2, C1, D1, Q1, U1, J1. "part" is what it is (use the list below). "value" is the type or value: 220, 10k, 100nF, 1N4007, IRLZ44N.
+2. "nets": each net has a name and the list of pins connected to it. A pin is written PART_ID.PIN, for example "U1.D5" or "R1.2".
+3. PIN is the name printed on the part (D5, GND, 3V3, VIN) or the pin number (1, 2, 3).
+4. A pin belongs to at most one net. Leave unused pins out.
+5. Do NOT give coordinates, sizes or positions. The tool knows every footprint and places the parts itself.
 
-REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
+PART NAMES THAT ALWAYS WORK
+- resistor: pins 1, 2
+- capacitor (ceramic or film): pins 1, 2
+- electrolytic capacitor: pins + and -
+- LED: pins A (anode, long leg) and K (cathode)
+- diode: pins A and K (K = the side with the ring)
+- TO-92 (small transistor): pins 1, 2, 3 in datasheet order, e.g. BC547: 1 = C, 2 = B, 3 = E
+- TO-220 (MOSFET, power transistor, voltage regulator): pins 1, 2, 3 in datasheet order, e.g. IRLZ44N: 1 = G, 2 = D, 3 = S; 7805: 1 = IN, 2 = GND, 3 = OUT
+- push button: pins 1, 2
+- potentiometer: pins 1, 2 (wiper), 3
+- crystal: pins 1, 2
+- buzzer: pins + and -
+- pin header N, e.g. "pin header 4": pins 1 to N ("pin header 2x5" for two rows)
+- screw terminal N, e.g. "screw terminal 2": pins 1 to N. Use it for every cable that leaves the board (power input, motor, LED strip, speaker, sensor on a cable).
+- DIP-N for chips without a module, e.g. "DIP-8" for an NE555: pins 1 to N in datasheet order
+- Modules (use the pin names printed on the board): Wemos D1 Mini, ESP32 DevKit V1, ESP32-C3 SuperMini, ESP32-S2 Mini, Arduino Nano, NE555 Timer, LM358 Op-Amp, L293D Motor Driver, LCD 16x2, DHT11, Relay SRD-05VDC (pins COM, NO, NC, A1, A2)
+Other names are looked up in a large KiCad footprint library, e.g. "DIP-14" or "BarrelJack".
+
+A MODULE THAT IS NOT IN THE LIST (e.g. a small buck converter board)
+Use "pin header N" with N = its number of pins, and give its pin names in order:
+{ "id": "U2", "part": "pin header 4", "value": "Mini560 5V", "labels": ["IN+", "IN-", "OUT+", "OUT-"] }
+Then use those names in the nets: "U2.OUT+".
+
+CHECK BEFORE ANSWERING
+- every part id used in "nets" exists in "parts"
+- every pin name exists on that part
+- no pin appears in two nets
+- both pins of every resistor, capacitor, diode and LED are in a net (a resistor in series needs a net on each side)
+- every part that needs power is connected to GND and its supply
+
+CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
 
   if (!isOpen) return null;
 
@@ -82,8 +86,8 @@ REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
 
       <ModalShell.Body className="prompt-modal-body">
         <p className="prompt-intro-text">
-          This application uses a specific <strong>JSON format</strong> to define circuits.
-          Modern AI models (like Claude, GPT-4, or Gemini) are excellent at generating this format.
+          Your AI only has to name the parts and say which pins connect: the footprints come from the library, and boardroute places everything itself.
+          Any chatbot can do it, also a small or free one.
         </p>
 
         <div className="prompt-box-label">
@@ -104,7 +108,7 @@ REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
         </div>
 
         <div className="prompt-hint-text">
-          Simply copy the prompt above, paste it into your favorite AI, describe your circuit, and then paste the resulting JSON back into the Circuit Definition box.
+          Simply copy the prompt above, paste it into your favorite AI, describe your circuit, and then paste the JSON it writes under Circuit → Paste JSON.
         </div>
       </ModalShell.Body>
 
@@ -155,7 +159,7 @@ REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
         .prompt-pre {
           margin: 0;
           white-space: pre-wrap;
-          word-break: break-all;
+          overflow-wrap: anywhere;
           font-family: 'Consolas', monospace;
           font-size: 0.82em;
           color: var(--grn-bright);
@@ -166,7 +170,7 @@ REQUEST: [DESCRIBE YOUR CIRCUIT HERE]`;
           color: var(--txt1);
           line-height: 1.4;
         }
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .prompt-modal-shell {
             width: 100vw;
             max-width: 100vw;

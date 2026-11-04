@@ -1,5 +1,6 @@
 import React from 'react';
 import { boostColor, compColor } from '../engine/render-utils.js';
+import { MOBILE_MQ } from '../mobile.js';
 import {
   Plus,
   Library,
@@ -20,6 +21,12 @@ function summarize(json) {
   if (!json || !json.trim()) return { empty: true };
   try {
     const doc = JSON.parse(json);
+    // the short format (parts by name + a net list, see engine/part-lookup.js)
+    if (Array.isArray(doc?.parts)) {
+      const nets = new Set(Object.keys(doc.nets && typeof doc.nets === 'object' ? doc.nets : {}));
+      for (const p of doc.parts) if (p?.pins && !Array.isArray(p.pins)) for (const n of Object.values(p.pins)) if (n) nets.add(n);
+      return { parts: doc.parts.length, nets: nets.size };
+    }
     const comps = Array.isArray(doc?.components) ? doc.components : [];
     const nets = new Set();
     for (const c of comps) for (const p of (Array.isArray(c?.pins) ? c.pins : [])) if (p?.net) nets.add(p.net);
@@ -56,6 +63,12 @@ export function SidebarLeft({
 
   const openEditor = () => { setEditorOpen(true); setEdited(false); };
   const closeEditor = React.useCallback(() => setEditorOpen(false), []);
+  // on phones the editor lives in the drawer: closing the drawer closes it too
+  const wasMobileOpen = React.useRef(mobileOpen);
+  React.useEffect(() => {
+    if (wasMobileOpen.current && !mobileOpen) setEditorOpen(false);
+    wasMobileOpen.current = mobileOpen;
+  }, [mobileOpen]);
 
   React.useEffect(() => {
     if (!editorOpen) return;
@@ -65,9 +78,9 @@ export function SidebarLeft({
     return () => window.removeEventListener('keydown', onKey);
   }, [editorOpen, closeEditor]);
 
-  const load = () => {
+  const load = async () => {
     // App shows a notice when the JSON is unusable; keep the editor open in that case.
-    const ok = onLoadCircuit?.(edited);
+    const ok = await onLoadCircuit?.(edited);
     if (ok !== false) setEditorOpen(false);
   };
 
@@ -149,7 +162,7 @@ export function SidebarLeft({
             <textarea
               ref={textareaRef}
               className="jd-text"
-              placeholder={'Paste the JSON your AI wrote, e.g.\n{\n  "components": [ ... ]\n}'}
+              placeholder={'Paste the JSON your AI wrote, e.g.\n{\n  "parts": [ { "id": "R1", "part": "resistor", "value": "220" }, ... ],\n  "nets": { "LED": ["U1.D5", "R1.1"], ... }\n}'}
               value={jsonInput}
               onChange={(e) => { setJsonInput(e.target.value); setEdited(true); }}
               spellCheck="false"
@@ -440,7 +453,7 @@ export function SidebarLeft({
 
         .mobile-sheet-head { display: none; }
 
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .mobile-sheet-head {
             display: flex;
             align-items: center;
@@ -487,6 +500,8 @@ export function SidebarLeft({
           }
 
           #lsb.json-open { z-index: 500; }
+          /* the open drawer's transform would make it the box of the "fixed" editor (cut to its width) */
+          #lsb.mobile-open.json-open { transform: none !important; }
           .json-drawer {
             position: fixed !important;
             inset: 0 !important;
@@ -719,6 +734,16 @@ export function SidebarLeft({
         .lsb-legal { margin-top: auto; padding: 10px 16px 12px; font-size: var(--fs-xs); color: var(--txt2); display: flex; gap: 10px; flex-shrink: 0; }
         .lsb-legal a { color: var(--txt2); text-decoration: none; }
         .lsb-legal a:hover { color: var(--txt1); }
+        /* phone panel: 40 px tap targets (after the base rules above, so they win), and room
+           below the last part so the legal links never sit on it */
+        @media ${MOBILE_MQ} {
+          #lsb .tplbtn { height: 40px; font-size: var(--fs-sm); }
+          #lsb .cc-btn { min-height: 40px; }
+          #lsb .edit-mini-btn { width: 40px; height: 40px; min-width: 40px; }
+          #lsb .comp-list { padding-bottom: 16px; }
+          #lsb .lsb-legal { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+          #lsb .lsb-legal a { display: inline-flex; align-items: center; min-height: 40px; }
+        }
       `}} />
       <footer className="lsb-legal"><a href="/imprint/">Imprint</a><a href="/privacy/">Privacy</a><a href="https://github.com/Infraviored/boardroute.com" target="_blank" rel="noopener">GitHub</a></footer>
     </aside>

@@ -1,4 +1,5 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useLayoutEffect, useRef } from 'react';
+import { MOBILE_MQ, LANDSCAPE_MQ } from '../mobile.js';
 import { generatePrunedSVG } from '../engine/render-utils.js';
 
 export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
@@ -11,6 +12,18 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onGoodEnough, active, results]);
+
+  // Phones: the bar is as tall as its content; the canvas controls read that height from --pb-h.
+  const barRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = barRef.current, host = el?.parentElement;
+    if (!el || !host) return;
+    const set = () => host.style.setProperty('--pb-h', `${el.offsetHeight}px`);
+    set();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    ro?.observe(el);
+    return () => { ro?.disconnect(); host.style.removeProperty('--pb-h'); };
+  }, []);
 
   const preview = useMemo(() => {
     if (!bestSnapshot?.components?.length) return null;
@@ -42,7 +55,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
   const improved = results?.improved;
 
   return (
-    <div id="proc-bar" className={`${results ? "results" : ""} ${isShown ? "shown" : ""} ${status.mode === 'compact' ? "mode-compact" : ""} ${status.best?.optimal ? "perfect" : ""}`}>
+    <div id="proc-bar" ref={barRef} className={`${results ? "results" : ""} ${isShown ? "shown" : ""} ${status.mode === 'compact' ? "mode-compact" : ""} ${status.best?.optimal ? "perfect" : ""}`}>
       <div className="pb-content-wrap">
         <div className="pb-left">
           {results ? (
@@ -298,14 +311,14 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         #proc-bar.perfect .pb-title { color: #e3b341; }
         #proc-bar.results { border-top-color: var(--grn-bright); background: linear-gradient(180deg, #101413 0%, #050706 100%); }
 
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
+          /* as tall as its content, opaque enough to read over the board, clear of the home indicator */
           #proc-bar {
             height: auto;
-            min-height: 110px;
-            max-height: 160px;
-            padding: 10px 14px;
-            bottom: var(--bottom-nav-height, 54px);
+            padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+            bottom: 0;
             border-top-width: 1px;
+            background: rgba(13, 17, 23, 0.96);
           }
           .pb-content-wrap {
             gap: 10px;
@@ -319,10 +332,18 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           .pb-left {
             gap: 6px;
           }
+          .pb-title {
+            font-size: 1.02rem;
+            white-space: normal;
+            line-height: 1.25;
+          }
           .active-metrics {
             gap: 16px;
             padding: 2px 0;
           }
+          .res-item.wide { width: auto; }
+          .pb-track { height: 10px; }
+          .pb-detail { margin-top: 2px; line-height: 1.4; }
           .pb-btn-glass {
             width: 100%;
             min-height: 44px;
@@ -337,6 +358,22 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           .res-val.small {
             font-size: 1.1rem;
           }
+        }
+        /* Phone sideways: numbers and progress on the left, the stop button beside them */
+        @media ${LANDSCAPE_MQ} {
+          #proc-bar { padding: 8px max(14px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left)); }
+          .pb-left {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 200px;
+            column-gap: 16px;
+            row-gap: 4px;
+            align-items: center;
+          }
+          .pb-left > :not(.pb-btn-glass) { grid-column: 1; }
+          .pb-left .pb-btn-glass { grid-column: 2; grid-row: 1 / span 4; margin-top: 0; }
+          .pb-title { font-size: 0.95rem; }
+          .active-metrics { padding: 0; }
+          .pb-detail { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }
       `}} />
     </div>

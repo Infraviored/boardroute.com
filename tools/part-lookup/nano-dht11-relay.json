@@ -1,0 +1,23 @@
+{
+  "parts": [
+    { "id": "U1", "part": "Arduino Nano", "value": "Nano" },
+    { "id": "DHT1", "part": "DHT11", "value": "DHT11" },
+    { "id": "R1", "part": "resistor", "value": "10k" },
+    { "id": "R2", "part": "resistor", "value": "1k" },
+    { "id": "Q1", "part": "TO-92", "value": "BC547" },
+    { "id": "K1", "part": "Relay SRD-05VDC", "value": "SRD-05VDC" },
+    { "id": "D1", "part": "diode", "value": "1N4007" },
+    { "id": "J1", "part": "screw terminal 2", "value": "5V in" },
+    { "id": "J2", "part": "screw terminal 3", "value": "relay contacts" }
+  ],
+  "nets": {
+    "5V": ["J1.1", "U1.5V", "DHT1.VCC", "R1.1", "K1.A1", "D1.K"],
+    "GND": ["J1.2", "U1.GND", "DHT1.GND", "Q1.3"],
+    "DHT_DATA": ["U1.D2", "R1.2", "DHT1.DATA"],
+    "BASE": ["U1.D7", "R2.1", "Q1.2"],
+    "COIL_LOW": ["Q1.1", "K1.A2", "D1.A"],
+    "RELAY_COM": ["K1.COM", "J2.1"],
+    "RELAY_NO": ["K1.NO", "J2.2"],
+    "RELAY_NC": ["K1.NC", "J2.3"]
+  }
+}

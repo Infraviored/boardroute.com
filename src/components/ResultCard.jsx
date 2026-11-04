@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { MOBILE_MQ, LANDSCAPE_MQ } from '../mobile.js';
 import { X, Link2, Check, Download, Minimize2, CircleCheck, Trophy } from 'lucide-react';
 
 // Floating summary after a Wire/Compact run: footprint, wire length, jumpers, change vs. the
@@ -7,6 +8,17 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
   const [share, setShare] = useState({ state: 'idle', url: '' }); // idle | busy | copied | manual
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Phones: the canvas controls move up above the card; they read its height from --rc-h.
+  const cardRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = cardRef.current, host = el?.parentElement;
+    if (!el || !host) return;
+    const set = () => host.style.setProperty('--rc-h', `${el.offsetHeight}px`);
+    set();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    ro?.observe(el);
+    return () => { ro?.disconnect(); host.style.removeProperty('--rc-h'); };
+  }, [result]);
 
   if (!result) return null;
   const { mode, width, height, wl, jumpers, start, optimal, bound } = result;
@@ -39,7 +51,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
   const shareLabel = share.state === 'copied' ? 'Copied' : share.state === 'busy' ? 'Creating…' : 'Share link';
 
   return (
-    <div className={`result-card ${optimal ? 'perfect' : ''} ${isCompact ? 'is-compact' : ''}`} role="status" aria-live="polite">
+    <div ref={cardRef} className={`result-card ${optimal ? 'perfect' : ''} ${isCompact ? 'is-compact' : ''}`} role="status" aria-live="polite">
       <div className="rc-head">
         {optimal ? <Trophy size={16} className="rc-ok" aria-hidden="true" /> : <CircleCheck size={16} className="rc-ok" aria-hidden="true" />}
         <span className="rc-title">{optimal ? 'Perfect' : isCompact ? 'Compacted' : 'Wired'}</span>
@@ -144,12 +156,16 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .result-card.perfect .rc-ok, .result-card.perfect .rc-title { color: #e3b341; }
         .rc-btn.copied { border-color: var(--ui-primary-hover); color: var(--ui-primary-hover); }
         .rc-btn.primary.copied { color: #fff; }
-        @media (max-width: 768px) {
+        @media ${MOBILE_MQ} {
           .result-card {
             bottom: calc(var(--bottom-nav-height, 54px) + 8px);
             width: calc(100% - 16px);
             padding: 10px 12px;
           }
+          /* the canvas controls (zoom, fit, coordinates, solder side) stay reachable above the card */
+          #ca-col:has(.result-card) .canvas-controls { bottom: calc(var(--rc-h, 136px) + 18px + var(--bottom-nav-height, 0px)); grid-template-columns: repeat(6, 40px); }
+          /* 40 px hit area, the visible icon stays small */
+          .rc-close { width: 40px; height: 40px; margin: -10px -10px -10px 0; align-items: center; justify-content: center; }
           .rc-actions {
             gap: 6px;
           }
@@ -169,6 +185,18 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
           .rc-delta { padding: 4px 8px; }
           .rc-delta-sub { display: none; }
           .rc-btn { min-height: 40px; height: 40px; padding: 0 8px; font-size: 0.82rem; gap: 5px; }
+        }
+        /* Phone sideways: the card sits between the edge tabs and the control column, one row of numbers */
+        @media ${LANDSCAPE_MQ} {
+          .result-card { width: min(440px, calc(100% - 260px)); padding: 8px 12px 10px; }
+          #ca-col:has(.result-card) .canvas-controls { bottom: calc(12px + var(--bottom-nav-height, 0px)); grid-template-columns: repeat(2, 40px); }
+          .rc-stats { gap: 4px 16px; margin: 6px 0 8px; flex-wrap: nowrap; }
+          .rc-val { font-size: 1.2rem; }
+          .rc-lbl { font-size: 9.5px; letter-spacing: 0.06em; }
+          .rc-delta { padding: 4px 8px; }
+          .rc-delta-sub { display: none; }
+          .rc-hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .rc-btn { height: 40px; padding: 0 8px; font-size: 0.82rem; gap: 5px; }
         }
       `}} />
     </div>

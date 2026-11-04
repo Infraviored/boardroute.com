@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { MOBILE_MQ, LANDSCAPE_MQ, isTouch } from '../mobile.js';
 import { Camera, Minus, Plus, FlipHorizontal2, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2, ScanText, RotateCcw, RotateCw, ArrowRight, Sparkles, ZoomIn, ZoomOut, Maximize2, Move } from 'lucide-react';
 import { readLabels } from './ocr-labels.js';
 
@@ -144,7 +145,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
             if (!r.ok || !blob.type.startsWith('image/')) throw new Error();
             load(blob);
         } catch {
-            setState({ status: 'pick', reason: 'That site does not let other pages load its images. Open the image, right-click → Copy image, and paste it here with Ctrl+V.' });
+            setState({ status: 'pick', reason: isTouch()
+                ? 'That site does not let other pages load its images. Save the image, then pick it with "Choose or take a photo".'
+                : 'That site does not let other pages load its images. Open the image, right-click → Copy image, and paste it here with Ctrl+V.' });
         }
     };
 
@@ -275,7 +278,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     useEffect(() => () => cancelAnimationFrame(viewAnim.current), []);
     const view1 = cropView || (cropping ? [0, 0, state.PW, state.PH] : null);
     const zoom = view1 ? Math.min(svgSize.w / view1[2], svgSize.h / view1[3]) : 1; // screen px per photo px
-    const touch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+    const touch = isTouch();
     const hs = cropping ? (touch ? 26 : 14) / zoom : 0; // handle size in photo px
     const onFrameDown = (e) => {
         const p = toImage(e);
@@ -803,7 +806,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                             <div className="pf-pick">
                                 <ImageUp size={34} />
                                 <b>Add a photo of the part</b>
-                                <span>From straight above. Drop it here, paste it (Ctrl+V) or:</span>
+                                <span>{touch ? 'From straight above:' : 'From straight above. Drop it here, paste it (Ctrl+V) or:'}</span>
                                 <div className="pf-row pf-center">
                                     <label className="ce-btn primary pf-file"><Camera size={14} /> Choose or take a photo
                                         <input type="file" accept="image/*" hidden onChange={e => { load(e.target.files?.[0]); e.target.value = ''; }} />
@@ -1155,7 +1158,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .ce-btn:disabled { opacity: .5; cursor: default; }
                 .spin { animation: pfspin 1s linear infinite; }
                 @keyframes pfspin { to { transform: rotate(360deg); } }
-                @media (max-width: 768px) {
+                @media ${MOBILE_MQ} {
                     .pf-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
                     .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
                     .pf-view { flex: none; height: 58dvh; position: sticky; top: 0; z-index: 2; }
@@ -1176,7 +1179,20 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                     .pf-modal .ce-head > svg { display: none; }
                     .pf-modal .ce-head h3 { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
                     .pf-modal .ce-head-actions { flex: none; }
-                    .pf-modal .ce-head .ce-btn { min-height: 36px; padding: 0 12px; }
+                    .pf-modal .ce-head .ce-btn { min-height: 40px; padding: 0 12px; }
+                    /* 40 px tap targets */
+                    .pf-pick .ce-btn, .pf-file { min-height: 40px; display: inline-flex; align-items: center; }
+                    .pf-url input { height: 40px; font-size: 16px; }
+                    .pf-steps button, .pf-steps span { height: 40px; padding: 0 9px; }
+                }
+                /* phone sideways: photo left, tools right (scrolling on their own) */
+                @media ${LANDSCAPE_MQ} {
+                    .pf-body { display: grid; grid-template-columns: minmax(0, 1fr) min(320px, 44%); overflow: hidden; }
+                    .pf-view { height: auto; position: relative; }
+                    .pf-side { border-left: 1px solid var(--border); overflow-y: auto; overscroll-behavior: contain; }
+                    .pf-side section { flex: none; }
+                    .pf-pick { padding: 10px; gap: 6px; }
+                    .pf-pick > svg { display: none; }
                 }
             ` }} />
         </div>

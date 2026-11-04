@@ -40,5 +40,6 @@ export function withoutCircuit(pathname, hash, search) {
   return pathname + q + (/^#circuit=/.test(hash || '') ? '' : (hash || ''));
 }
 
+// brackets encoded too: a Markdown link [..](url) would end at the first ')'
 export const circuitLink = (json, origin = 'https://boardroute.com') =>
-  `${origin}/#circuit=${encodeURIComponent(JSON.stringify(json))}`;
+  `${origin}/#circuit=${encodeURIComponent(JSON.stringify(json)).replace(/\(/g, '%28').replace(/\)/g, '%29')}`;

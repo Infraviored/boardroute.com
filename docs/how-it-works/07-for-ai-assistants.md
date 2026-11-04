@@ -14,23 +14,23 @@
 https://boardroute.com/#circuit=<circuit description, URL-encoded>
 ```
 
-The circuit description is the same short JSON that *Get it from your AI* asks for: each part by name ("resistor", "LED", "Wemos D1 Mini") and which pins are connected. No footprints and no positions: boardroute takes the footprints from its library of about 1,150 through-hole parts and places everything itself.
+The circuit description is the same short JSON that *Get it from your AI* asks for: each part by name ("resistor, 220", "LED, red", "Wemos D1 Mini") and which pins are wired together, as short lists like `["U1.D5", "R1.1"]`. No footprints and no positions: boardroute takes the footprints from its library of about 1,150 through-hole parts and places everything itself.
 
 This example puts a red LED with a 220 Ω resistor on pin D5 of a Wemos D1 Mini:
 
 ```json
-{"parts":[{"id":"U1","part":"Wemos D1 Mini"},{"id":"R1","part":"resistor","value":"220"},{"id":"D1","part":"LED","value":"red"}],
- "nets":{"LED":["U1.D5","R1.1"],"LED_A":["R1.2","D1.A"],"GND":["U1.GND","D1.K"]}}
+{"parts":{"U1":"Wemos D1 Mini","R1":"resistor, 220","D1":"LED, red"},
+ "connections":[["U1.D5","R1.1"],["R1.2","D1.A"],["D1.K","U1.GND"]]}
 ```
 
-[Open it in boardroute](https://boardroute.com/#circuit=%7B%22parts%22%3A%5B%7B%22id%22%3A%22U1%22%2C%22part%22%3A%22Wemos%20D1%20Mini%22%7D%2C%7B%22id%22%3A%22R1%22%2C%22part%22%3A%22resistor%22%2C%22value%22%3A%22220%22%7D%2C%7B%22id%22%3A%22D1%22%2C%22part%22%3A%22LED%22%2C%22value%22%3A%22red%22%7D%5D%2C%22nets%22%3A%7B%22LED%22%3A%5B%22U1.D5%22%2C%22R1.1%22%5D%2C%22LED_A%22%3A%5B%22R1.2%22%2C%22D1.A%22%5D%2C%22GND%22%3A%5B%22U1.GND%22%2C%22D1.K%22%5D%7D%7D)
+[Open it in boardroute](https://boardroute.com/#circuit=%7B%22parts%22%3A%7B%22U1%22%3A%22Wemos%20D1%20Mini%22%2C%22R1%22%3A%22resistor%2C%20220%22%2C%22D1%22%3A%22LED%2C%20red%22%7D%2C%22connections%22%3A%5B%5B%22U1.D5%22%2C%22R1.1%22%5D%2C%5B%22R1.2%22%2C%22D1.A%22%5D%2C%5B%22D1.K%22%2C%22U1.GND%22%5D%5D%7D)
 
 ## What happens when you click it
 
 1. boardroute loads the parts. Your previous board stays one *Undo* away.
 2. It runs **Wire** until every connection is routed, then **Compact** until it stops finding a smaller board.
 3. The circuit description is in the editor (*Circuit → Edit JSON*), so you can change a part and run it again.
-4. If a part or pin name is unknown, a message names each problem instead of guessing.
+4. A part boardroute doesn't know never stops the circuit: it becomes a pin header with the pins the AI named, and a note asks you to check it.
 
 ## Asking your assistant for a link
 

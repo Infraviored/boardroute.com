@@ -987,7 +987,7 @@ export function generateCombinedSVG(components, wires = [], options = {}) {
   const vertical = options.stack === 'vertical';
   const gap = 30;
   const totalW = vertical ? W : W * 2 + gap;
-  const totalH = vertical ? H * 2 + 90 : H + 60; // Extra room for labels
+  const totalH = vertical ? H * 2 + 105 : H + 60; // Extra room for labels + 15px bottom margin
   const bottomPos = vertical ? `0, ${45 + H + 45}` : `${W + gap}, 45`;
 
   const commonStyles = `

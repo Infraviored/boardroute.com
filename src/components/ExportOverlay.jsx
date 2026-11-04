@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MOBILE_MQ } from '../mobile.js';
 import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
-import { generateBoardSVG, generateCombinedSVG, printThemeSVG, realSizeSVG, photoTurn } from '../engine/render-utils.js';
+import { generateBoardSVG, generateCombinedSVG, printThemeSVG, photoTurn, printPageHTML } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
@@ -23,7 +23,8 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     const [format, setFormat] = useState('svg'); // 'svg' | 'png'
     const [side, setSide] = useState('both');    // 'top' | 'bottom' | 'both' (both by default)
     const [look, setLook] = useState('screen');  // 'screen' (dark) | 'paper' (light, for printing) | 'mono' (black & white printer)
-    const [actualSize, setActualSize] = useState(true);
+    const [printSize, setPrintSize] = useState(loadPrintSize);   // 'actual' | 'fill' | 'custom'
+    const [customPct, setCustomPct] = useState(loadCustomPct);     // percent of actual size
     const [pictures, setPictures] = useState(true); // the parts' photos in the export
 
     const source = bestSnapshot || { components, wires };
@@ -33,17 +34,21 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         for (const c of source.components || []) if (partImages?.[c.id] && photoTurn(c, partImages[c.id]) >= 0) out[c.id] = partImages[c.id];
         return Object.keys(out).length ? out : null;
     }, [source.components, partImages]);
+    const stack = side === 'both' ? (printSize === 'fill' ? 'vertical' : 'auto') : undefined;
+    const scale = printSize === 'custom' ? clampPct(customPct) / 100 : 1;
     const svg = useMemo(() => {
         if (!isOpen || !source.components?.length) return '';
-        const opts = { padding: 3, view: boardView, photos: pictures ? photos : null, mono: look === 'mono' };
+        const opts = { padding: 3, stack, scale, view: boardView, photos: pictures ? photos : null, mono: look === 'mono' };
         const raw = side === 'both'
             ? generateCombinedSVG(source.components, source.wires, opts)
             : generateBoardSVG(source.components, source.wires, { ...opts, side });
         return look === 'screen' ? raw : printThemeSVG(raw, { mono: look === 'mono' });
-    }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures]);
+    }, [isOpen, source.components, source.wires, side, boardView, look, photos, pictures, stack, scale]);
 
     const previewUrl = useMemo(() => (svg ? URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) : ''), [svg]);
     useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+    useEffect(() => { try { localStorage.setItem('pcb_print_size', printSize); localStorage.setItem('pcb_print_pct', String(customPct)); } catch { /* storage blocked */ } }, [printSize, customPct]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -70,20 +75,13 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         if (!svg) return;
         // paper always gets the light colours, whatever the preview shows
         const light = look === 'screen' ? printThemeSVG(svg) : svg;
-        const out = actualSize ? realSizeSVG(light) : light;
+        const title = `boardroute · ${side === 'bottom' ? 'solder side (mirrored)' : side === 'both' ? 'component and solder side' : 'component side'} · ${fp ? `${fp.width} × ${fp.height} holes` : ''}`;
         const frame = document.createElement('iframe');
         frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
         document.body.appendChild(frame);
         const doc = frame.contentDocument;
-        const title = `boardroute · ${side === 'bottom' ? 'solder side (mirrored)' : side === 'both' ? 'component and solder side' : 'component side'} · ${fp ? `${fp.width} × ${fp.height} holes` : ''}`;
         doc.open();
-        doc.write(`<!doctype html><html><head><title>boardroute</title><style>
-            @page { margin: 12mm; }
-            body { margin: 0; font: 11px system-ui, sans-serif; color: #333; }
-            header { display: flex; justify-content: space-between; margin-bottom: 6mm; }
-            .sheet { ${actualSize ? '' : 'width: 100%;'} }
-            .sheet svg { ${actualSize ? '' : 'width: 100%; height: auto;'} display: block; }
-        </style></head><body><header><span>${title}</span><span>boardroute.com · ${new Date().toLocaleDateString()}${actualSize ? ' · 1:1, 2.54 mm pitch' : ''}</span></header><div class="sheet">${out}</div></body></html>`);
+        doc.write(printPageHTML(light, title, printSize, clampPct(customPct)));
         doc.close();
         const cleanup = () => setTimeout(() => frame.remove(), 500);
         frame.contentWindow.addEventListener('afterprint', cleanup);
@@ -122,8 +120,16 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                         <div className="ex-label">Colours</div>
                         <Seg value={look} onChange={setLook} options={[['screen', 'Dark (screen)'], ['paper', 'Light (paper)'], ['mono', 'Black & white', 'For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend']]} />
                         {photos && <label className="ex-check"><input type="checkbox" checked={pictures} onChange={e => setPictures(e.target.checked)} /> Part pictures (photos)</label>}
-                        <label className="ex-check"><input type="checkbox" checked={actualSize} onChange={e => setActualSize(e.target.checked)} /> Print at actual size (1 hole = 2.54 mm)</label>
-                        <div className="ex-hint">{look === 'mono' ? 'Connections are told apart by line style; the legend is below the board.' : 'Print always uses the light colours. Black & white printer? Pick Black & white.'}</div>
+                        <div className="ex-label">Print size</div>
+                        <Seg value={printSize} onChange={setPrintSize} options={[['actual', 'Actual size', '1:1, 1 hole = 2.54 mm'], ['fill', 'Fill the page', 'As large as fits one sheet; both sides are stacked one above the other'], ['custom', 'Custom', 'Scale in percent of actual size']]} />
+                        {printSize === 'custom' && (
+                            <label className="ex-check">
+                                <input type="number" className="ex-pct" min={PCT_MIN} max={PCT_MAX} step={5} value={customPct}
+                                    onChange={e => setCustomPct(e.target.value === '' ? '' : Number(e.target.value))}
+                                    onBlur={() => setCustomPct(clampPct(customPct))} /> % of actual size ({(2.54 * clampPct(customPct) / 100).toFixed(2)} mm per hole)
+                            </label>
+                        )}
+                        <div className="ex-hint">{printSize === 'actual' ? '1 hole = 2.54 mm. ' : printSize === 'fill' ? 'Scaled to fit one sheet' + (side === 'both' ? '; the solder side goes below the top side. ' : '. ') : ''}{look === 'mono' ? 'Connections are told apart by line style; the legend is below the board.' : 'Print always uses the light colours. Black & white printer? Pick Black & white.'}</div>
                     </div>
 
                     <div className="ex-group">
@@ -164,6 +170,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
         .ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
+        .ex-check .ex-pct { width: 72px; flex: none; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; padding: 5px 6px; }
         .ex-hint { font-size: var(--fs-xs); color: var(--txt2); }
         .ex-more { display: flex; gap: 8px; }
         .ex-more .ex-btn { font-size: var(--fs-sm); padding: 8px; }
@@ -217,6 +224,22 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
       `}} />
         </div>
     );
+}
+
+const PCT_MIN = 25, PCT_MAX = 1000, PCT_DEFAULT = 200;
+const clampPct = (v) => {
+    if (v === '' || v === null || v === undefined) return PCT_DEFAULT;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.min(PCT_MAX, Math.max(PCT_MIN, Math.round(n))) : PCT_DEFAULT;
+};
+
+// the old checkbox ("pcb_print_actual"-less) defaulted to actual size; keep that unless a mode was saved
+function loadPrintSize() {
+    try { const v = localStorage.getItem('pcb_print_size'); if (v === 'actual' || v === 'fill' || v === 'custom') return v; } catch { /* storage blocked */ }
+    return 'actual';
+}
+function loadCustomPct() {
+    try { return clampPct(localStorage.getItem('pcb_print_pct') ?? PCT_DEFAULT); } catch { return PCT_DEFAULT; }
 }
 
 function saveFile(blob, name) {

@@ -976,16 +976,34 @@ export function generateCombinedSVG(components, wires = [], options = {}) {
   // Extract inner content from both SVGs
   const getInner = (s) => s.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '');
 
-  // Get dimensions from one of them
-  const match = topSvg.match(/width="(\d+)" height="(\d+)"/);
-  if (!match) return '';
-  const [_, W_str, H_str] = match;
-  const W = parseInt(W_str);
-  const H = parseInt(H_str);
+  // Get dimensions from both views (take max to prevent clipping if mirrored labels differ)
+  const topMatch = topSvg.match(/width="(\d+)" height="(\d+)"/);
+  const bottomMatch = bottomSvg.match(/width="(\d+)" height="(\d+)"/);
+  if (!topMatch && !bottomMatch) return '';
+  const topW = topMatch ? parseInt(topMatch[1]) : 0;
+  const topH = topMatch ? parseInt(topMatch[2]) : 0;
+  const bottomW = bottomMatch ? parseInt(bottomMatch[1]) : 0;
+  const bottomH = bottomMatch ? parseInt(bottomMatch[2]) : 0;
+  const W = Math.max(topW, bottomW);
+  const H = Math.max(topH, bottomH);
 
   const gap = 30;
-  const totalW = W * 2 + gap;
-  const totalH = H + 60; // Extra room for labels
+  // stack: 'vertical' puts the solder side below the top side; 'auto' stacks vertically when side-by-side overflows portrait page width
+  let vertical = options.stack === 'vertical';
+  if (!vertical && options.stack === 'auto') {
+    const k = options.scale || 1;
+    const sideBySideW = ((W * 2 + gap) / SP * 2.54) * k;
+    const stackedW = (W / SP * 2.54) * k;
+    const stackedH = ((H * 2 + 105) / SP * 2.54) * k;
+    // Portrait printable width ~186 mm (A4 210 - 24 mm margins); height ~245 mm (Letter 279.4 - 24 - 10 mm header)
+    const PAGE_W = 186, PAGE_H = 245;
+    if (sideBySideW > PAGE_W && (stackedH <= PAGE_H || stackedW <= PAGE_W)) {
+      vertical = true;
+    }
+  }
+  const totalW = vertical ? W : W * 2 + gap;
+  const totalH = vertical ? H * 2 + 105 : H + 60; // Extra room for labels + 15px bottom margin
+  const bottomPos = vertical ? `0, ${45 + H + 45}` : `${W + gap}, 45`;
 
   const commonStyles = `
     <defs>
@@ -1004,7 +1022,7 @@ export function generateCombinedSVG(components, wires = [], options = {}) {
       ${getInner(topSvg)}
     </g>
  
-    <g transform="translate(${W + gap}, 45)">
+    <g transform="translate(${bottomPos})">
       <text x="${W / 2}" y="-15" fill="#fff" font-family="Outfit, sans-serif" font-weight="800" font-size="22" text-anchor="middle">BOTTOM VIEW</text>
       ${getInner(bottomSvg)}
     </g>
@@ -1066,3 +1084,26 @@ export function realSizeSVG(svg) {
   return svg.replace(/<svg([^>]*?)width="([\d.]+)"([^>]*?)height="([\d.]+)"/, (m, a, w, b, h) =>
     `<svg${a}width="${(w / SP * 2.54).toFixed(2)}mm"${b}height="${(h / SP * 2.54).toFixed(2)}mm"`);
 }
+
+// The print page (pure, so it can be checked without a browser). `svg` is the light-themed export.
+export function printPageHTML(svg, title, mode, pct = 200, date = new Date().toLocaleDateString()) {
+    const scaled = mode === 'actual' ? realSizeSVG(svg) : mode === 'custom' ? scaledSVG(svg, pct / 100) : svg;
+    const note = mode === 'actual' ? ' · 1:1, 2.54 mm pitch' : mode === 'custom' ? ` · ${pct} %, ${(2.54 * pct / 100).toFixed(2)} mm pitch` : ' · fit to page';
+    const fill = mode === 'fill';
+    // fill: sheet fits printable area (page height minus both 12 mm margins, 10 mm header, and 2 mm buffer)
+    return `<!doctype html><html><head><title>boardroute</title><style>
+            @page { margin: 12mm; }
+            html, body { margin: 0; }
+            body { font: 11px system-ui, sans-serif; color: #333; }
+            header { display: flex; justify-content: space-between; margin-bottom: 6mm; height: 4mm; }
+            .sheet { ${fill ? 'width: 100%; height: calc(100vh - 24mm - 10mm - 2mm); overflow: hidden;' : ''} }
+            .sheet svg { display: block; ${fill ? 'width: 100%; height: 100%;' : ''} }
+        </style></head><body><header><span>${title}</span><span>boardroute.com · ${date}${note}</span></header><div class="sheet">${scaled}</div></body></html>`;
+}
+
+// svg width/height (px at 28 px per hole) -> mm at factor x actual size
+function scaledSVG(svg, factor) {
+    return svg.replace(/<svg([^>]*?)width="([\d.]+)"([^>]*?)height="([\d.]+)"/, (m, a, w, b, h) =>
+        `<svg${a}width="${(w / SP * 2.54 * factor).toFixed(2)}mm"${b}height="${(h / SP * 2.54 * factor).toFixed(2)}mm"`);
+}
+

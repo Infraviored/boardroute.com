@@ -11,6 +11,7 @@ User-facing explanations of the layout engine. `npm run build` publishes them as
 | 4 | [Making the board small](04-shrinking-the-board.md) | Fixed-size search, simulated annealing, smart jumps, and shrinking row by row. |
 | 5 | [How we know it got better](05-measuring-progress.md) | The benchmark, the independent validator, results against the previous engine. |
 | 6 | [FAQ](06-faq.md) | Short answers to common questions. |
+| 7 | [Links from AI assistants](07-for-ai-assistants.md) | An AI answers with a link; one click opens, wires and compacts the circuit. |
 
 Search terms these pages cover: AI perfboard layout, ChatGPT circuit to perfboard, AI circuit design, perfboard layout, protoboard layout, perfboard autorouter, single-sided routing, perfboard design tool, can a circuit be routed on one layer, planar graph, utilities puzzle, jumper wire placement, automatic jumper wires, simulated annealing placement, PathFinder routing.
 

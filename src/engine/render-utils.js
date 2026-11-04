@@ -333,6 +333,12 @@ export function layoutPartLabels(components, opts = {}) {
       cands.push([cx - w / 2, b.y - g - h], [cx - w / 2, b.y + b.h + g], [b.x + b.w + g, cy - h / 2], [b.x - g - w, cy - h / 2],
         [b.x + b.w + g * .5, b.y - g - h], [b.x - g * .5 - w, b.y - g - h], [b.x + b.w + g * .5, b.y + b.h + g], [b.x - g * .5 - w, b.y + b.h + g]);
     }
+    // Edge-aligned below/above (left edges or right edges flush): a tag much wider than a small part
+    // then runs one way instead of sticking out on both sides under the neighbours. Appended after
+    // the centred ones so the remembered candidate indices stay valid.
+    for (const g of [SP * .45, SP * 1.1]) {
+      cands.push([b.x, b.y + b.h + g], [b.x + b.w - w, b.y + b.h + g], [b.x, b.y - g - h], [b.x + b.w - w, b.y - g - h]);
+    }
 
     let best = null;
     let prevCandBest = null;

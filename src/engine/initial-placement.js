@@ -31,6 +31,7 @@ export function compOptions(cd) {
     ...(cd.swap ? { swap: cd.swap } : {}),
     ...(cd.edge >= 0 ? { edge: cd.edge } : {}),
     ...(cd.bands !== undefined ? { bands: cd.bands } : {}),
+    ...(cd.placeholder ? { placeholder: true } : {}),
   };
 }
 

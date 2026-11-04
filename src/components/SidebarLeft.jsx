@@ -221,6 +221,7 @@ export function SidebarLeft({
                   <div className="comp-id-tag">{c.id}</div>
                   <div className="comp-info">
                     <div className="comp-name">{c.name}</div>
+                    {c.placeholder && <div className="comp-standin" title="Not in any library: a plain pin header. Check the pins or replace it (select the part, Inspector).">stand-in — check pins</div>}
                     <div className="comp-value">{c.value}</div>
                   </div>
                   <div className="comp-actions">
@@ -700,6 +701,8 @@ export function SidebarLeft({
           margin-left: auto;
           flex-shrink: 0;
         }
+        .comp-standin { font-size: 10px; font-weight: 700; color: var(--org); margin-top: 1px; }
+        .comp-card:has(.comp-standin) { border-style: dashed; }
         .comp-pins-tag {
            font-size: var(--fs-xs);
            font-weight: 800;

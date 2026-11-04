@@ -711,7 +711,7 @@ export class AutorouterEngine {
                 oldComp.name = def.name;
                 oldComp.value = def.value;
                 oldComp.color = def.color;
-                delete oldComp.swap; delete oldComp.edge; delete oldComp.bands;
+                delete oldComp.swap; delete oldComp.edge; delete oldComp.bands; delete oldComp.placeholder;
                 Object.assign(oldComp, compOptions(def));
 
                 const incomingPins = def.offsets.map((off, idx) => ({
@@ -768,6 +768,16 @@ export class AutorouterEngine {
         // Cleanup orphaned wires
         const counts = netPinCounts(this.components);
         this.wires = this.wires.filter(w => (counts.get(w.net) || 0) >= 2);
+
+        // Cleanup wires ending where no pin of that net is any more
+        const pinNets = new Set();
+        for (const c of this.components) for (const p of c.pins) if (p.net) pinNets.add(`${p.net}|${p.col},${p.row}`);
+        this.wires = this.wires.filter(w => {
+            if (!w.path?.length) return false;
+            if (!w.failed) return true;
+            const a = w.path[0], b = w.path[w.path.length - 1];
+            return pinNets.has(`${w.net}|${a.col},${a.row}`) && pinNets.has(`${w.net}|${b.col},${b.row}`);
+        });
 
         this.changed();
     }

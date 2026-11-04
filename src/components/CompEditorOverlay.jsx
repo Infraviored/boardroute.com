@@ -211,6 +211,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
         if (data.edge >= 0) saved.edge = data.edge; else delete saved.edge;
         if (isResistor(data) && data.bands !== DEFAULT_BANDS) saved.bands = data.bands; else delete saved.bands;
         if (savedSwap) saved.swap = savedSwap; else delete saved.swap;
+        delete saved.placeholder; // saved from the editor = a footprint the user has looked at
         onSave(saved);
     };
 

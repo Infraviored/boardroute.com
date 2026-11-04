@@ -51,6 +51,9 @@ function freeId(components, prefix, start = 1, pictures = {}) {
   return `${prefix}${n}`;
 }
 
+// what to search the Library for when replacing a stand-in: its name without the pin list and filler words
+const standInQuery = (c) => String(c?.name || c?.id || '').replace(/\(.*?\)/g, ' ').replace(/\b(breakout|module|board|sensor)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+
 function App() {
   // --- STATE ---
 const [board, setBoard] = useState(() => {
@@ -142,6 +145,7 @@ const [board, setBoard] = useState(() => {
         ...(swapJSON(c) !== undefined ? { swap: swapJSON(c) } : {}),
         ...(c.edge >= 0 ? { edge: EDGE_SIDES[c.edge] } : {}),
         ...(isBands(c.bands) ? { bands: c.bands } : {}),
+        ...(c.placeholder ? { placeholder: true } : {}),
         pins: c.pins.map(p => ({
           offset: [p.dCol, p.dRow],
           label: p.lbl,
@@ -498,8 +502,8 @@ const [board, setBoard] = useState(() => {
   }, [activePin, selectedId, selectedNet]);
 
   // open a part of the board in the editor (pencil in the Parts list, Edit for the selected part)
-  const handleEditComp = useCallback((id) => {
-    setEditorMode('edit'); setEditorPhoto(null);
+  const handleEditComp = useCallback((id, photo = null) => {
+    setEditorMode('edit'); setEditorPhoto(photo);
     const c = board.components.find(x => x.id === id);
     setEditingComp(c && partImages[id] ? { ...c, image: partImages[id] } : c);
     setIsEditorOpen(true);
@@ -534,12 +538,28 @@ const [board, setBoard] = useState(() => {
     const s = swapGroups(compDef) || swapGroups(def);
     const newComp = { id: newId, name: compDef.name, value: compDef.value, color: compDef.color || null, routeUnder: def.routeUnder, ...(s ? { swap: s } : {}), ...(def.edge >= 0 ? { edge: def.edge } : {}), w: def.w, h: def.h, ox: cx, oy: cy, pins: def.offsets.map(([dc, dr], i) => ({ dCol: dc, dRow: dr, col: cx + dc, row: cy + dr, lbl: def.pinLbls[i], net: '' })) };
     // Show it big in the editor first (pins, nets, body can be adjusted); "Add to circuit" adds it.
+    setReplacing(null);
     setIsLibraryOpen(false);
     setEditorPhoto(photo);
     setEditorMode('add');
     setEditingComp(newComp);
     setIsEditorOpen(true);
   }, [board.components, partImages]);
+
+  // Write the changed parts back to the circuit text and the engine, then keep the board whole:
+  // re-wire, and if the changed part no longer fits where it was, nudge or turn it a little.
+  const applyEditedParts = useCallback(async (newComps, changedId) => {
+    const newJson = generateJSONFromState(newComps);
+    setJsonInput(JSON.stringify(newJson, null, 2));
+    const defs = processTemplate(newJson);
+    if (!defs) return false;
+    engine.mergeBoard(defs);
+    setStatus(prev => ({ ...prev, isProcessing: true }));
+    let whole = true;
+    try { whole = await engine.repairPart(changedId); } finally { setStatus(prev => ({ ...prev, isProcessing: false })); }
+    if (!whole && engine.wires.length) setNotice({ kind: 'warn', title: `${changedId} no longer fits where it was`, text: 'Some connections broke. Press Compact to rearrange the board around the changed part.' });
+    return whole;
+  }, [engine]);
 
   const handleSaveEdit = useCallback(async (edited) => {
     if (!editingComp) return;
@@ -564,26 +584,95 @@ const [board, setBoard] = useState(() => {
       ? board.components.map(c => c.id === editingComp.id ? updated : c)
       : [...board.components, updated]; // new part from the "New" button; mergeBoard places it
     
-    // 1. Two-way sequence: Update text
-    const newJson = generateJSONFromState(newComps);
-    setJsonInput(JSON.stringify(newJson, null, 2));
-    
-    // 2. Safely merge it back to engine memory
-    const defs = processTemplate(newJson);
-    if (defs) {
-        engine.mergeBoard(defs);
-        // Keep the board whole: re-wire, and if the changed part no longer fits where it was,
-        // nudge or turn it a little (engine.repairPart)
-        setStatus(prev => ({ ...prev, isProcessing: true }));
-        let whole = true;
-        try { whole = await engine.repairPart(updated.id); } finally { setStatus(prev => ({ ...prev, isProcessing: false })); }
-        if (!whole && engine.wires.length) setNotice({ kind: 'warn', title: `${updated.id} no longer fits where it was`, text: 'Some connections broke. Press Compact to rearrange the board around the changed part.' });
-    }
-    
+    await applyEditedParts(newComps, updated.id);
+
     setIsEditorOpen(false); 
     setEditingComp(null);
     saveHistory(); 
-  }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode, setPictures]);
+  }, [board.components, board.wires, engine, saveHistory, editingComp, editorMode, setPictures, applyEditedParts]);
+
+  // Stand-in parts (not in any library): "Replace…" in the Inspector.
+  // replacing = id of the part the Library is picking a footprint for
+  const [replacing, setReplacing] = useState(null);
+  const handleKeepHeader = useCallback((id) => {
+    engine.setState({ components: board.components.map(c => { if (c.id !== id) return c; const rest = { ...c }; delete rest.placeholder; return rest; }), wires: board.wires });
+    saveHistory();
+  }, [board.components, board.wires, engine, saveHistory]);
+  const handleReplaceStart = useCallback((id) => { setReplacing(id); setIsLibraryOpen(true); }, []);
+  // The library part takes the place of the stand-in (same id, same place); a connection follows
+  // the pin label (exact, then ignoring case, then the pin number); the rest is reported.
+  const handleReplaceWith = useCallback(async (compDef) => {
+    const old = board.components.find(c => c.id === replacing);
+    setReplacing(null); setIsLibraryOpen(false);
+    if (!old) return;
+    const def = processTemplate({ components: [{ ...compDef, id: old.id }] })?.[0];
+    if (!def) return;
+    const free = new Set(old.pins.map((_, i) => i));
+    const take = (test) => {
+      let candidate = -1;
+      for (const i of free) {
+        if (test(old.pins[i], i)) {
+          if (old.pins[i].net) { free.delete(i); return i; }
+          if (candidate < 0) candidate = i;
+        }
+      }
+      if (candidate >= 0) free.delete(candidate);
+      return candidate;
+    };
+    const lbl = (s) => String(s ?? '').trim();
+    const src = def.pinLbls.map(() => -1);
+    const passes = [
+      (l) => (p) => lbl(p.lbl) === l,
+      (l) => (p) => lbl(p.lbl).toLowerCase() === l.toLowerCase(),
+      (l) => (p, i) => /^\d+$/.test(l) && String(i + 1) === l,
+    ];
+    let mappedByNumber = false;
+    for (const pass of passes.slice(0, 2)) def.pinLbls.forEach((l, k) => { if (src[k] < 0 && lbl(l)) src[k] = take(pass(lbl(l))); });
+    def.pinLbls.forEach((l, k) => {
+      if (src[k] < 0 && lbl(l)) {
+        const i = take(passes[2](lbl(l)));
+        if (i >= 0) { src[k] = i; mappedByNumber = true; }
+      }
+    });
+    // a pin number of the new part (its position in the list) also finds an old pin with that label
+    def.pinLbls.forEach((l, k) => {
+      if (src[k] < 0) {
+        const i = take(p => lbl(p.lbl) === String(k + 1));
+        if (i >= 0) { src[k] = i; mappedByNumber = true; }
+      }
+    });
+    const lost = [...free].filter(i => old.pins[i].net).map(i => `${old.pins[i].lbl || i + 1} (${old.pins[i].net})`);
+    const comp = {
+      id: old.id, name: compDef.name, value: old.value || compDef.value || '', color: old.color || compDef.color || null,
+      routeUnder: def.routeUnder, ...(def.swap ? { swap: def.swap } : {}), ...(def.edge >= 0 ? { edge: def.edge } : {}),
+      w: def.w, h: def.h, ox: old.ox, oy: old.oy,
+      pins: def.offsets.map(([dc, dr], k) => ({ dCol: dc, dRow: dr, col: old.ox + dc, row: old.oy + dr, lbl: def.pinLbls[k], net: src[k] >= 0 ? old.pins[src[k]].net || '' : '' })),
+    };
+    setPictures(prev => { const next = { ...prev }; delete next[old.id]; return next; });
+    const whole = await applyEditedParts(board.components.map(c => c.id === old.id ? comp : c), old.id);
+    setSelectedId(old.id); saveHistory();
+    if (!whole && engine.wires.length) {
+      setNotice({
+        kind: 'warn',
+        title: `${old.id} no longer fits where it was`,
+        text: `Some connections broke. Press Compact to rearrange the board around the changed part.${lost.length ? ` ${lost.length} connection${lost.length === 1 ? '' : 's'} could not be moved: ${lost.join(', ')}.` : (mappedByNumber ? ' Connections moved by pin number, check them.' : '')}`,
+      });
+    } else if (lost.length) {
+      setNotice({
+        kind: 'warn',
+        title: `${old.id}: ${lost.length} connection${lost.length === 1 ? '' : 's'} could not be moved to ${compDef.name}`,
+        text: `No pin of the new part matches: ${lost.join(', ')}. Connect ${lost.length === 1 ? 'it' : 'them'} again with the pins of the new part.${mappedByNumber ? ' Other connections moved by pin number, check them.' : ''}`,
+      });
+    } else {
+      setNotice({
+        kind: 'info',
+        title: `${old.id} is now ${compDef.name}`,
+        text: mappedByNumber ? 'Connections moved by pin number, check them.' : 'All connections moved to the pins with the same name.',
+      });
+    }
+    // engine is the one instance; wires.length is read at call time, not a render dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.components, replacing, applyEditedParts, saveHistory, setPictures]);
 
   // the project file: board plus the pictures of its parts (also what an account saves)
   const boardData = useCallback(() => {
@@ -910,7 +999,7 @@ const [board, setBoard] = useState(() => {
           }}
           components={board.components} selectedId={selectedId}
           onSelectComponent={selectComp}
-          onOpenLibrary={() => setIsLibraryOpen(true)}
+          onOpenLibrary={() => { setReplacing(null); setIsLibraryOpen(true); }}
           onAddNewComponent={() => {
             setEditorPhoto(null);
             setEditorMode('edit');
@@ -984,6 +1073,7 @@ const [board, setBoard] = useState(() => {
         </div>
         <div className="resizer r" onMouseDown={(e) => { e.preventDefault(); setResizing('r'); }}></div>
         <SidebarRight stats={stats} selectedComp={selectedComp} nets={netsMap} onSetBands={handleSetBands}
+          onReplaceStandIn={status.isProcessing ? null : { library: handleReplaceStart, photo: (id) => handleEditComp(id, 'pick'), keep: handleKeepHeader }}
           onRotateComp={status.isProcessing ? null : handleRotateComp} onEditComp={handleEditComp} onDeleteComp={requestDelete} canRotate={viewSide === 'top'}
           hoveredNet={hoveredNet} setHoveredNet={setHoveredNet}
           selectedNet={selectedNet} setSelectedNet={setSelectedNet}
@@ -1004,9 +1094,10 @@ const [board, setBoard] = useState(() => {
       </button>
       <ExamplesOverlay isOpen={!!examplesOpen} firstVisit={examplesOpen === 'first'} examples={examples} onClose={closeExamples} onSelect={loadExample} />
       <FastTooltips />
-      <LibraryOverlay isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onSelect={(c) => handleAddFromLibrary(c)}
-        onPhoto={() => handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, 'pick')} />
-      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} photo={editorPhoto} />
+      <LibraryOverlay isOpen={isLibraryOpen} onClose={() => { setIsLibraryOpen(false); setReplacing(null); }} onSelect={(c) => (replacing ? handleReplaceWith(c) : handleAddFromLibrary(c))}
+        replaceTitle={replacing ? `Replace ${replacing}` : null} initialSearch={replacing ? standInQuery(board.components.find(c => c.id === replacing)) : null}
+        onPhoto={() => { setReplacing(null); handleAddFromLibrary({ name: 'Module', value: '', pins: [{ offset: [0, 0], label: '1' }, { offset: [1, 0], label: '2' }] }, 'pick'); }} />
+      <CompEditorOverlay key={editingComp?.id} isOpen={isEditorOpen} component={editingComp} onClose={() => { setIsEditorOpen(false); if (editorMode === 'add') { setEditorMode('edit'); setReplacing(null); setIsLibraryOpen(true); } }} onSave={handleSaveEdit} netNames={Object.keys(netsMap).sort()} mode={editorMode} photo={editorPhoto} />
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay
         isOpen={confirmData.isOpen}

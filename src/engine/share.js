@@ -15,7 +15,8 @@
 //          extra = { u: 0 } for routeUnder: false, { k: "#hex" } for a custom colour,
 //                  { s: [[pinIndex, ...], ...] } for interchangeable pins,
 //                  { e: 0..3 } for the cable side that must face outward (top, right, bottom, left),
-//                  { r: 0 | 4 | 5 } resistor colour rings (absent = 5, 0 = none)
+//                  { r: 0 | 4 | 5 } resistor colour rings (absent = 5, 0 = none),
+//                  { p: 1 } stand-in part (not in any library, a plain pin header to check or replace)
 //     w: [[net, flags, col, row, steps], ...]          flags: 1 = jumper, 2 = failed
 //          steps = run-length unit steps "r3d2l" (r/l/u/d), any other step as "~dc,dr;" }
 //
@@ -100,6 +101,7 @@ export function packBoard(components, wires) {
     if (swap?.length) extra.s = swap;
     if (comp.edge >= 0) extra.e = comp.edge;
     if (isBands(comp.bands)) extra.r = comp.bands;
+    if (comp.placeholder) extra.p = 1;
     const row = [comp.id, comp.name ?? '', comp.value ?? '', comp.w, comp.h, comp.ox - minC, comp.oy - minR, pins];
     if (Object.keys(extra).length) row.push(extra);
     return row;
@@ -159,6 +161,10 @@ export function unpackBoard(data) {
       if (extra.r !== undefined) {
         if (!isBands(extra.r)) throw new ShareError(`bad colour rings on ${id}`);
         comp.bands = extra.r;
+      }
+      if (extra.p !== undefined) {
+        if (extra.p !== 1) throw new ShareError(`bad stand-in flag on ${id}`);
+        comp.placeholder = true;
       }
     }
     const seen = new Set();
@@ -325,6 +331,7 @@ export function validateBoardData(data) {
     const s = swapGroups(c);
     if (s) comp.swap = s; else delete comp.swap;
     if (isBands(c.bands)) comp.bands = c.bands;
+    if (c.placeholder === true) comp.placeholder = true;
     cleanComps.push(comp);
   }
   const cleanWires = [];

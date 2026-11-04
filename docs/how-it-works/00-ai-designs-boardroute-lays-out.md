@@ -26,6 +26,8 @@ That search is what boardroute does.
 4. **Press Compact.** boardroute keeps rearranging and shrinking until it stops finding a smaller board. You watch it work, the panel at the bottom shows the best result so far.
 5. **Solder it.** The top view shows where each part goes, the bottom view where the wires run. If the circuit can't be built on one layer at all, boardroute says so, names the parts responsible, and adds as few jumper wires as possible.
 
+Shorter still: ask your AI for a boardroute link. One click opens the circuit and runs Wire and Compact by itself, see [Links from AI assistants](07-for-ai-assistants.md).
+
 Not sure yet? The app opens with a choice of example circuits, from a six-part relay driver to a 23-part MOSFET bank.
 
 ## Why not let the AI do everything?

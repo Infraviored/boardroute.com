@@ -5,7 +5,7 @@ import { netCompletion } from './net-completion.js';
 import { areaLowerBound, isPerfect, targetExcess } from './lower-bound.js';
 // The legacy optimizer (optimizer.js) is loaded on demand by optimize()/plateau(); the UI no longer uses it.
 const legacyOptimizer = () => import('./optimizer.js');
-import { placeInitial, compOptions } from './initial-placement.js';
+import { placeInitial, compOptions, makeComp } from './initial-placement.js';
 import { anneal, moveComp, rotateComp90InPlace, hasOverlap, anyOverlap } from './placer.js';
 import { saveComps, restoreComps, completion } from './state-utils.js';
 import { analyzeTopology } from './topology.js';
@@ -13,6 +13,9 @@ import { solveBox } from './solver/boxsolver.js';
 import { buildModel, toEngine } from './solver/model.js';
 import { BoxRouter } from './solver/boxrouter.js';
 import { processTemplate, generateJSONFromState, isBands } from './templates.js';
+
+// |col| or |row| beyond this = a board that has drifted off; setState() brings it back
+const FAR = 10000;
 
 /**
  * AutorouterEngine - A "Headless" wrapper for the PCB autorouting logic.
@@ -137,7 +140,18 @@ export class AutorouterEngine {
     }
 
     setState(newState) {
-        if (newState.components) this.components = newState.components;
+        if (newState.components) {
+            this.components = newState.components;
+            // A board far from the origin (an old link, a board made with huge cols/rows) is
+            // drawn at tens of millions of px, where the browser's SVG maths is too coarse:
+            // parts vanish and wires miss their holes. Bring it back to the origin.
+            if (this.components.length) {
+                const b = calculateComponentBounds(this.components);
+                if (Math.max(Math.abs(b.minCol), Math.abs(b.maxCol), Math.abs(b.minRow), Math.abs(b.maxRow)) > FAR) {
+                    recenterComponents(this.components, Array.isArray(newState.wires) ? newState.wires : null);
+                }
+            }
+        }
         if (newState.wires) this.wires = newState.wires;
         if (newState.cols) this.cols = newState.cols;
         if (newState.rows) this.rows = newState.rows;
@@ -555,7 +569,7 @@ export class AutorouterEngine {
 
         if (bestComps) {
             const startScore = scoreState(this.components, this.wires);
-            this.components = placeInitial(compDefs, this.cols, this.rows); // Reset structure
+            this.components = placeInitial(compDefs, 0, 0); // Reset structure
             restoreComps(this.components, bestComps);
             this.wires = bestWires;
 
@@ -646,7 +660,7 @@ export class AutorouterEngine {
     }
 
     initializeBoard(compDefs) {
-        this.components = placeInitial(compDefs, this.cols, this.rows);
+        this.components = placeInitial(compDefs, 0, 0);
         this.wires = [];
         this.notify();
     }
@@ -684,10 +698,13 @@ export class AutorouterEngine {
             const oldComp = this.components.find(c => c.id === searchId);
             if (!oldComp) {
                 // Add new
-                const freshComps = placeInitial([def], this.cols, this.rows);
-                if (freshComps && freshComps.length > 0) {
-                    this.components.push(freshComps[0]); 
+                // fully right of the board, not at (cols, rows): coordinates stay near the origin with no overlap
+                let x = 0, y = 0;
+                if (this.components.length) {
+                    const b = calculateComponentBounds(this.components);
+                    x = b.maxCol + 3; y = Math.round((b.minRow + b.maxRow - def.h) / 2);
                 }
+                this.components.push(makeComp(def, x, y));
             } else {
                 // Update in-place
                 oldComp.id = def.id; // Apply rename if occurred

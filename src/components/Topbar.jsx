@@ -287,6 +287,14 @@ export function Topbar({
         .logo-sep {
           margin-left: 0 !important;
         }
+
+        /* Wide screens: the wordmark fills the column above the left sidebar (up to the separator),
+           scaled by width; "route" keeps sitting on the baseline of the copper letters */
+        @media (min-width: 1151px) {
+          .logo { max-width: 340px; padding: 12px 16px 8px 0; box-sizing: border-box; gap: 1.5%; }
+          .logo .logo-board { width: 56.5%; height: auto; }
+          .logo .logo-route { width: 42%; height: auto; margin-bottom: 4.8%; }
+        }
         
         /* Responsive Spacing */
         @media (max-width: 1150px) {

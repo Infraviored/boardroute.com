@@ -351,6 +351,8 @@ export function Topbar({
           flex-shrink: 0;
         }
         
+        .sep:not(.logo-sep) { background: none; }
+
         .btn-group, .workflow-track, .tbtn {
           margin: 0 8px;
           flex-shrink: 0;
@@ -375,8 +377,8 @@ export function Topbar({
         }
 
         .tbtn {
-          background: var(--ui-neutral);
-          border: 1px solid var(--border);
+          background: transparent;
+          border: 1px solid transparent;
           color: var(--txt1);
           padding: 6px 12px;
           height: 34px;
@@ -393,10 +395,7 @@ export function Topbar({
         }
         .tbtn:hover:not(:disabled) {
           background: var(--ui-neutral-hover);
-          border-color: var(--border2);
           color: var(--txt0);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           z-index: 10;
         }
         .tbtn:active:not(:disabled) {
@@ -405,7 +404,9 @@ export function Topbar({
         }
 
         .docs-link { text-decoration: none; }
-        .export-btn { color: var(--txt0); }
+        /* the one filled button: the main way out of the app */
+        .export-btn { color: var(--txt0); background: var(--ui-neutral); border-color: var(--border2); }
+        .export-btn:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.25); }
         .share-btn.copied { color: var(--grn-bright); border-color: rgba(63,185,80,.5); }
         .share-btn.failed { color: var(--red); }
         @media (max-width: 1500px) and (min-width: 951px) { .docs-link-label { display: none; } }
@@ -467,7 +468,7 @@ export function Topbar({
         }
         
         .flow-btn.completed {
-          background: var(--bg3);
+          background: #1f252e;
           color: var(--txt0);
           z-index: 1;
           opacity: 1 !important;
@@ -475,7 +476,7 @@ export function Topbar({
         }
 
         .flow-btn.next {
-          background: var(--bg3);
+          background: #1f252e;
           color: var(--txt0);
           box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
           z-index: 2;
@@ -530,7 +531,7 @@ export function Topbar({
         .flow-btn.processing::before { opacity: 1; box-shadow: 0 0 15px var(--flow-color); animation: flow-pulse 0.8s infinite ease-in-out; }
 
         .flow-btn:disabled:not(.processing):not(.completed) {
-          opacity: 0.15;
+          opacity: 0.22;
           cursor: not-allowed;
           filter: grayscale(1);
         }
@@ -554,9 +555,7 @@ export function Topbar({
         }
 
         .reset-btn {
-          color: var(--ui-danger-subtle-text);
-          background: var(--ui-danger-subtle-bg);
-          border: 1px solid var(--ui-danger-subtle-border);
+          color: var(--txt1);
           border-radius: var(--radius-md);
         }
         .reset-btn:hover:not(:disabled) {

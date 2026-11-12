@@ -94,7 +94,9 @@ function page({ title, description, path, body, jsonld, type = 'article' }) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${url}">
-<link rel="icon" type="image/png" href="/boardroute-icon.png">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="${type}">
 <meta property="og:site_name" content="boardroute">
 <meta property="og:title" content="${esc(title)}">

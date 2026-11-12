@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <!-- 6. Weicher Ambient-Schlagschatten unter der gesamten Platine -->
+    <filter id="br-shadow" x="-15%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="2.8" dy="3.8" stdDeviation="2.5" flood-color="#010302" flood-opacity="0.72" />
+    </filter>
+
+    <!-- 5. Subtiles Amber-Leuchten nur unter der Leiterbahn -->
+    <filter id="br-glow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="2.4" />
+    </filter>
+
+    <!-- Clip-Maske für die obere FR4-Platinenfläche -->
+    <clipPath id="br-board-clip">
+      <rect x="5" y="5" width="50" height="47" rx="6" />
+    </clipPath>
+
+    <!-- 1. Gewebte FR4-Glasfaser-Textur unter dem Lötstopplack -->
+    <pattern id="br-fr4-weave" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="3" fill="#132119" />
+      <path d="M 0 0 H 1.5 V 1.5 H 0 Z M 1.5 1.5 H 3 V 3 H 1.5 Z" fill="#1a2c22" opacity="0.55" />
+      <path d="M 1.5 0 H 3 V 1.5 H 1.5 Z M 0 1.5 H 1.5 V 3 H 0 Z" fill="#0d1712" opacity="0.55" />
+      <path d="M 0 0.75 H 3 M 0.75 0 V 3" stroke="#233b2d" stroke-width="0.25" opacity="0.4" />
+    </pattern>
+
+    <!-- Matter grün-schwarzer Lötstopplack-Verlauf (#1c2b22 -> #0f1a14) -->
+    <linearGradient id="br-board-grad" x1="5" y1="5" x2="55" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1c2b22" stop-opacity="0.88" />
+      <stop offset="50%" stop-color="#14221a" stop-opacity="0.88" />
+      <stop offset="100%" stop-color="#0f1a14" stop-opacity="0.92" />
+    </linearGradient>
+
+    <!-- 3D-Platinenkante: Unterer Soldermask-Rand & Schatten -->
+    <linearGradient id="br-edge-base" x1="12" y1="12" x2="58" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#14241b" />
+      <stop offset="48%" stop-color="#0d1812" />
+      <stop offset="72%" stop-color="#060c09" />
+      <stop offset="86%" stop-color="#111f17" />
+      <stop offset="100%" stop-color="#08100c" />
+    </linearGradient>
+
+    <!-- 3D-Platinenkante: Gefräster FR4-Glasfaser-Epoxid-Kern in der Fase -->
+    <linearGradient id="br-fr4-core" x1="15" y1="10" x2="57" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3c3f26" />
+      <stop offset="42%" stop-color="#4d4c2c" />
+      <stop offset="68%" stop-color="#222415" />
+      <stop offset="82%" stop-color="#3f4025" />
+      <stop offset="100%" stop-color="#272918" />
+    </linearGradient>
+
+    <!-- Scharfe Lichtkante oben/links auf der Platinenfase -->
+    <linearGradient id="br-top-hi" x1="5" y1="5" x2="52" y2="49" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6ca884" stop-opacity="0.95" />
+      <stop offset="35%" stop-color="#48755a" stop-opacity="0.7" />
+      <stop offset="75%" stop-color="#284534" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#1c2b22" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- 6. Subtile Vignette auf der Platinenoberfläche -->
+    <radialGradient id="br-vignette" cx="30" cy="28.5" r="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2b4536" stop-opacity="0.12" />
+      <stop offset="65%" stop-color="#000000" stop-opacity="0" />
+      <stop offset="100%" stop-color="#030705" stop-opacity="0.62" />
+    </radialGradient>
+
+    <!-- 2. Flacher, konzentrischer Messing-Restring mit Soldermask-Graben -->
+    <radialGradient id="br-pad-grad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#050907" />
+      <stop offset="46%" stop-color="#080e0b" />
+      <stop offset="50%" stop-color="#d4ad59" />
+      <stop offset="60%" stop-color="#ab8234" />
+      <stop offset="77%" stop-color="#7c5b1f" />
+      <stop offset="85%" stop-color="#4a3510" />
+      <stop offset="88%" stop-color="#060c09" />
+      <stop offset="96%" stop-color="#08110c" />
+      <stop offset="100%" stop-color="#15241c" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Gerichteter Metallic-Glanz auf der Messing-Ringkante -->
+    <linearGradient id="br-pad-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5d587" />
+      <stop offset="50%" stop-color="#9e762c" />
+      <stop offset="100%" stop-color="#3d2b0c" />
+    </linearGradient>
+
+    <!-- Tiefes Bohrloch mit schräg sichtbarer Hülsen-Innenwand -->
+    <radialGradient id="br-bore-grad" cx="36%" cy="36%" r="68%" fx="32%" fy="32%">
+      <stop offset="0%" stop-color="#010302" />
+      <stop offset="56%" stop-color="#050a07" />
+      <stop offset="76%" stop-color="#1a150b" />
+      <stop offset="91%" stop-color="#574019" />
+      <stop offset="100%" stop-color="#2b1e0a" />
+    </radialGradient>
+
+    <!-- 3. Warmer Kupferverlauf entlang der Spur (#e08a3c -> #ffb366 -> #c46a24) -->
+    <linearGradient id="br-copper" x1="19" y1="11" x2="41" y2="47" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e08a3c" />
+      <stop offset="46%" stop-color="#ffb366" />
+      <stop offset="100%" stop-color="#c46a24" />
+    </linearGradient>
+
+    <!-- Durchgehender Specular-Highlight-Verlauf für die obere/linke Spurkante -->
+    <linearGradient id="br-trace-hi" x1="18" y1="11" x2="40" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff0db" />
+      <stop offset="50%" stop-color="#ffdcb3" />
+      <stop offset="100%" stop-color="#f09d51" />
+    </linearGradient>
+
+    <!-- 4. Gewölbtes, glänzendes Silberlot (#d9dde2) -->
+    <radialGradient id="br-solder" cx="36%" cy="34%" r="66%" fx="30%" fy="28%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="26%" stop-color="#eef1f5" />
+      <stop offset="52%" stop-color="#d9dde2" />
+      <stop offset="80%" stop-color="#8a95a1" />
+      <stop offset="94%" stop-color="#4e5761" />
+      <stop offset="100%" stop-color="#2c333a" />
+    </radialGradient>
+
+    <!-- Kupfer-Lötpad-Basis unter den beiden Lötstellen -->
+    <linearGradient id="br-land-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb86c" />
+      <stop offset="55%" stop-color="#d4782a" />
+      <stop offset="100%" stop-color="#6e3009" />
+    </linearGradient>
+  </defs>
+
+  <!-- EBENE 1 & 6: FR4-Platinenkörper, 3D-Laminat-Fase & Vignette -->
+  <g filter="url(#br-shadow)">
+    <!-- Untere Lötstopplack-Schicht der 3D-Extrusion (exakte 45°-Tangenten ohne Stufen) -->
+    <path d="M 53.24 6.76 L 56.64 10.56 A 6 6 0 0 1 58.4 14.8 V 49.8 A 6 6 0 0 1 52.4 55.8 H 14.4 A 6 6 0 0 1 10.16 54.04 L 6.76 50.24 Z" fill="url(#br-edge-base)" />
+
+    <!-- Sichtbarer FR4-Glasfaser-Epoxid-Kern in der gefrästen Seitenwand -->
+    <path d="M 53.24 6.76 L 55.84 9.66 A 6 6 0 0 1 57.6 13.9 V 48.9 A 6 6 0 0 1 51.6 54.9 H 13.6 A 6 6 0 0 1 9.36 53.14 L 6.76 50.24 Z" fill="url(#br-fr4-core)" />
+
+    <!-- Feine Glasfaser-Laminatschichtlinie innerhalb der Fase -->
+    <path d="M 56.3 12.5 V 48.2 A 5.4 5.4 0 0 1 50.9 53.6 H 12.5" fill="none" stroke="#6e6b3e" stroke-width="0.45" opacity="0.55" />
+
+    <!-- Obere Lötstopplack-Fase (Chamfer) -->
+    <path d="M 53.24 6.76 L 54.44 8.06 A 6 6 0 0 1 56.2 12.3 V 47.3 A 6 6 0 0 1 50.2 53.3 H 12.2 A 6 6 0 0 1 7.96 51.54 L 6.76 50.24 Z" fill="#182a20" />
+
+    <!-- Hauptfläche der FR4-Platine (mit Glasfaser-Gewebe & Soldermask) -->
+    <g clip-path="url(#br-board-clip)">
+      <rect x="5" y="5" width="50" height="47" fill="url(#br-fr4-weave)" />
+      <rect x="5" y="5" width="50" height="47" fill="url(#br-board-grad)" />
+
+      <!-- Subtile FR4-Substrat-Faserlinien im 2.54mm-Raster -->
+      <path d="M 12 5 V 52 M 21 5 V 52 M 30 5 V 52 M 39 5 V 52 M 48 5 V 52 M 5 13 H 55 M 5 21 H 55 M 5 29 H 55 M 5 37 H 55 M 5 45 H 55" stroke="#263e30" stroke-width="0.35" opacity="0.28" />
+
+      <!-- Umlaufende Soldermask-Freistellungsfuge am Platinenrand -->
+      <rect x="6.3" y="6.3" width="47.4" height="44.4" rx="4.8" fill="none" stroke="#0a130e" stroke-width="0.5" opacity="0.7" />
+
+      <!-- Subtile Oberflächen-Vignette -->
+      <rect x="5" y="5" width="50" height="47" fill="url(#br-vignette)" />
+    </g>
+
+    <!-- Scharfe dunkle Fräskante unten/rechts -->
+    <rect x="5.25" y="5.25" width="49.5" height="46.5" rx="5.75" fill="none" stroke="#08100c" stroke-width="0.55" />
+
+    <!-- Präzise, feine Lichtkante an der oberen und linken Platinenkante -->
+    <path d="M 5.55 45.5 V 11 A 5.45 5.45 0 0 1 11 5.55 H 49 A 5.45 5.45 0 0 1 53.1 7.4" fill="none" stroke="url(#br-top-hi)" stroke-width="0.85" stroke-linecap="round" />
+  </g>
+
+  <!-- EBENE 2: 5x5 Durchkontaktiertes Lochraster (x = 12,21,30,39,48 | y = 13,21,29,37,45) -->
+  <!-- 2a. Flache, konzentrische Messing-Restringe mit Soldermask-Graben -->
+  <g fill="url(#br-pad-grad)">
+    <circle cx="12" cy="13" r="2.95" /><circle cx="21" cy="13" r="2.95" /><circle cx="30" cy="13" r="2.95" /><circle cx="39" cy="13" r="2.95" /><circle cx="48" cy="13" r="2.95" />
+    <circle cx="12" cy="21" r="2.95" /><circle cx="21" cy="21" r="2.95" /><circle cx="30" cy="21" r="2.95" /><circle cx="39" cy="21" r="2.95" /><circle cx="48" cy="21" r="2.95" />
+    <circle cx="12" cy="29" r="2.95" /><circle cx="21" cy="29" r="2.95" /><circle cx="30" cy="29" r="2.95" /><circle cx="39" cy="29" r="2.95" /><circle cx="48" cy="29" r="2.95" />
+    <circle cx="12" cy="37" r="2.95" /><circle cx="21" cy="37" r="2.95" /><circle cx="30" cy="37" r="2.95" /><circle cx="39" cy="37" r="2.95" /><circle cx="48" cy="37" r="2.95" />
+    <circle cx="12" cy="45" r="2.95" /><circle cx="21" cy="45" r="2.95" /><circle cx="30" cy="45" r="2.95" /><circle cx="39" cy="45" r="2.95" /><circle cx="48" cy="45" r="2.95" />
+  </g>
+
+  <!-- 2b. Scharf gebohrte Innenlöcher mit abgeschrägter Bohrhülsen-Tiefe -->
+  <g fill="url(#br-bore-grad)" stroke="url(#br-pad-rim)" stroke-width="0.32">
+    <circle cx="12" cy="13" r="1.4" /><circle cx="21" cy="13" r="1.4" /><circle cx="30" cy="13" r="1.4" /><circle cx="39" cy="13" r="1.4" /><circle cx="48" cy="13" r="1.4" />
+    <circle cx="12" cy="21" r="1.4" /><circle cx="21" cy="21" r="1.4" /><circle cx="30" cy="21" r="1.4" /><circle cx="39" cy="21" r="1.4" /><circle cx="48" cy="21" r="1.4" />
+    <circle cx="12" cy="29" r="1.4" /><circle cx="21" cy="29" r="1.4" /><circle cx="30" cy="29" r="1.4" /><circle cx="39" cy="29" r="1.4" /><circle cx="48" cy="29" r="1.4" />
+    <circle cx="12" cy="37" r="1.4" /><circle cx="21" cy="37" r="1.4" /><circle cx="30" cy="37" r="1.4" /><circle cx="39" cy="37" r="1.4" /><circle cx="48" cy="37" r="1.4" />
+    <circle cx="12" cy="45" r="1.4" /><circle cx="21" cy="45" r="1.4" /><circle cx="30" cy="45" r="1.4" /><circle cx="39" cy="45" r="1.4" /><circle cx="48" cy="45" r="1.4" />
+  </g>
+
+  <!-- EBENE 5: Dezentes Amber-Leuchten ausschließlich unter der Leiterbahn -->
+  <path d="M 21 13 V 45 H 39 V 29 H 21" fill="none" stroke="#ff9838" stroke-width="7.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.24" filter="url(#br-glow)" />
+
+  <!-- EBENE 3: Kupfer-Leiterbahn ("b") auf dem 2.54mm-Raster -->
+  <!-- Scharfer Kontaktschatten direkt unter der Leiterbahn auf dem Lötstopplack -->
+  <path d="M 21.45 13.65 V 45.65 H 39.45 V 29.65 H 21.45" fill="none" stroke="#040806" stroke-width="4.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.78" />
+
+  <!-- Untere/rechte 3D-Kupferfase & weicher Innenschatten (nahtlos um alle Ecken) -->
+  <path d="M 21.24 13.28 V 45.28 H 39.24 V 29.28 H 21.24" fill="none" stroke="#6e2e07" stroke-width="4.55" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Obere/linke Specular-Highlight-Kante (nahtlos entlang der Außenkante) -->
+  <path d="M 20.76 12.76 V 44.76 H 38.76 V 28.76 H 20.76" fill="none" stroke="url(#br-trace-hi)" stroke-width="4.45" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Hauptkörper der warmen Kupfer-Leiterbahn (Gesamtbreite ≈ 4.5 Einheiten) -->
+  <path d="M 21 13 V 45 H 39 V 29 H 21" fill="none" stroke="url(#br-copper)" stroke-width="4.05" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Dezente Via-Vertiefungen an den exakt auf Löchern sitzenden 90°-Ecken -->
+  <g fill="#8c4412" stroke="#ffc98f" stroke-width="0.25" opacity="0.55">
+    <circle cx="21" cy="45" r="0.75" />
+    <circle cx="39" cy="45" r="0.75" />
+    <circle cx="39" cy="29" r="0.75" />
+  </g>
+
+  <!-- EBENE 4: Gewölbte, glänzende Silber-Lötstellen an beiden Leiterbahn-Enden -->
+  <!-- Lötpad 1: Oben links am Ascender-Start (21, 13) -->
+  <circle cx="21.2" cy="13.35" r="3.45" fill="#040806" opacity="0.65" />
+  <circle cx="21" cy="13" r="3.35" fill="url(#br-land-grad)" />
+  <circle cx="21" cy="13" r="2.75" fill="url(#br-solder)" stroke="#5c6670" stroke-width="0.2" />
+  <path d="M 19.35 12.35 A 1.85 1.85 0 0 1 21.45 11.15" fill="none" stroke="#ffffff" stroke-width="0.55" stroke-linecap="round" opacity="0.9" />
+  <circle cx="19.9" cy="11.85" r="0.65" fill="#ffffff" />
+
+  <!-- Lötpad 2: Ende des geschlossenen Bauchs auf dem Stamm (21, 29) -->
+  <circle cx="21.2" cy="29.35" r="3.45" fill="#040806" opacity="0.65" />
+  <circle cx="21" cy="29" r="3.35" fill="url(#br-land-grad)" />
+  <circle cx="21" cy="29" r="2.75" fill="url(#br-solder)" stroke="#5c6670" stroke-width="0.2" />
+  <path d="M 19.35 28.35 A 1.85 1.85 0 0 1 21.45 27.15" fill="none" stroke="#ffffff" stroke-width="0.55" stroke-linecap="round" opacity="0.9" />
+  <circle cx="19.9" cy="27.85" r="0.65" fill="#ffffff" />
+</svg>

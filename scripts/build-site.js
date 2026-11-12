@@ -112,14 +112,14 @@ ${ANALYTICS}
 </head>
 <body>
 <header class="site-head">
-  <a class="logo" href="/"><img class="logo-board" src="/logo-board.svg" alt="board"><em>route.com</em></a>
+  <a class="logo" href="/"><img class="logo-board" src="/logo-board.svg" alt="board"><img class="logo-route" src="/logo-route.svg" alt="route"></a>
   <nav><a href="${BASE}">How it works</a><a href="${BASE}faq/">FAQ</a><a href="/parts/">Parts</a></nav>
   <a class="cta" href="/">Open the autorouter →</a>
 </header>
 ${body}
 <footer class="site-foot">
   <div class="foot-cols">
-    <div><a class="logo" href="/"><img class="logo-board" src="/logo-board.svg" alt="board"><em>route.com</em></a><p>Free perfboard autorouter that runs in your browser. Nothing is uploaded.</p><p class="legal"><a href="/imprint/">Imprint</a> · <a href="/privacy/">Privacy</a></p></div>
+    <div><a class="logo" href="/"><img class="logo-board" src="/logo-board.svg" alt="board"><img class="logo-route" src="/logo-route.svg" alt="route"></a><p>Free perfboard autorouter that runs in your browser. Nothing is uploaded.</p><p class="legal"><a href="/imprint/">Imprint</a> · <a href="/privacy/">Privacy</a></p></div>
     <div><h4>Parts</h4><ul><li><a href="/parts/">Pinouts for perfboard</a></li><li><a href="/parts.txt">parts.txt (for AI assistants)</a></li></ul></div>
     <div><h4>How it works</h4><ul>${files.map(f => `<li><a href="${urlOf(f)}">${esc(summaries.get(f)?.nav || slugOf(f))}</a></li>`).join('')}</ul></div>
   </div>

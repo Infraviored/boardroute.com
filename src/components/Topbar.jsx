@@ -73,7 +73,7 @@ export function Topbar({
   return (
     <header id="topbar">
       <div className="topbar-row-1">
-        <div className="logo" ref={logoRef}>board<em>route.com</em></div>
+        <div className="logo" ref={logoRef}><img className="logo-board" src="/logo-board.svg" alt="board" /><img className="logo-route" src="/logo-route.svg" alt="route" /></div>
         <div className="sep logo-sep"></div>
         <div className="workflow-track">
           <button
@@ -280,17 +280,30 @@ export function Topbar({
           white-space: nowrap;
           letter-spacing: -0.03em;
           display: flex;
-          align-items: baseline;
+          align-items: flex-end;
           flex-shrink: 0;
         }
 
         .logo-sep {
           margin-left: 0 !important;
         }
+
+        /* Wide screens: the wordmark fills the column above the left sidebar (up to the separator),
+           scaled by width; "route" keeps sitting on the baseline of the copper letters */
+        @media (min-width: 1151px) {
+          .logo { max-width: 340px; padding: 4px 16px 0 0; box-sizing: border-box; gap: 1.5%; }
+          .logo .logo-board { width: 56.5%; height: auto; }
+          .logo .logo-route { width: 42%; height: auto; margin-bottom: 4.8%; }
+          /* the three workflow steps fill the taller bar (ids win over the base .flow-btn rules below) */
+          #topbar .flow-btn { font-size: .95em; padding: 11px 26px 11px 34px; gap: 10px; }
+          #topbar .flow-btn:first-child { padding-left: 24px; }
+          #topbar .flow-btn:last-child { padding-right: 24px; }
+          #topbar .flow-btn svg { width: 17px; height: 17px; }
+        }
         
         /* Responsive Spacing */
         @media (max-width: 1150px) {
-          .logo { width: 140px; }
+          .logo { width: auto; margin-right: 8px; }
           .sep { margin: 0 6px; }
           .btn-group, .workflow-track, .tbtn { margin: 0 4px; }
         }
@@ -323,11 +336,6 @@ export function Topbar({
           .topbar-actions .sep { height: 16px; }
           .topbar-actions .spc { display: none; }
         }
-        .logo em {
-          color: var(--blu-bright);
-          font-style: normal;
-          font-weight: 600;
-        }
 
         .sep {
           width: 1px;
@@ -343,6 +351,8 @@ export function Topbar({
           flex-shrink: 0;
         }
         
+        .sep:not(.logo-sep) { background: none; }
+
         .btn-group, .workflow-track, .tbtn {
           margin: 0 8px;
           flex-shrink: 0;
@@ -367,8 +377,8 @@ export function Topbar({
         }
 
         .tbtn {
-          background: var(--ui-neutral);
-          border: 1px solid var(--border);
+          background: transparent;
+          border: 1px solid transparent;
           color: var(--txt1);
           padding: 6px 12px;
           height: 34px;
@@ -385,10 +395,7 @@ export function Topbar({
         }
         .tbtn:hover:not(:disabled) {
           background: var(--ui-neutral-hover);
-          border-color: var(--border2);
           color: var(--txt0);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           z-index: 10;
         }
         .tbtn:active:not(:disabled) {
@@ -397,7 +404,9 @@ export function Topbar({
         }
 
         .docs-link { text-decoration: none; }
-        .export-btn { color: var(--txt0); }
+        /* the one filled button: the main way out of the app */
+        .export-btn { color: var(--txt0); background: var(--ui-neutral); border-color: var(--border2); }
+        .export-btn:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.25); }
         .share-btn.copied { color: var(--grn-bright); border-color: rgba(63,185,80,.5); }
         .share-btn.failed { color: var(--red); }
         @media (max-width: 1500px) and (min-width: 951px) { .docs-link-label { display: none; } }
@@ -459,7 +468,7 @@ export function Topbar({
         }
         
         .flow-btn.completed {
-          background: var(--bg3);
+          background: #1f252e;
           color: var(--txt0);
           z-index: 1;
           opacity: 1 !important;
@@ -467,7 +476,7 @@ export function Topbar({
         }
 
         .flow-btn.next {
-          background: var(--bg3);
+          background: #1f252e;
           color: var(--txt0);
           box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
           z-index: 2;
@@ -522,7 +531,7 @@ export function Topbar({
         .flow-btn.processing::before { opacity: 1; box-shadow: 0 0 15px var(--flow-color); animation: flow-pulse 0.8s infinite ease-in-out; }
 
         .flow-btn:disabled:not(.processing):not(.completed) {
-          opacity: 0.15;
+          opacity: 0.22;
           cursor: not-allowed;
           filter: grayscale(1);
         }
@@ -546,9 +555,7 @@ export function Topbar({
         }
 
         .reset-btn {
-          color: var(--ui-danger-subtle-text);
-          background: var(--ui-danger-subtle-bg);
-          border: 1px solid var(--ui-danger-subtle-border);
+          color: var(--txt1);
           border-radius: var(--radius-md);
         }
         .reset-btn:hover:not(:disabled) {

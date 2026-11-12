@@ -41,6 +41,8 @@ a:hover { text-decoration: underline; }
   letter-spacing: -0.03em; color: var(--txt0); white-space: nowrap;
 }
 .logo em { font-style: normal; font-weight: 600; color: var(--blu-bright); }
+.logo { display: inline-flex; align-items: center; gap: 0.15em; }
+.logo-board { height: 1.7em; width: auto; display: block; }
 .logo:hover { text-decoration: none; }
 .site-head nav { display: flex; gap: 20px; flex: 1; font-size: 0.95rem; }
 .site-head nav a { color: var(--txt1); }

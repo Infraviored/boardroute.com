@@ -291,9 +291,14 @@ export function Topbar({
         /* Wide screens: the wordmark fills the column above the left sidebar (up to the separator),
            scaled by width; "route" keeps sitting on the baseline of the copper letters */
         @media (min-width: 1151px) {
-          .logo { max-width: 340px; padding: 6px 16px 4px 0; box-sizing: border-box; gap: 1.5%; }
+          .logo { max-width: 340px; padding: 4px 16px 0 0; box-sizing: border-box; gap: 1.5%; }
           .logo .logo-board { width: 56.5%; height: auto; }
           .logo .logo-route { width: 42%; height: auto; margin-bottom: 4.8%; }
+          /* the three workflow steps fill the taller bar (ids win over the base .flow-btn rules below) */
+          #topbar .flow-btn { font-size: .95em; padding: 11px 26px 11px 34px; gap: 10px; }
+          #topbar .flow-btn:first-child { padding-left: 24px; }
+          #topbar .flow-btn:last-child { padding-right: 24px; }
+          #topbar .flow-btn svg { width: 17px; height: 17px; }
         }
         
         /* Responsive Spacing */

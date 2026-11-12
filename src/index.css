@@ -111,6 +111,10 @@ h3,
   font-family: 'Outfit', sans-serif;
 }
 
+/* "board" is the copper-trace wordmark, "route.com" stays text */
+.logo { display: inline-flex; align-items: center; gap: 0.15em; }
+.logo-board { height: 1.7em; width: auto; display: block; }
+
 /* Button Styles - Premium Overhaul */
 .tbtn {
   background: var(--bg4);

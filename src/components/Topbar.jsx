@@ -73,7 +73,7 @@ export function Topbar({
   return (
     <header id="topbar">
       <div className="topbar-row-1">
-        <div className="logo" ref={logoRef}>board<em>route.com</em></div>
+        <div className="logo" ref={logoRef}><img className="logo-board" src="/logo-board.svg" alt="board" /><em>route.com</em></div>
         <div className="sep logo-sep"></div>
         <div className="workflow-track">
           <button

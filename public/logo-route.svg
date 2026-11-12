@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5.5 10.5 122.5 40">
+  <defs>
+    <linearGradient id="br-silk-grad" x1="0" y1="12" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#dbece2" />
+    </linearGradient>
+  </defs>
+
+  <!-- Dezenter harter CAD-Schatten für Kontrast auf jedem Hintergrund -->
+  <g transform="translate(1.2, 1.6)" fill="none" stroke="#09120d" stroke-width="4.4" stroke-linecap="square" stroke-linejoin="miter" opacity="0.65">
+    <path d="M 8 46 V 28 L 13 23 H 21" />
+    <path d="M 32 23 H 42 L 47 28 V 41 L 42 46 H 32 L 27 41 V 28 Z" />
+    <path d="M 56 23 V 41 L 61 46 H 71 L 76 41 V 23" />
+    <path d="M 88 13 V 41 L 93 46 H 99 M 82 23 H 97" />
+    <path d="M 106 34 H 124 V 28 L 119 23 H 111 L 106 28 V 41 L 111 46 H 122" />
+  </g>
+
+  <!-- Hauptschrift im 45°-Octilinear-Routing-Stil -->
+  <g fill="none" stroke="url(#br-silk-grad)" stroke-width="4.4" stroke-linecap="square" stroke-linejoin="miter">
+    <!-- r -->
+    <path d="M 8 46 V 28 L 13 23 H 21" />
+    <!-- o -->
+    <path d="M 32 23 H 42 L 47 28 V 41 L 42 46 H 32 L 27 41 V 28 Z" />
+    <!-- u -->
+    <path d="M 56 23 V 41 L 61 46 H 71 L 76 41 V 23" />
+    <!-- t -->
+    <path d="M 88 13 V 41 L 93 46 H 99 M 82 23 H 97" />
+    <!-- e -->
+    <path d="M 106 34 H 124 V 28 L 119 23 H 111 L 106 28 V 41 L 111 46 H 121" />
+  </g>
+
+  <!-- Kleines Kupfer-Via am Ende des "e" als Brücke zum Board -->
+  <circle cx="122" cy="46" r="3.2" fill="#09120d" />
+  <circle cx="122" cy="46" r="2.5" fill="none" stroke="#ffb366" stroke-width="1.5" />
+</svg>

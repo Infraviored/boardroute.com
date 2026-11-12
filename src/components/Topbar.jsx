@@ -73,7 +73,7 @@ export function Topbar({
   return (
     <header id="topbar">
       <div className="topbar-row-1">
-        <div className="logo" ref={logoRef}><img className="logo-board" src="/logo-board.svg" alt="board" /><em>route.com</em></div>
+        <div className="logo" ref={logoRef}><img className="logo-board" src="/logo-board.svg" alt="board" /><img className="logo-route" src="/logo-route.svg" alt="route" /></div>
         <div className="sep logo-sep"></div>
         <div className="workflow-track">
           <button
@@ -280,7 +280,7 @@ export function Topbar({
           white-space: nowrap;
           letter-spacing: -0.03em;
           display: flex;
-          align-items: baseline;
+          align-items: flex-end;
           flex-shrink: 0;
         }
 
@@ -290,7 +290,7 @@ export function Topbar({
         
         /* Responsive Spacing */
         @media (max-width: 1150px) {
-          .logo { width: 140px; }
+          .logo { width: auto; margin-right: 8px; }
           .sep { margin: 0 6px; }
           .btn-group, .workflow-track, .tbtn { margin: 0 4px; }
         }
@@ -322,11 +322,6 @@ export function Topbar({
           }
           .topbar-actions .sep { height: 16px; }
           .topbar-actions .spc { display: none; }
-        }
-        .logo em {
-          color: var(--blu-bright);
-          font-style: normal;
-          font-weight: 600;
         }
 
         .sep {

@@ -1,4 +1,4 @@
-<img src="public/boardroute-icon.png" alt="" width="64" height="64">
+<img src="public/favicon.svg" alt="" width="64" height="64">
 
 # boardroute.com: Intelligent Perfboard AutoRouter
 

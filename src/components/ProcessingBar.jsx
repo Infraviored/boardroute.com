@@ -182,10 +182,10 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         @keyframes pb-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
         .pb-detail { font-size: var(--fs-xs); color: var(--txt1); margin-top: 6px; }
         .pb-title {
-          font-family: 'Outfit', sans-serif;
-          font-size: 1.25rem;
+
+          font-size: var(--fs-18);
           color: var(--txt0);
-          font-weight: 800;
+          font-weight: 600;
           white-space: nowrap;
           letter-spacing: -0.02em;
           flex-shrink: 0;
@@ -205,14 +205,14 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           width: 180px;
         }
         .res-label { 
-          font-size: 0.75rem; 
+          font-size: var(--fs-12); 
           color: var(--txt1); 
           font-weight: 600; 
           white-space: nowrap;
         }
         .res-val { 
           font-size: 1.8rem; 
-          font-weight: 800; 
+          font-weight: 600; 
           color: #fff; 
           font-family: 'Outfit', sans-serif; 
           line-height: 1; 
@@ -224,7 +224,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           font-family: 'Outfit', sans-serif; 
         }
         .res-sub { 
-          font-size: 0.7rem; 
+          font-size: var(--fs-11); 
           color: var(--txt1); 
           font-family: 'Consolas', monospace; 
           opacity: 0.7; 
@@ -239,12 +239,12 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           border: 1px solid var(--ui-primary-border);
           color: var(--ui-primary-hover);
           border-radius: var(--radius-md);
-          font-family: 'Outfit', sans-serif;
-          font-weight: 700;
-          font-size: 0.9rem;
+
+          font-weight: 600;
+          font-size: var(--fs-15);
           cursor: pointer;
           backdrop-filter: blur(8px);
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
           margin-top: 8px;
           display: flex;
           align-items: center;
@@ -261,7 +261,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           background: var(--ui-primary-active);
         }
         .pb-esc {
-          font-size: 0.7rem;
+          font-size: var(--fs-11);
           opacity: 0.6;
           margin-left: 10px;
           background: rgba(0,0,0,0.2);
@@ -279,8 +279,8 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           width: 300px; /* Slightly wider */
         }
         .pb-preview-label {
-          font-family: 'Outfit', sans-serif;
-          font-size: 0.78rem;
+
+          font-size: var(--fs-12);
           color: var(--txt1);
           font-weight: 600;
         }
@@ -290,7 +290,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.3s ease;
+          transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
           position: relative;
         }
         .pb-preview-wrap.success {
@@ -322,7 +322,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
             gap: 6px;
           }
           .pb-title {
-            font-size: 1.02rem;
+            font-size: var(--fs-15);
             white-space: normal;
             line-height: 1.25;
           }
@@ -360,7 +360,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           }
           .pb-left > :not(.pb-btn-glass) { grid-column: 1; }
           .pb-left .pb-btn-glass { grid-column: 2; grid-row: 1 / span 4; margin-top: 0; }
-          .pb-title { font-size: 0.95rem; }
+          .pb-title { font-size: var(--fs-15); }
           .active-metrics { padding: 0; }
           .pb-detail { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }

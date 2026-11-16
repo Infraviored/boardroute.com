@@ -43,7 +43,7 @@ export function ConfirmOverlay({ isOpen, title, message, action, onConfirm, onCa
         }
         .confirm-modal-message {
           font-family: 'Inter', sans-serif;
-          font-size: 0.9em;
+          font-size: var(--fs-15);
           color: var(--txt1);
           line-height: 1.6;
           margin: 6px 0 16px 0;

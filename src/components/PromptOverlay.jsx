@@ -102,7 +102,7 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
           gap: 12px;
         }
         .prompt-intro-text {
-          font-size: 0.9em;
+          font-size: var(--fs-15);
           color: var(--txt1);
           line-height: 1.45;
           margin: 0;
@@ -132,7 +132,7 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
           white-space: pre-wrap;
           overflow-wrap: anywhere;
           font-family: 'Consolas', monospace;
-          font-size: 0.82em;
+          font-size: var(--fs-13);
           color: var(--grn-bright);
           line-height: 1.5;
         }

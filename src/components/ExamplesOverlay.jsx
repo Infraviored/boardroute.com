@@ -60,7 +60,7 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
         .example-thumb svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
         .example-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
         .example-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        .example-title { font-family: 'Outfit', sans-serif; font-weight: 600; color: var(--txt0); font-size: 1.02em; }
+        .example-title { font-weight: 600; color: var(--txt0); font-size: var(--fs-15); }
         .example-level { font-size: var(--fs-xs); font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); border: 1px solid var(--border2); color: var(--txt1); white-space: nowrap; }
         .example-level.lvl-starter { color: var(--ui-primary-hover); border-color: rgba(63,185,80,.4); }
         .example-level.lvl-classic { color: var(--ui-accent-hover); border-color: rgba(208, 138, 62,.4); }

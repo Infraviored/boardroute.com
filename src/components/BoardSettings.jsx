@@ -127,7 +127,7 @@ export function BoardSettingsStyles() {
           white-space: nowrap;
         }
         .bv-size { display: flex; align-items: center; gap: 4px; min-width: 0; }
-        .bv-size input { width: 60px; text-align: center; font-weight: 700; -moz-appearance: textfield; }
+        .bv-size input { width: 60px; text-align: center; font-weight: 600; -moz-appearance: textfield; }
         .bv-size input::-webkit-outer-spin-button,
         .bv-size input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .bv-size input::placeholder { color: var(--txt2); font-weight: 600; }
@@ -140,7 +140,7 @@ export function BoardSettingsStyles() {
           border-radius: 6px;
           color: var(--txt1);
           font-size: var(--fs-xs);
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
         }
         .bv-mini:hover { color: var(--txt0); border-color: var(--border2); }
@@ -179,7 +179,7 @@ export function BoardSettingsStyles() {
           gap: 6px;
           align-items: flex-start;
         }
-        .bv-note b { color: var(--blu-bright); font-weight: 800; }
+        .bv-note b { color: var(--blu-bright); font-weight: 600; }
         .bv-note.warn {
           color: #ff7b72;
           background: rgba(248, 81, 73, 0.1);

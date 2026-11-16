@@ -295,7 +295,7 @@ export function Topbar({
           .logo .logo-board { width: 56.5%; height: auto; }
           .logo .logo-route { width: 42%; height: auto; margin-bottom: 4.8%; }
           /* the three workflow steps fill the taller bar (ids win over the base .flow-btn rules below) */
-          #topbar .flow-btn { font-size: .95em; padding: 11px 26px 11px 34px; gap: 10px; }
+          #topbar .flow-btn { font-size: var(--fs-15); padding: 11px 26px 11px 34px; gap: 10px; }
           #topbar .flow-btn:first-child { padding-left: 24px; }
           #topbar .flow-btn:last-child { padding-right: 24px; }
           #topbar .flow-btn svg { width: 17px; height: 17px; }
@@ -384,12 +384,12 @@ export function Topbar({
           height: 34px;
           border-radius: var(--radius-md);
           cursor: pointer;
-          font-size: .82em;
+          font-size: var(--fs-13);
           font-weight: 500;
           display: flex;
           align-items: center;
           gap: 8px;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
           white-space: nowrap;
           position: relative;
         }
@@ -436,12 +436,12 @@ export function Topbar({
           color: var(--txt2);
           padding: 7px 20px 7px 28px;
           cursor: pointer;
-          font-size: .78em;
-          font-weight: 700;
+          font-size: var(--fs-12);
+          font-weight: 600;
           display: flex;
           align-items: center;
           gap: 9px;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
           position: relative;
           border-radius: 0;
           clip-path: polygon(
@@ -484,29 +484,10 @@ export function Topbar({
 
         .flow-btn.processing {
           background-color: var(--bg4);
-          background-image: linear-gradient(90deg, 
-            transparent 0%, 
-            color-mix(in srgb, var(--flow-color), transparent 85%) 50%, 
-            transparent 100%
-          );
-          background-size: 200% 100%;
+          background-image: linear-gradient(color-mix(in srgb, var(--flow-color), transparent 90%), color-mix(in srgb, var(--flow-color), transparent 90%));
           color: var(--txt0);
           z-index: 5;
-          animation: flow-scan-bg 1.5s infinite linear;
           opacity: 1 !important; /* Force visibility even if disabled */
-        }
-
-        /* Pulsing indicator for the target step */
-        @keyframes flow-pulse {
-          0% { opacity: 0.6; transform: scaleX(1); }
-          50% { opacity: 1; transform: scaleX(1.05); }
-          100% { opacity: 0.6; transform: scaleX(1); }
-        }
-
-        /* Scanning effect for processing background */
-        @keyframes flow-scan-bg {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
         }
 
         .flow-btn.completed svg { color: var(--flow-color); opacity: 0.9; }
@@ -593,9 +574,9 @@ export function Topbar({
           margin-bottom: 14px;
         }
         .mas-title {
-          font-family: 'Outfit', sans-serif;
-          font-size: 1.1rem;
-          font-weight: 700;
+
+          font-size: var(--fs-18);
+          font-weight: 600;
           color: var(--txt0);
         }
         .mas-close {
@@ -627,8 +608,8 @@ export function Topbar({
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           color: var(--txt0);
-          font-family: 'Outfit', sans-serif;
-          font-size: 0.88rem;
+
+          font-size: var(--fs-15);
           font-weight: 600;
           cursor: pointer;
           text-decoration: none;
@@ -725,7 +706,7 @@ export function Topbar({
           z-index: 1100; display: flex; align-items: center; gap: 8px;
           padding: 10px 16px; border-radius: var(--radius-full, 999px);
           background: var(--bg3); border: 1px solid var(--border2); color: var(--txt0);
-          font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.9rem; white-space: nowrap;
+ font-weight: 600; font-size: var(--fs-15); white-space: nowrap;
           box-shadow: 0 8px 28px rgba(0,0,0,.55); animation: mas-fade 0.2s ease-out;
         }
         .share-toast.failed { color: var(--red); border-color: rgba(224,103,92,.5); }
@@ -845,7 +826,6 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
           .coach-close { width: 40px; height: 40px; margin: -9px -6px -9px -8px; }
         }
         @keyframes coach-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
-        @keyframes coach-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
         @media (prefers-reduced-motion: reduce) { .coach-mark { animation: none; } }
       `}} />
     </>,

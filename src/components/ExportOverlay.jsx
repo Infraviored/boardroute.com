@@ -75,7 +75,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         if (!svg) return;
         // paper always gets the light colours, whatever the preview shows
         const light = look === 'screen' ? printThemeSVG(svg) : svg;
-        const title = `boardroute · ${side === 'bottom' ? 'solder side (mirrored)' : side === 'both' ? 'component and solder side' : 'component side'} · ${fp ? `${fp.width} × ${fp.height} holes` : ''}`;
+        const title = `boardroute, ${side === 'bottom' ? 'solder side (mirrored)' : side === 'both' ? 'part and solder side' : 'component side'}, ${fp ? `${fp.width} × ${fp.height} holes` : ''}`;
         const frame = document.createElement('iframe');
         frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
         document.body.appendChild(frame);
@@ -107,7 +107,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                         <Seg value={side} onChange={setSide} options={[['top', 'Top'], ['bottom', 'Solder side', 'Solder side, mirrored like the board turned over'], ['both', 'Both']]} />
                     </div>
 
-                    {fp && <div className="ex-size">Layout {fp.width} × {fp.height} holes · {mm(fp.width)} × {mm(fp.height)} mm at 2.54 mm pitch</div>}
+                    {fp && <div className="ex-size">Layout {fp.width} × {fp.height} holes, {mm(fp.width)} × {mm(fp.height)} mm at 2.54 mm pitch</div>}
 
                     {boardView && setBoardView && (
                         <div className="ex-group">
@@ -163,7 +163,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-empty { color: var(--txt2); font-size: var(--fs-sm); }
         .ex-side { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px; border-left: 1px solid var(--border); overflow-y: auto; background: var(--bg2); }
         .ex-group { display: flex; flex-direction: column; gap: 8px; }
-        .ex-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt1); }
+        .ex-label { font-size: var(--fs-xs); font-weight: 600; color: var(--txt1); }
         .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
         .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s ease; }
         .ex-seg button.active { background: var(--ui-accent); color: var(--acc-text); }

@@ -858,8 +858,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         )}
 
                         {ready && measure?.kind === 'scale' && !measure.b && <div className="pf-banner">{measure.a ? 'Now tap the last pin of that row' : 'Tap the first pin of a row'}</div>}
-                        {cropping && !drag && <div className="pf-banner soft">Drag inside the frame to move it · outside to move the photo</div>}
-                        {ready && measure?.kind === 'grid' && !drag && <div className="pf-banner soft">{picture ? 'Put the box on the part: the rings on its pins' : 'Drag to move'} · {touch ? 'twist two fingers to turn' : (picture ? 'round handle turns' : '[ ] or the slider to turn')}</div>}
+                        {cropping && !drag && <div className="pf-banner soft">Drag inside the frame to move it, outside to move the photo</div>}
+                        {ready && measure?.kind === 'grid' && !drag && <div className="pf-banner soft">{picture ? 'Put the box on the part: the rings on its pins' : 'Drag to move'}; {touch ? 'twist two fingers to turn' : (picture ? 'round handle turns' : '[ ] or the slider to turn')}</div>}
                         {ready && rowMode && !measure && <div className="pf-banner">{sel ? 'Tap where the row ends' : 'Tap the row\'s first pin'}</div>}
                         {ready && (
                             <div className="pf-zoom">
@@ -1026,7 +1026,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 <div className="pf-title"><b className="pf-num">2</b> Pins {scaled && <span className="pf-val">{pins.length}{rows ? ` in ${rows} row${rows === 1 ? '' : 's'}` : ''}</span>}</div>
                                 <p className="ce-hint">{!scaled ? 'Set the scale first.'
                                     : measure?.kind === 'grid' ? 'Line the grid up with the holes: drag, and turn or size it below.'
-                                        : `Tap: add a pin · tap a pin: select, again${touch ? '' : ' or Del'}: remove · ${touch ? 'Row' : 'Shift+tap'}: a straight row from the selected pin.`}</p>
+                                        : `Tap: add a pin; tap a pin: select, again${touch ? '' : ' or Del'}: remove; ${touch ? 'Row' : 'Shift+tap'}: a straight row from the selected pin.`}</p>
                                 <div className="pf-tools">
                                     <button className="ce-btn" disabled={!scaled || !pins.length || !!measure} onClick={moreLikeThese} title="Find pins like the marked ones"><Sparkles size={14} /> Find similar</button>
                                     <button className={`ce-btn ${rowMode ? 'primary' : ''}`} disabled={!scaled || measure?.kind === 'grid'} onClick={() => setRowMode(m => !m)}
@@ -1046,7 +1046,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 {found && <p className="ce-hint pf-note">{found}</p>}
                             </section>
                             <section>
-                                <div className="pf-title"><b className="pf-num">3</b> Outline and names {scaled && <span className="pf-val">{body.w} × {body.h} holes · {(body.w * 2.54).toFixed(1)} × {(body.h * 2.54).toFixed(1)} mm</span>}</div>
+                                <div className="pf-title"><b className="pf-num">3</b> Outline and names {scaled && <span className="pf-val">{body.w} × {body.h} holes, {(body.w * 2.54).toFixed(1)} × {(body.h * 2.54).toFixed(1)} mm</span>}</div>
                                 <label className="pf-check"><input type="checkbox" checked={keepPhoto} onChange={e => setKeepPhoto(e.target.checked)} /> Photo as the part's picture</label>
                                 <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
                                 <div className="pf-row">
@@ -1144,7 +1144,6 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-num { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: var(--bg3, #21262d); color: var(--txt1); flex: none; }
                 .pf-val { margin-left: auto; font-size: var(--fs-xs); font-weight: 500; color: var(--txt2); font-variant-numeric: tabular-nums; text-align: right; }
                 .pf-keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--txt1); }
-                .pf-keys li::before { content: '·'; margin-right: 6px; color: var(--txt2); }
                 .pf-keys b { color: var(--txt0); font-weight: 600; }
                 .pf-turn { display: flex; align-items: center; gap: 8px; }
                 .pf-turn .ce-btn { flex: none; width: 34px; padding: 0; display: grid; place-items: center; }

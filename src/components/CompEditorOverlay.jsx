@@ -259,7 +259,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     <input className="ce-title" value={data.name} onChange={e => handleUpdate('name', e.target.value)} placeholder={mode === 'add' ? 'New part' : 'Part name'}
                         aria-label="Part name" size={Math.max(6, Math.min(28, (data.name || '').length))} />
                     {data.value && <span className="ce-kind">{data.value}</span>}
-                    <span className="ce-size">{foot.w} × {foot.h} holes · {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
+                    <span className="ce-size">{foot.w} × {foot.h} holes, {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
                     <div className="ce-head-actions">
                         <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /><span className="ce-btn-txt"> Undo</span></button>
                         <button className="ce-btn" onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</button>
@@ -343,7 +343,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                             })}
                         </svg>
                         {faceMode && <div className="ce-face-banner">Tap the side that faces out (the board edge)</div>}
-                        <div className="ce-canvas-hint">Drag pins{data.body ? ' and the outline handles' : ''} · arrows move the selected pin · Del removes it</div>
+                        <div className="ce-canvas-hint">Drag pins{data.body ? ' and the outline handles' : ''}; arrows move the selected pin, Del removes it</div>
                     </div>
 
                     <aside className="ce-side">
@@ -386,7 +386,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                             <div className="ce-photo-row">
                                 {photoSession && <button className="ce-btn primary ce-photo" onClick={() => setPhotoSession(s => ({ ...s, open: true }))}><Camera size={14} /> Back to photo</button>}
                                 <button className="ce-btn ce-photo ce-photo-fp" onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1, mode: 'footprint' }))}
-                                    title="Pins and outline from a photo of the part (replaces the footprint)"><Camera size={14} /> Footprint from photo</button>
+                                    title="Pins and outline from a photo of the part (replaces the footprint)"><Camera size={14} /> Footprint from a photo</button>
                                 <button className="ce-btn ce-photo" disabled={!data.pins.length} onClick={() => setPhotoSession(s => ({ file: null, open: true, key: (s?.key || 0) + 1, mode: 'picture' }))}
                                     title="Only a picture of the part; pins and outline stay as they are"><ImageIcon size={14} /> {data.image ? 'Change picture' : 'Picture from photo'}</button>
                                 {data.image && <button className="ce-btn ce-photo-x" onClick={() => update(d => ({ ...d, image: null }))} title="Remove the picture (the footprint stays)" aria-label="Remove picture"><Trash2 size={14} /></button>}
@@ -453,7 +453,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-side input:focus { outline: none; border-color: var(--ui-accent-hover); }
                 .ce-row3 { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; }
                 .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: none; cursor: pointer; }
-                .ce-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt2); }
+                .ce-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); }
                 .ce-label span { color: var(--txt1); }
                 .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
                 .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
@@ -586,7 +586,7 @@ function RingsSection({ data, onChange }) {
     const hint = !n ? 'No rings on the board.'
         : ohms === null ? 'Enter the value as a resistance (10k, 4k7, 220) to see the rings.'
             : !rings ? `${data.value} needs ${n === 4 ? '5 rings' : 'other rings'}; with ${n} it has no colour code.`
-                : rings.map(r => r[0]).join(' · ');
+                : rings.map(r => r[0]).join(', ');
     const W = 76, H = 18, bw = 6;
     return (
         <section>

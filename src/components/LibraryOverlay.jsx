@@ -94,10 +94,10 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
         <div className="overlay-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="modal lib-modal">
                 <div className="modal-header">
-                    <h3>{replaceTitle || 'Component library'}</h3>
+                    <h3>{replaceTitle || 'Part library'}</h3>
                     {onPhoto && (
                         <button className="lib-photo" onClick={onPhoto} title="Photo, pasted image or URL of the part: pins and size are read from it">
-                            <Camera size={14} /> From a photo
+                            <Camera size={14} /> Footprint from a photo
                         </button>
                     )}
                     <button className="close-btn" onClick={onClose} aria-label="Close library"><X size={18} /></button>
@@ -127,8 +127,8 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
                 </div>
                 <div className="lib-count">
                     {filtered.length} part{filtered.length === 1 ? '' : 's'}
-                    {kicad === null && ' · loading KiCad footprints…'}
-                    {kicadError && ' · KiCad library could not be loaded'}
+                    {kicad === null && ', loading KiCad footprints…'}
+                    {kicadError && ', KiCad library could not be loaded'}
                 </div>
                 <div className="lib-list">
                     {shown.map((e) => {

@@ -61,11 +61,11 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="600px"
-      ariaLabel="AI prompt guide"
+      ariaLabel="Get it from your AI"
       className="prompt-modal-shell"
     >
       <ModalShell.Header
-        title="AI prompt guide"
+        title="Get it from your AI"
         onClose={onClose}
       />
 
@@ -77,15 +77,6 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
 
         <div className="prompt-box-label">
           <span>Recommended prompt</span>
-          <Button
-            size="sm"
-            variant={copied ? 'primary' : 'secondary'}
-            icon={copied ? <Check size={13} /> : <Copy size={13} />}
-            onClick={handleCopy}
-            className="prompt-copy-btn"
-          >
-            {copied ? 'Copied to clipboard' : 'Copy prompt'}
-          </Button>
         </div>
 
         <div className="prompt-scroll-container">
@@ -93,13 +84,13 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
         </div>
 
         <div className="prompt-hint-text">
-          Simply copy the prompt above, paste it into your favorite AI, describe your circuit, and then paste the JSON it writes under Circuit → Paste JSON.
+          Simply copy the prompt above, paste it into your favorite AI, describe your circuit, and then paste the JSON it writes under Circuit → Edit JSON.
         </div>
       </ModalShell.Body>
 
       <ModalShell.Footer>
-        <Button variant="accent" onClick={onClose}>
-          Close
+        <Button variant="primary" icon={copied ? <Check size={14} /> : <Copy size={14} />} onClick={handleCopy}>
+          {copied ? 'Copied' : 'Copy prompt'}
         </Button>
       </ModalShell.Footer>
 
@@ -124,14 +115,9 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
           justify-content: space-between; 
           align-items: center; 
           font-size: var(--fs-xs); 
-          font-weight: 700; 
-          letter-spacing: 0.08em;
-          text-transform: uppercase; 
+          font-weight: 600; 
           color: var(--txt1);
           margin-top: 6px;
-        }
-        .prompt-copy-btn {
-          border-radius: var(--radius-md);
         }
         .prompt-scroll-container {
           background: #050505;

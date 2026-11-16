@@ -45,8 +45,8 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
                                     </div>
                                     <p className="example-blurb">{ex.blurb}</p>
                                     <div className="example-meta">
-                                        {ex.parts} parts · {ex.nets} nets
-                                        {ex.preview && <> · best {ex.preview.width}×{ex.preview.height}{ex.preview.jumpers ? `, ${ex.preview.jumpers} jumper${ex.preview.jumpers > 1 ? 's' : ''}` : ''}</>}
+                                        {ex.parts} parts, {ex.nets} nets
+                                        {ex.preview && <>, best {ex.preview.width}×{ex.preview.height}{ex.preview.jumpers ? `, ${ex.preview.jumpers} jumper${ex.preview.jumpers > 1 ? 's' : ''}` : ''}</>}
                                     </div>
                                 </div>
                             </button>

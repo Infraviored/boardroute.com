@@ -114,11 +114,11 @@ export function Topbar({
 
       <div className="topbar-actions">
         <div className="btn-group">
-          <button className="tbtn" onClick={onClearWires} title="Delete all wires" disabled={isProcessing}>
+          <button className="tbtn" onClick={onClearWires} title="Clear wires: remove every wire, parts stay where they are" disabled={isProcessing}>
             <Eraser size={16} />
-            Clear
+            Clear wires
           </button>
-          <button className="tbtn" onClick={onRouteOnly} title="Re-route the wires without moving any part (e.g. after moving parts by hand)" disabled={isProcessing}>
+          <button className="tbtn" onClick={onRouteOnly} title="Reroute: wire again without moving any part, e.g. after moving parts by hand" disabled={isProcessing}>
             <Zap size={16} />
             Reroute
           </button>
@@ -146,7 +146,7 @@ export function Topbar({
 
         <button className={`tbtn share-btn ${shareState || ''}`} onClick={() => share()} disabled={!hasLayout || isProcessing} title="Copy a link to this board (circuit and layout inside the link, nothing is uploaded)">
           <Share2 size={16} />
-          <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share'}</span>
+          <span className="docs-link-label">{shareState === 'copied' ? 'Link copied' : shareState === 'failed' ? 'Copy failed' : 'Share link'}</span>
         </button>
 
         <button className="tbtn export-btn" onClick={onExportSVG} disabled={!hasLayout} title="Export: image (SVG/PNG), print, project file">
@@ -159,7 +159,7 @@ export function Topbar({
           <span className="docs-link-label">How it works</span>
         </a>
 
-        <button className="tbtn reset-btn" onClick={onReset} title="Reset Project" aria-label="Reset Project">
+        <button className="tbtn reset-btn" onClick={onReset} title="Reset board" aria-label="Reset board">
           <RotateCcw size={16} />
         </button>
       </div>

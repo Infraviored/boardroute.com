@@ -127,10 +127,10 @@ export function SidebarRight({
       {/* Board stats: always visible, one compact block */}
       <div className="rs-stats" aria-label="Board stats">
         <div className="rs-stat-grid">
-          <div className="rs-stat"><span className="rs-v">{stats.components}</span><span className="rs-l">parts</span></div>
-          <div className="rs-stat"><span className="rs-v">{stats.nets}</span><span className="rs-l">nets</span></div>
-          <div className="rs-stat"><span className="rs-v">{stats.footprint || '—'}</span><span className="rs-l">holes</span></div>
-          <div className="rs-stat"><span className="rs-v">{stats.wireLength || '—'}</span><span className="rs-l">wire</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.components}</span><span className="rs-l">Parts</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.nets}</span><span className="rs-l">Nets</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.footprint || '—'}</span><span className="rs-l">Holes</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.wireLength || '—'}</span><span className="rs-l">Wire</span></div>
         </div>
         <div className="rs-progress" title="Share of connections that are wired">
           <div className="rs-progress-bar" style={{ width: `${stats.completion || 0}%`, background: done ? 'var(--grn-bright)' : 'var(--blu-bright)' }} />
@@ -151,7 +151,7 @@ export function SidebarRight({
       <section className={`rs-sec ${open.comp ? 'open' : ''}`}>
         <button type="button" className="rs-head" onClick={() => toggle('comp')} aria-expanded={!!open.comp}>
           <MousePointer2 size={15} />
-          <span className="rs-title">{selectedComp?.name && selectedComp.name !== '?' ? selectedComp.name : 'Component'}</span>
+          <span className="rs-title">{selectedComp?.name && selectedComp.name !== '?' ? selectedComp.name : 'Part'}</span>
           {selectedComp
             ? <span className="rs-chip">{selectedComp.id}</span>
             : <span className="rs-chip muted">none</span>}
@@ -218,7 +218,7 @@ export function SidebarRight({
       <section className={`rs-sec ${open.nets ? 'open' : ''}`}>
         <button type="button" className="rs-head" onClick={() => toggle('nets')} aria-expanded={!!open.nets}>
           <Share2 size={15} />
-          <span className="rs-title">Network</span>
+          <span className="rs-title">Nets</span>
           {selectedNet
             ? <span className="rs-chip" style={{ '--chip-color': netColor(selectedNet) }}>{selectedNet}</span>
             : <span className="rs-chip muted">{netCount}</span>}
@@ -341,11 +341,9 @@ export function SidebarRight({
           max-width: 100%;
         }
         .rs-l {
-          font-size: 0.66em;
+          font-size: 0.78em;
           color: var(--txt1);
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
+          font-weight: 600;
         }
         .rs-progress {
           margin-top: 8px;
@@ -483,11 +481,10 @@ export function SidebarRight({
 
         .pin-list-header {
            font-size: var(--fs-xs);
-           font-weight: 800;
+           font-weight: 600;
            color: var(--txt1);
            margin-top: 12px;
            margin-bottom: 4px;
-           text-transform: uppercase;
         }
         .pin-list {
            display: grid;

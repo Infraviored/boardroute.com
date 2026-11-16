@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MOBILE_MQ } from '../mobile.js';
-import { X, Download, Printer, FileJson, Link2, Check } from 'lucide-react';
+import { Download, Printer, FileJson, Link2, Check } from 'lucide-react';
 import { generateBoardSVG, generateCombinedSVG, printThemeSVG, photoTurn, printPageHTML } from '../engine/render-utils.js';
 import { scoreState } from '../engine/metrics.js';
+import { ModalShell, Button, Checkbox } from './ui';
 import { BoardCard, BoardSettingsStyles } from './BoardSettings.jsx';
 
 // segmented buttons: options = [[value, label, title?]]
 function Seg({ value, options, onChange }) {
     return (
-        <div className="ex-seg">
+        <div className="ui-seg">
             {options.map(([v, label, title]) => (
-                <button key={v} className={value === v ? 'active' : ''} onClick={() => onChange(v)} title={title}>{label}</button>
+                <button key={v} type="button" className={value === v ? 'active' : ''} onClick={() => onChange(v)} title={title}>{label}</button>
             ))}
         </div>
     );
@@ -50,13 +51,6 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
     useEffect(() => { try { localStorage.setItem('pcb_print_size', printSize); localStorage.setItem('pcb_print_pct', String(customPct)); } catch { /* storage blocked */ } }, [printSize, customPct]);
 
-    useEffect(() => {
-        if (!isOpen) return;
-        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [isOpen, onClose]);
-
     if (!isOpen) return null;
 
     const fp = source.components?.length ? scoreState(source.components, source.wires) : null;
@@ -90,18 +84,15 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
     };
 
     return (
-        <div className="overlay-bg" onClick={onClose}>
-            <div className="modal export-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Export board">
+        <ModalShell isOpen onClose={onClose} maxWidth="1120px" className="export-modal" ariaLabel="Export board">
+            <ModalShell.Header title="Export" onClose={onClose} />
+
+            <ModalShell.Body className="ex-body">
                 <div className="ex-preview">
                     {previewUrl ? <img src={previewUrl} alt={`Preview of the ${side} export`} /> : <div className="ex-empty">Nothing on the board yet</div>}
                 </div>
 
                 <div className="ex-side">
-                    <div className="modal-header">
-                        <h3>Export</h3>
-                        <button className="close-btn" onClick={onClose} aria-label="Close"><X size={20} /></button>
-                    </div>
-
                     <div className="ex-group">
                         <div className="ex-label">View</div>
                         <Seg value={side} onChange={setSide} options={[['top', 'Top'], ['bottom', 'Solder side', 'Solder side, mirrored like the board turned over'], ['both', 'Both']]} />
@@ -118,13 +109,13 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
 
                     <div className="ex-group">
                         <div className="ex-label">Colours</div>
-                        <Seg value={look} onChange={setLook} options={[['screen', 'Dark (screen)'], ['paper', 'Light (paper)'], ['mono', 'Black & white', 'For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend']]} />
-                        {photos && <label className="ex-check"><input type="checkbox" checked={pictures} onChange={e => setPictures(e.target.checked)} /> Part pictures (photos)</label>}
+                        <Seg value={look} onChange={setLook} options={[['screen', 'Dark'], ['paper', 'Light'], ['mono', 'Black & white', 'For a black & white printer: each connection gets its own line style (solid, dashed, dotted), with a legend']]} />
+                        {photos && <Checkbox checked={pictures} onChange={setPictures} label="Part pictures (photos)" />}
                         <div className="ex-label">Print size</div>
-                        <Seg value={printSize} onChange={setPrintSize} options={[['actual', 'Actual size', '1:1, 1 hole = 2.54 mm'], ['fill', 'Fill the page', 'As large as fits one sheet; both sides are stacked one above the other'], ['custom', 'Custom', 'Scale in percent of actual size']]} />
+                        <Seg value={printSize} onChange={setPrintSize} options={[['actual', 'Actual', '1:1, 1 hole = 2.54 mm'], ['fill', 'Fill page', 'As large as fits one sheet; both sides are stacked one above the other'], ['custom', 'Custom', 'Scale in percent of actual size']]} />
                         {printSize === 'custom' && (
                             <label className="ex-check">
-                                <input type="number" className="ex-pct" min={PCT_MIN} max={PCT_MAX} step={5} value={customPct}
+                                <input type="number" className="ui-input ex-pct" min={PCT_MIN} max={PCT_MAX} step={5} value={customPct}
                                     onChange={e => setCustomPct(e.target.value === '' ? '' : Number(e.target.value))}
                                     onBlur={() => setCustomPct(clampPct(customPct))} /> % of actual size ({(2.54 * clampPct(customPct) / 100).toFixed(2)} mm per hole)
                             </label>
@@ -140,89 +131,50 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
                     <div className="ex-group">
                         <div className="ex-label">Keep or share it</div>
                         <div className="ex-more">
-                            <button className="ex-btn" onClick={onSaveProject} title="Circuit and layout as a file you can open again later (Circuit → Open project file)"><FileJson size={15} /> Project file</button>
-                            <button className="ex-btn" onClick={async () => { try { await navigator.clipboard.writeText(await onShareLink()); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ } }}>
-                                {copied ? <Check size={15} /> : <Link2 size={15} />} {copied ? 'Link copied' : 'Share link'}
-                            </button>
+                            <Button icon={<FileJson size={15} />} onClick={onSaveProject} title="Circuit and layout as a file you can open again later (Circuit → Open project file)">Project file</Button>
+                            <Button icon={copied ? <Check size={15} /> : <Link2 size={15} />} onClick={async () => { try { await navigator.clipboard.writeText(await onShareLink()); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ } }}>
+                                {copied ? 'Link copied' : 'Share link'}
+                            </Button>
                         </div>
                     </div>
-
-                    <div className="ex-actions">
-                        <button className="ex-btn primary" onClick={download} disabled={!svg}><Download size={16} /> Download</button>
-                        <button className="ex-btn" onClick={print} disabled={!svg}><Printer size={16} /> Print</button>
-                    </div>
                 </div>
-            </div>
+            </ModalShell.Body>
+
+            {svg && (
+                <ModalShell.Footer>
+                    <Button icon={<Printer size={16} />} onClick={print}>Print</Button>
+                    <Button variant="primary" icon={<Download size={16} />} onClick={download}>Download</Button>
+                </ModalShell.Footer>
+            )}
 
             <BoardSettingsStyles />
             <style dangerouslySetInnerHTML={{
                 __html: `
-        .export-modal { max-width: 1200px; width: calc(100% - 32px); height: calc(100vh - 32px); max-height: 900px; padding: 0; gap: 0; flex-direction: row; overflow: hidden; border-radius: var(--radius-xl); }
+        .export-modal { width: calc(100% - 32px); height: min(960px, calc(100vh - 48px)); }
+        .export-modal .ex-body { padding: 0; display: flex; overflow: hidden; }
         .ex-preview { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: repeating-conic-gradient(#0b0e12 0% 25%, #080a0d 0% 50%) 50% / 24px 24px; }
         .ex-preview img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 30px rgba(0,0,0,.6)); }
         .ex-empty { color: var(--txt2); font-size: var(--fs-sm); }
         .ex-side { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px; border-left: 1px solid var(--border); overflow-y: auto; background: var(--bg2); }
         .ex-group { display: flex; flex-direction: column; gap: 8px; }
         .ex-label { font-size: var(--fs-xs); font-weight: 600; color: var(--txt1); }
-        .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
-        .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s ease; }
-        .ex-seg button.active { background: var(--ui-accent); color: var(--acc-text); }
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
         .ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }
-        .ex-check .ex-pct { width: 72px; flex: none; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; padding: 5px 6px; }
+        .ex-check .ex-pct { width: 72px; flex: none; }
         .ex-hint { font-size: var(--fs-xs); color: var(--txt2); }
         .ex-more { display: flex; gap: 8px; }
-        .ex-more .ex-btn { font-size: var(--fs-sm); padding: 8px; }
-        .ex-actions { display: flex; gap: 8px; margin-top: auto; padding: 12px 0 0; position: sticky; bottom: -20px; background: var(--bg2); padding-bottom: 4px; }
-        .ex-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
-        .ex-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
-        .ex-btn:active { background: var(--ui-neutral-active); }
-        .ex-btn.primary { background: var(--ui-accent); border-color: rgba(240, 246, 252, 0.1); color: var(--ui-accent-text); }
-        .ex-btn.primary:hover { background: var(--ui-accent-hover); }
-        .ex-btn.primary:active { background: var(--ui-accent-active); }
-        .ex-btn:disabled { opacity: .5; cursor: default; }
+        .ex-more .ui-btn { flex: 1; }
         @media ${MOBILE_MQ} {
-          .export-modal {
-            flex-direction: column;
-            height: 100dvh;
-            width: 100vw;
-            max-height: 100dvh;
-            border-radius: 0;
-            border: none;
-          }
-          .ex-preview {
-            flex: 0 0 28vh;
-            max-height: 28vh;
-            padding: 8px;
-          }
-          .ex-side {
-            flex: 1;
-            width: auto;
-            border-left: 0;
-            border-top: 1px solid var(--border);
-            padding: 14px 16px;
-            overflow-y: auto;
-          }
-          .ex-actions {
-            position: sticky;
-            bottom: 0;
-            margin-top: 12px;
-            padding: 12px 0 env(safe-area-inset-bottom, 8px);
-            background: var(--bg2);
-            border-top: 1px solid var(--border);
-            z-index: 10;
-          }
-          .ex-btn {
-            min-height: 44px;
-            font-size: 0.92rem;
-          }
-          .ex-seg button {
-            min-height: 40px;
-          }
+          .export-modal { flex-direction: column; height: 100dvh; width: 100vw; max-width: 100vw !important; max-height: 100dvh; border-radius: 0; border: none; }
+          .export-modal .ex-body { flex-direction: column; }
+          .ex-preview { flex: 0 0 28vh; max-height: 28vh; padding: 8px; }
+          .ex-side { flex: 1; width: auto; border-left: 0; border-top: 1px solid var(--border); padding: 14px 16px; overflow-y: auto; }
+          .export-modal .ui-modal-footer { padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
+          .export-modal .ui-modal-footer .ui-btn { flex: 1; min-height: 44px; }
         }
       `}} />
-        </div>
+        </ModalShell>
     );
 }
 

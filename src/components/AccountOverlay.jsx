@@ -75,7 +75,7 @@ export function AccountOverlay({ isOpen, onClose, account, setAccount, current, 
     const deleteAccount = () => run(async () => { await cloud.deleteAccount(); setAccount(null); setList(null); setCurrent(null); setConfirm(null); });
 
     return (
-        <ModalShell isOpen onClose={onClose} maxWidth="560px" ariaLabel="Account" className="acc-modal">
+        <ModalShell isOpen onClose={onClose} maxWidth="440px" ariaLabel="Account" className="acc-modal">
             <ModalShell.Header title={account ? 'My circuits' : 'Save & share'} icon={<Cloud size={18} />} onClose={onClose}>
                 {account && <span className="acc-email" title={account.email}>{account.email}</span>}
             </ModalShell.Header>

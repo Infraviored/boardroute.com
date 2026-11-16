@@ -2,31 +2,25 @@ import React from 'react';
 import { computeBoardFrame, holeLabel, normalizeBoardView } from '../engine/render-utils.js';
 import { AlertTriangle } from 'lucide-react';
 import { MOBILE_MQ } from '../mobile.js';
+import { Checkbox } from './ui';
 
 // Physical board size and hole-coordinate settings. Shared by the right sidebar and the
 // export dialog (both edit the same useBoardView state).
 const ORIGINS = [['tl', 'Top-left'], ['tr', 'Top-right'], ['bl', 'Bottom-left'], ['br', 'Bottom-right']];
 
-function Seg({ value, options, onChange, disabled = false }) {
+function Seg({ value, options, onChange }) {
   return (
-    <div className={`bv-seg ${disabled ? 'disabled' : ''}`} role="radiogroup">
+    <div className="ui-seg bv-seg" role="radiogroup">
       {options.map(([val, label]) => (
         <button key={String(val)} type="button" role="radio" aria-checked={value === val}
-          className={value === val ? 'active' : ''} disabled={disabled} onClick={() => onChange(val)}>{label}</button>
+          className={value === val ? 'active' : ''} onClick={() => onChange(val)}>{label}</button>
       ))}
     </div>
   );
 }
 
-function Switch({ checked, onChange, label, disabled = false }) {
-  return (
-    <label className={`bv-switch ${disabled ? 'disabled' : ''}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span className="bv-track" aria-hidden="true"><span className="bv-thumb" /></span>
-      <span className="bv-switch-label">{label}</span>
-    </label>
-  );
-}
+// Options that cannot apply right now are left out, not greyed.
+const Switch = ({ checked, onChange, label }) => <Checkbox checked={checked} onChange={onChange} label={label} />;
 
 // "Numbers" / "Letters" when the two axes differ, else "Columns" / "Rows"
 function axisName(view, axis) {
@@ -45,15 +39,15 @@ export function BoardCard({ view, setView, components, wires }) {
   return (
     <div className="lbody board-card">
       <Switch checked={view.showCoords} onChange={(v) => set({ showCoords: v })} label="Show hole coordinates" />
-      <Switch checked={view.pinCoords} onChange={(v) => set({ pinCoords: v })} label="Coordinates on every pin" disabled={labelsOff} />
+      {!labelsOff && <Switch checked={view.pinCoords} onChange={(v) => set({ pinCoords: v })} label="Coordinates on every pin" />}
 
       <div className="bv-row">
         <span className="bv-label">Board size</span>
         <div className="bv-size">
-          <input type="number" min="1" max="500" inputMode="numeric" placeholder="auto" aria-label="Board columns"
+          <input type="number" className="ui-input" min="1" max="500" inputMode="numeric" placeholder="auto" aria-label="Board columns"
             value={view.boardCols ?? ''} onChange={(e) => set({ boardCols: e.target.value })} />
           <span className="bv-x">×</span>
-          <input type="number" min="1" max="500" inputMode="numeric" placeholder="auto" aria-label="Board rows"
+          <input type="number" className="ui-input" min="1" max="500" inputMode="numeric" placeholder="auto" aria-label="Board rows"
             value={view.boardRows ?? ''} onChange={(e) => set({ boardRows: e.target.value })} />
         </div>
       </div>
@@ -81,35 +75,36 @@ export function BoardCard({ view, setView, components, wires }) {
         </div>
       ))}
 
-      <div className={`bv-group ${labelsOff ? 'disabled' : ''}`}>
+      {!labelsOff && <div className="bv-group">
         <div className="bv-row">
           <span className="bv-label">Columns</span>
-          <Seg value={view.colStyle} disabled={labelsOff} onChange={(v) => set({ colStyle: v })} options={[['num', '1 2 3'], ['alpha', 'A B C']]} />
+          <Seg value={view.colStyle} onChange={(v) => set({ colStyle: v })} options={[['num', '1 2 3'], ['alpha', 'A B C']]} />
         </div>
         <div className="bv-row">
           <span className="bv-label">Rows</span>
-          <Seg value={view.rowStyle} disabled={labelsOff} onChange={(v) => set({ rowStyle: v })} options={[['num', '1 2 3'], ['alpha', 'A B C']]} />
+          <Seg value={view.rowStyle} onChange={(v) => set({ rowStyle: v })} options={[['num', '1 2 3'], ['alpha', 'A B C']]} />
         </div>
-        <div className="bv-row">
-          <span className="bv-label">Numbers from</span>
-          <Seg value={view.start} disabled={labelsOff || (view.colStyle === 'alpha' && view.rowStyle === 'alpha')}
-            onChange={(v) => set({ start: v })} options={[[1, '1'], [0, '0']]} />
-        </div>
+        {!(view.colStyle === 'alpha' && view.rowStyle === 'alpha') && (
+          <div className="bv-row">
+            <span className="bv-label">Numbers from</span>
+            <Seg value={view.start} onChange={(v) => set({ start: v })} options={[[1, '1'], [0, '0']]} />
+          </div>
+        )}
         <div className="bv-row">
           <span className="bv-label">Origin</span>
           <div className="bv-origin" role="radiogroup" aria-label="Corner where counting starts">
             {ORIGINS.map(([o, name]) => (
               <button key={o} type="button" role="radio" aria-checked={view.origin === o} title={name} aria-label={name}
-                disabled={labelsOff} className={`bv-corner ${o} ${view.origin === o ? 'active' : ''}`} onClick={() => set({ origin: o })} />
+                className={`bv-corner ${o} ${view.origin === o ? 'active' : ''}`} onClick={() => set({ origin: o })} />
             ))}
           </div>
         </div>
         <div className="bv-sub">Solder side (print on the back)</div>
-        <Switch checked={view.solderFlipCols} disabled={labelsOff} onChange={(v) => set({ solderFlipCols: v })}
+        <Switch checked={view.solderFlipCols} onChange={(v) => set({ solderFlipCols: v })}
           label={`${axisName(view, 'col')} count the other way`} />
-        <Switch checked={view.solderFlipRows} disabled={labelsOff} onChange={(v) => set({ solderFlipRows: v })}
+        <Switch checked={view.solderFlipRows} onChange={(v) => set({ solderFlipRows: v })}
           label={`${axisName(view, 'row')} count the other way`} />
-      </div>
+      </div>}
     </div>
   );
 }
@@ -117,37 +112,7 @@ export function BoardCard({ view, setView, components, wires }) {
 export function BoardSettingsStyles() {
   return <style dangerouslySetInnerHTML={{ __html: `
         .board-card { gap: 8px; }
-        .bv-switch {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          cursor: pointer;
-          font-size: var(--fs-sm);
-          color: var(--txt0);
-          user-select: none;
-        }
-        .bv-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-        .bv-track {
-          width: 30px; height: 17px; flex-shrink: 0;
-          border-radius: 9px;
-          background: var(--bg4);
-          border: 1px solid var(--border2);
-          position: relative;
-          transition: background 0.2s, border-color 0.2s;
-        }
-        .bv-thumb {
-          position: absolute; top: 2px; left: 2px;
-          width: 11px; height: 11px; border-radius: 50%;
-          background: var(--txt1);
-          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
-        }
-        .bv-switch input:checked + .bv-track { background: var(--blu); border-color: var(--blu-bright); }
-        .bv-switch input:checked + .bv-track .bv-thumb { transform: translateX(13px); background: #fff; }
-        .bv-switch input:focus-visible + .bv-track { outline: 2px solid var(--blu-bright); outline-offset: 2px; }
-        .bv-switch.disabled { opacity: 0.4; cursor: default; }
-
         .bv-group { display: flex; flex-direction: column; gap: 8px; }
-        .bv-group.disabled { opacity: 0.45; }
         .bv-row {
           display: flex;
           align-items: center;
@@ -162,23 +127,10 @@ export function BoardSettingsStyles() {
           white-space: nowrap;
         }
         .bv-size { display: flex; align-items: center; gap: 4px; min-width: 0; }
-        .bv-size input {
-          width: 52px;
-          padding: 4px 6px;
-          background: var(--bg3);
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          color: var(--txt0);
-          font-family: 'Outfit', sans-serif;
-          font-size: var(--fs-sm);
-          font-weight: 700;
-          text-align: center;
-          -moz-appearance: textfield;
-        }
+        .bv-size input { width: 60px; text-align: center; font-weight: 700; -moz-appearance: textfield; }
         .bv-size input::-webkit-outer-spin-button,
         .bv-size input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .bv-size input::placeholder { color: var(--txt2); font-weight: 600; }
-        .bv-size input:focus { outline: none; border-color: var(--blu-bright); }
         .bv-x { font-size: var(--fs-xs); color: var(--txt1); }
         .bv-mini {
           margin-left: 4px;
@@ -193,29 +145,7 @@ export function BoardSettingsStyles() {
         }
         .bv-mini:hover { color: var(--txt0); border-color: var(--border2); }
 
-        .bv-seg {
-          display: flex;
-          background: var(--bg3);
-          padding: 2px;
-          border-radius: 7px;
-          border: 1px solid var(--border);
-        }
-        .bv-seg button {
-          padding: 3px 8px;
-          border: none;
-          background: transparent;
-          color: var(--txt1);
-          font-family: 'Outfit', sans-serif;
-          font-size: var(--fs-xs);
-          font-weight: 700;
-          border-radius: 5px;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .bv-seg button.active { background: var(--blu); color: var(--acc-text); }
-        .bv-seg button:disabled { cursor: default; }
-        .bv-seg.disabled button.active { background: var(--bg4); color: var(--txt1); }
-
+        .bv-seg { width: 124px; flex: none; }
         .bv-sub { font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); margin-top: 6px; }
         .bv-origin { display: grid; grid-template-columns: repeat(2, 22px); gap: 4px; }
         .bv-corner {
@@ -260,7 +190,7 @@ export function BoardSettingsStyles() {
         .bv-note.warn svg { flex-shrink: 0; margin-top: 1px; }
         /* phones: 40 px tap targets */
         @media ${MOBILE_MQ} {
-          .bv-seg button { min-height: 40px; min-width: 44px; padding: 0 12px; font-size: var(--fs-sm); }
+          .bv-seg { width: 148px; }
           .bv-mini { min-height: 40px; padding: 0 14px; }
           .bv-origin { grid-template-columns: repeat(2, 48px); gap: 6px; }
           .bv-corner { width: 48px; height: 40px; }
@@ -269,7 +199,7 @@ export function BoardSettingsStyles() {
           .bv-corner.bl::after, .bv-corner.br::after { bottom: 5px; }
           .bv-corner.tl::after, .bv-corner.bl::after { left: 6px; }
           .bv-corner.tr::after, .bv-corner.br::after { right: 6px; }
-          .bv-switch { min-height: 40px; }
+          .board-card .ui-checkbox-label { min-height: 40px; }
         }
   ` }} />;
 }

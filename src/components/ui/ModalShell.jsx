@@ -11,6 +11,7 @@ export function ModalShell({
   closeOnEscape = true,
   className = '',
   maxWidth = '520px',
+  overlayStyle,
   children,
   ariaLabel,
   ...rest
@@ -51,6 +52,7 @@ export function ModalShell({
   return (
     <div
       className="ui-modal-overlay overlay-bg"
+      style={overlayStyle}
       onPointerDown={handlePointerDown}
       onClick={handleBackdropClick}
       role="presentation"
@@ -61,8 +63,8 @@ export function ModalShell({
         aria-modal="true"
         aria-label={ariaLabel}
         className={`ui-modal-shell ${className}`.trim()}
-        style={{ maxWidth }}
         {...rest}
+        style={{ maxWidth, ...rest.style }}
       >
         {children}
       </div>
@@ -70,12 +72,19 @@ export function ModalShell({
   );
 }
 
-function Header({ title, icon, onClose, children, className = '' }) {
+// Every dialog header: title (sentence case), optional one line of secondary text, X on the right.
+// `children` go after the title (the part editor puts its chip and size there, the photo dialog its steps).
+function Header({ title, subtitle, icon, onClose, children, className = '' }) {
   return (
     <div className={`ui-modal-header ${className}`.trim()}>
       <div className="ui-modal-header-title-row">
         {icon && <span className="ui-modal-header-icon">{icon}</span>}
-        {title && <h3 className="ui-modal-title">{title}</h3>}
+        {title && (
+          <div className="ui-modal-titles">
+            <h3 className="ui-modal-title">{title}</h3>
+            {subtitle && <p className="ui-modal-subtitle">{subtitle}</p>}
+          </div>
+        )}
         {children}
       </div>
       {onClose && (

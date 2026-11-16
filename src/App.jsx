@@ -991,7 +991,7 @@ const [board, setBoard] = useState(() => {
   return (
     <div className="app-main" style={{ '--lsb-width': `${lsbWidth}px`, '--rsb-width': `${rsbWidth}px` }}>
       <Topbar
-        workflowStep={workflowStep} hasWires={board.wires.length > 0} quietHints={quietHints} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
+        workflowStep={workflowStep} hasWires={board.wires.length > 0} quietHints={quietHints || !!notice} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
         onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
         onShareLink={handleShareLink} hasLayout={board.components.length > 0}
         account={account} onAccount={() => setIsAccountOpen(true)}

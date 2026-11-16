@@ -166,7 +166,7 @@ export function ExportOverlay({ isOpen, onClose, components, wires, bestSnapshot
         .ex-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--txt1); }
         .ex-seg { display: flex; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
         .ex-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 7px 6px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s ease; }
-        .ex-seg button.active { background: var(--ui-accent); color: #fff; }
+        .ex-seg button.active { background: var(--ui-accent); color: var(--acc-text); }
         .ex-size { font-size: var(--fs-xs); color: var(--txt1); font-family: ui-monospace, Consolas, monospace; }
         .ex-group .board-card { padding: 0; }
         .ex-check { display: flex; gap: 8px; align-items: center; font-size: var(--fs-sm); color: var(--txt1); cursor: pointer; }

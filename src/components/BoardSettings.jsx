@@ -214,7 +214,7 @@ export function BoardSettingsStyles() {
           cursor: pointer;
           white-space: nowrap;
         }
-        .bv-seg button.active { background: var(--blu); color: #fff; }
+        .bv-seg button.active { background: var(--blu); color: var(--acc-text); }
         .bv-seg button:disabled { cursor: default; }
         .bv-seg.disabled button.active { background: var(--bg4); color: var(--txt1); }
 

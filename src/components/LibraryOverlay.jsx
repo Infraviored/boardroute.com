@@ -167,8 +167,8 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
                 __html: `
         .lib-modal { max-width: 640px; max-height: 86vh; border-radius: var(--radius-xl); }
         .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--ui-accent); color: var(--ui-accent-hover); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; background: none; font-family: inherit; transition: all 0.15s ease; }
-        .lib-photo:hover { background: rgba(31,111,235,.15); }
-        .lib-photo:active { background: rgba(31,111,235,.25); }
+        .lib-photo:hover { background: rgba(208, 138, 62,.15); }
+        .lib-photo:active { background: rgba(208, 138, 62,.25); }
         .lib-search { position: relative; flex-shrink: 0; }
         .lib-search input { width: 100%; padding-right: 34px; }
         .lib-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--txt1); cursor: pointer; }
@@ -182,7 +182,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
         }
         .lib-cat span { color: var(--txt2); }
         .lib-cat:hover { background: var(--ui-neutral-hover); color: var(--txt0); }
-        .lib-cat.active { border-color: var(--ui-accent-hover); color: var(--ui-accent-hover); background: rgba(31,111,235,.12); }
+        .lib-cat.active { border-color: var(--ui-accent-hover); color: var(--ui-accent-hover); background: rgba(208, 138, 62,.12); }
         .lib-cat.active span { color: var(--ui-accent-hover); opacity: .8; }
         .lib-count { font-size: .7em; color: var(--txt1); margin-top: -6px; }
         .lib-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }

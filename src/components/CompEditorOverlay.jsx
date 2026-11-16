@@ -457,7 +457,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-label span { color: var(--txt1); }
                 .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
                 .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
-                .ce-seg button.active { background: var(--ui-accent); color: #fff; }
+                .ce-seg button.active { background: var(--ui-accent); color: var(--acc-text); }
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
                 .ce-rings { display: flex; align-items: center; gap: 10px; }
                 .ce-rings .ce-seg { flex: 1; }
@@ -468,7 +468,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-edge { display: flex; align-items: center; gap: 4px; }
                 .ce-face { height: 24px; padding: 0 9px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
                 .ce-face.set { color: var(--txt0); border-color: var(--border2); }
-                .ce-face.active { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+                .ce-face.active { background: var(--ui-accent); border-color: var(--ui-accent); color: var(--acc-text); }
                 .ce-face-x { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
                 .ce-face-x:hover { color: var(--txt0); }
                 .ce-face-side { cursor: pointer; }
@@ -476,12 +476,12 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-face-side path { stroke: var(--c); opacity: .35; }
                 .ce-face-side:hover rect, .ce-face-side.on rect { fill-opacity: .22; stroke-opacity: .9; }
                 .ce-face-side:hover path, .ce-face-side.on path { opacity: 1; }
-                .ce-face-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: var(--radius-md); background: var(--ui-accent); color: #fff; font-size: var(--fs-xs); font-weight: 600; pointer-events: none; white-space: nowrap; }
+                .ce-face-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: var(--radius-md); background: var(--ui-accent); color: var(--acc-text); font-size: var(--fs-xs); font-weight: 600; pointer-events: none; white-space: nowrap; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
                 .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
                 .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }
                 .ce-pin { display: grid; grid-template-columns: 10px 48px 1fr 24px; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 6px; border: 1px solid transparent; }
-                .ce-pin.sel { background: rgba(31,111,235,.12); border-color: rgba(88,166,255,.35); }
+                .ce-pin.sel { background: rgba(208, 138, 62,.12); border-color: rgba(208, 138, 62,.35); }
                 .ce-dot { width: 10px; height: 10px; border-radius: 50%; }
                 .ce-pin input { height: 26px !important; }
                 .ce-icon { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
@@ -507,7 +507,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     .ce-pin-list { overflow: visible; margin: 0; padding: 0; gap: 6px; }
                     .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; border: 0; }
                     .ce-pin.sel { background: none; }
-                    .ce-pin.sel input { border-color: rgba(88,166,255,.5); }
+                    .ce-pin.sel input { border-color: rgba(208, 138, 62,.5); }
                     .ce-pin input { height: 40px !important; font-size: 14px; }
                     .ce-icon { width: 40px; height: 40px; }
                     .ce-side input:not([type=color]) { height: 40px; font-size: 14px; }

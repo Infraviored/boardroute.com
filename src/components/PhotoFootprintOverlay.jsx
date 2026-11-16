@@ -1135,7 +1135,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-steps button, .pf-steps span { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 4px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--txt2); font: inherit; font-size: var(--fs-sm); font-weight: 600; }
                 .pf-steps b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: var(--bg3, #21262d); color: var(--txt1); }
                 .pf-steps .on button, .pf-steps .on span { color: var(--txt0); border-color: var(--border2); background: var(--bg2); }
-                .pf-steps .on b { background: var(--ui-accent); color: #fff; }
+                .pf-steps .on b { background: var(--ui-accent); color: var(--acc-text); }
                 .pf-steps .done button { cursor: pointer; color: var(--txt1); }
                 .pf-steps .done button:hover { color: var(--txt0); background: var(--ui-neutral-hover); }
                 .pf-steps .done b { background: rgba(63,185,80,.2); color: var(--grn, #3fb950); }

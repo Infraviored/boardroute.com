@@ -346,11 +346,9 @@ export function SidebarLeft({
         }
         .cc-btn:hover { color: var(--txt0); border-color: var(--border2); }
         .cc-btn.wide { flex-basis: 100%; }
-        .cc-btn.on { color: var(--txt0); border-color: var(--blu-bright); background: rgba(31, 111, 235, 0.12); }
-        .cc-btn.grn { color: var(--grn-bright); background: rgba(63, 185, 80, 0.1); border-color: rgba(63, 185, 80, 0.25); }
-        .cc-btn.grn:hover { background: rgba(63, 185, 80, 0.18); border-color: var(--grn-bright); }
-        .cc-btn.blu { color: var(--blu-bright); background: rgba(31, 111, 235, 0.1); border-color: rgba(31, 111, 235, 0.25); }
-        .cc-btn.blu:hover { background: rgba(31, 111, 235, 0.18); border-color: var(--blu-bright); }
+        .cc-btn.on { color: var(--txt0); border-color: var(--blu-bright); background: rgba(208, 138, 62, 0.12); }
+        .cc-btn.grn, .cc-btn.blu { color: var(--txt0); border-color: var(--border2); }
+        .cc-btn.grn:hover, .cc-btn.blu:hover { background: var(--ui-neutral-hover); }
 
         /* --- JSON editor: a drawer over the canvas on desktop, inline on phones --- */
         .json-drawer {
@@ -434,19 +432,18 @@ export function SidebarLeft({
         .jd-status span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .jd-status svg { flex-shrink: 0; }
         .jd-status.ok { color: var(--grn-bright); }
-        .jd-status.err { color: #ff7b72; }
+        .jd-status.err { color: var(--red); }
         .jd-load {
           flex-shrink: 0;
           padding: 9px 18px;
           border-radius: 8px;
-          border: 1px solid var(--blu-bright);
-          background: var(--blu);
-          color: #fff;
+          border: 1px solid var(--acc);
+          background: var(--acc);
+          color: var(--acc-text);
           font-family: 'Outfit', sans-serif;
           font-size: var(--fs-md);
           font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 0 18px rgba(31, 111, 235, 0.35);
           transition: 0.2s;
         }
         .jd-load:hover:not(:disabled) { background: #388bfd; }
@@ -605,15 +602,8 @@ export function SidebarLeft({
           background: var(--ui-neutral-active);
         }
         .tplbtn.grn-bg {
-          background: var(--ui-primary);
-          border-color: var(--ui-primary-border);
-          color: var(--ui-primary-text);
-        }
-        .tplbtn.grn-bg:hover {
-          background: var(--ui-primary-hover);
-        }
-        .tplbtn.grn-bg:active {
-          background: var(--ui-primary-active);
+          color: var(--txt0);
+          border-color: var(--border2);
         }
 
         .comp-list {

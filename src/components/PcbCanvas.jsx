@@ -834,7 +834,7 @@ export function PcbCanvas({
                 .vignette-layer { position: absolute; inset: 0; pointer-events: none; }
                 .canvas-controls { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 .canvas-container.pb-active .canvas-controls { bottom: calc(20px + var(--pb-height)); }
-                .cbtn.coords-btn.on { color: var(--ui-accent-hover); border-color: rgba(88,166,255,.6); }
+                .cbtn.coords-btn.on { color: var(--ui-accent-hover); border-color: rgba(208, 138, 62,.6); }
                 .cbtn.side-btn.on { color: var(--org); border-color: rgba(210,153,34,.6); }
                 .side-badge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 6px 14px; border-radius: var(--radius-full); background: rgba(13,17,23,.85); border: 1px solid rgba(210,153,34,.5); color: var(--org); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
                 .conflict-cell { animation: conflict-pulse 0.9s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }

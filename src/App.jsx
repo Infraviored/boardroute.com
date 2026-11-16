@@ -1115,21 +1115,21 @@ const [board, setBoard] = useState(() => {
         .app-main { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg0); }
         #layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
         #ca-col { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; overflow: hidden; }
-        #ca { flex: 1; position: relative; background: #050706; overflow: hidden; border-radius: 4px; margin: 4px; box-shadow: inset 0 0 40px rgba(0,0,0,0.8); min-height: 0; }
+        #ca { flex: 1; position: relative; background: var(--bg0); overflow: hidden; border-radius: 4px; margin: 4px; box-shadow: inset 0 0 40px rgba(0,0,0,0.8); min-height: 0; }
         .resizer { width: 4px; cursor: col-resize; position: relative; z-index: 20; transition: background 0.2s; display: flex; justify-content: center; flex-shrink: 0; }
         .resizer::after { content: ''; width: 1px; height: 100%; background: var(--border); transition: background 0.2s; }
         .resizer:hover::after, .resizer.active::after { background: var(--blu-bright); width: 2px; }
         .resizer.l { margin-right: -2px; margin-left: -2px; }
         .resizer.r { margin-left: -2px; margin-right: -2px; }
         .notice-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 50; width: min(640px, calc(100% - 32px)); display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.45); }
-        .notice-banner.error { border-color: #f85149; }
-        .notice-banner.warn { border-color: #d29922; }
+        .notice-banner.error { border-color: var(--red); }
+        .notice-banner.warn { border-color: var(--org); }
         .notice-banner.info { border-color: var(--blu-bright); }
         .notice-banner.info .notice-title { color: var(--blu-bright); }
         .notice-body { flex: 1; min-width: 0; }
         .notice-title { font-weight: 600; margin-bottom: 4px; }
-        .notice-banner.error .notice-title { color: #ff7b72; }
-        .notice-banner.warn .notice-title { color: #e3b341; }
+        .notice-banner.error .notice-title { color: var(--red); }
+        .notice-banner.warn .notice-title { color: var(--org); }
         .notice-text { font-size: 12px; line-height: 1.5; color: var(--txt1); white-space: pre-line; }
         .notice-close { background: none; border: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7; }
         .notice-close:hover { opacity: 1; }

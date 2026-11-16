@@ -303,7 +303,7 @@ function insideLabel(c, title, sub, T) {
       const w = Math.max(textWidth(main, fs), sub ? textWidth(sub, sfs) : 0) + 2.5;
       const h = fs + (sub ? sfs * 1.15 : 0) + 2.5;
       for (const cy of ys) {
-        if (clear(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)) return { mode: 'in', cx, y0: cy - h / 2, fs, sfs, main, sub };
+        if (clear(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)) return { mode: 'in', cx, y0: cy - h / 2, fs, sfs, main, sub, w, h };
       }
     }
   }
@@ -324,11 +324,20 @@ export function layoutPartLabels(components, opts = {}) {
   const HYSTERESIS_MARGIN = 2.0;
   const avoid = opts.avoid || [], B = opts.bounds;
 
+  // Labels that fit inside their part are fixed first; tags outside must stay off their text
+  // (a tag drawn across a neighbour's "100uF" made both unreadable).
+  const fits = components.map(c => {
+    const title = partTitle(c);
+    const sub = title && title.toLowerCase() !== String(c.id).toLowerCase() ? c.id : null;
+    return insideLabel(c, title, sub, T);
+  });
+  const inTexts = fits.filter(Boolean).map(f => ({ x: f.cx - f.w / 2, y: f.y0, w: f.w, h: f.h }));
+
   for (let cIdx = 0; cIdx < components.length; cIdx++) {
     const c = components[cIdx];
     const title = partTitle(c);
     const sub = title && title.toLowerCase() !== String(c.id).toLowerCase() ? c.id : null;
-    const fit = insideLabel(c, title, sub, T);
+    const fit = fits[cIdx];
     if (fit) { res[c.id] = fit; continue; }
 
     const fs = T.tag, text = title || c.id;
@@ -371,6 +380,7 @@ export function layoutPartLabels(components, opts = {}) {
         }
       }
       for (const t of tags) score += 2 * overlap(r, t);
+      for (const t of inTexts) score += 4 * overlap(r, t);
       for (const a of avoid) score += 3 * overlap(r, a);
       if (B && (x < B.x || y < B.y || x + w > B.x + B.w || y + h > B.y + B.h)) score += 1e6;
 

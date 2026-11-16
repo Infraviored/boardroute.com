@@ -6,7 +6,7 @@ import {
   Library,
   Cpu,
   Pencil,
-  Sparkles,
+  MessageSquare,
   CircuitBoard,
   FolderOpen,
   Shapes,
@@ -123,11 +123,11 @@ export function SidebarLeft({
               </div>
             </div>
             <div className="cc-actions">
-              <button className="cc-btn grn" onClick={onOpenExamples} title="Load one of the example circuits">
+              <button className="cc-btn" onClick={onOpenExamples} title="Load one of the example circuits">
                 <Shapes size={14} /> Examples
               </button>
-              <button className="cc-btn blu" onClick={onOpenPrompt} title="Copy a prompt that makes your AI write the circuit JSON">
-                <Sparkles size={14} /> Get it from your AI
+              <button className={`cc-btn ${editorOpen ? '' : 'primary'}`} onClick={onOpenPrompt} title="Copy a prompt that makes your AI write the circuit JSON">
+                <MessageSquare size={14} /> Get it from your AI
               </button>
               <button
                 className={`cc-btn wide ${editorOpen ? 'on' : ''}`}
@@ -218,6 +218,7 @@ export function SidebarLeft({
                     '--comp-color': boosted,
                   }}
                 >
+                  <span className="comp-dot" aria-hidden="true" />
                   <div className="comp-id-tag">{c.id}</div>
                   <div className="comp-info">
                     <div className="comp-name">{c.name}</div>
@@ -225,7 +226,7 @@ export function SidebarLeft({
                     <div className="comp-value">{c.value}</div>
                   </div>
                   <div className="comp-actions">
-                    <div className="comp-pins-tag">{c.pins.length}P</div>
+                    <div className="comp-pins-tag">{c.pins.length === 1 ? '1 pin' : `${c.pins.length} pins`}</div>
                     <button
                       className="edit-mini-btn"
                       onClick={(e) => { e.stopPropagation(); onEditComponent(c.id); }}
@@ -338,7 +339,7 @@ export function SidebarLeft({
           font-size: var(--fs-sm);
           font-weight: 700;
           cursor: pointer;
-          transition: 0.2s;
+          transition: background-color 0.2s, border-color 0.2s, color 0.2s;
           white-space: nowrap;
           background: var(--bg4);
           border: 1px solid var(--border);
@@ -347,8 +348,10 @@ export function SidebarLeft({
         .cc-btn:hover { color: var(--txt0); border-color: var(--border2); }
         .cc-btn.wide { flex-basis: 100%; }
         .cc-btn.on { color: var(--txt0); border-color: var(--blu-bright); background: rgba(208, 138, 62, 0.12); }
-        .cc-btn.grn, .cc-btn.blu { color: var(--txt0); border-color: var(--border2); }
-        .cc-btn.grn:hover, .cc-btn.blu:hover { background: var(--ui-neutral-hover); }
+        /* the one copper button: the main way to get a circuit in (neutral while the JSON editor, with its own Load button, is open) */
+        .cc-btn.primary { background: var(--acc); border-color: var(--acc); color: var(--acc-text); }
+        .cc-btn.primary:hover { background: var(--acc-hover); border-color: var(--acc-hover); color: var(--acc-text); }
+        .cc-btn.primary:active { background: var(--acc-active); border-color: var(--acc-active); }
 
         /* --- JSON editor: a drawer over the canvas on desktop, inline on phones --- */
         .json-drawer {
@@ -446,7 +449,7 @@ export function SidebarLeft({
           cursor: pointer;
           transition: 0.2s;
         }
-        .jd-load:hover:not(:disabled) { background: #388bfd; }
+        .jd-load:hover:not(:disabled) { background: var(--acc-hover); }
         .jd-load:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 
         .mobile-sheet-head { display: none; }
@@ -626,14 +629,13 @@ export function SidebarLeft({
         .comp-card {
            background: var(--bg3);
            border: 1px solid var(--border);
-           border-left: 3px solid var(--comp-color);
            border-radius: 8px;
            padding: 8px 10px;
            display: flex;
            align-items: center;
            gap: 10px;
            cursor: pointer;
-           transition: all 0.2s;
+           transition: background-color 0.2s, border-color 0.2s;
            min-width: 0;
            overflow: hidden;
            flex-shrink: 0;
@@ -641,24 +643,19 @@ export function SidebarLeft({
         .comp-card:hover {
            background: var(--bg4);
            border-color: var(--border2);
-           border-left-color: var(--comp-color);
         }
         .comp-card.sel {
            background: var(--bg4);
-           border-color: var(--comp-color);
-           box-shadow: 0 0 0 1px var(--comp-color), 0 0 15px color-mix(in srgb, var(--comp-color), transparent 60%);
+           border-color: var(--border2);
+           box-shadow: inset 0 0 0 1px var(--border2);
         }
+        .comp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--comp-color); flex-shrink: 0; margin-right: -2px; }
         .comp-id-tag {
           font-family: 'Outfit', sans-serif;
-          font-weight: 800;
+          font-weight: 700;
           font-size: var(--fs-sm);
-          color: var(--comp-color);
-          min-width: 32px;
-          background: color-mix(in srgb, var(--comp-color), transparent 88%);
-          padding: 3px 5px;
-          border-radius: 5px;
-          text-align: center;
-          border: 1px solid color-mix(in srgb, var(--comp-color), transparent 70%);
+          color: var(--txt0);
+          min-width: 24px;
           flex-shrink: 0;
         }
         .comp-info {
@@ -695,34 +692,26 @@ export function SidebarLeft({
         .comp-card:has(.comp-standin) { border-style: dashed; }
         .comp-pins-tag {
            font-size: var(--fs-xs);
-           font-weight: 800;
-           color: var(--txt1);
-           background: var(--bg2);
-           padding: 0 6px;
-           border-radius: 5px;
-           border: 1px solid var(--border);
-           height: 24px;
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           min-width: 28px;
+           font-weight: 500;
+           color: var(--txt2);
+           white-space: nowrap;
         }
         .edit-mini-btn {
-          background: var(--bg2);
-          border: 1px solid var(--border);
+          background: none;
+          border: none;
           color: var(--txt1);
           width: 24px;
           height: 24px;
           border-radius: 5px;
           cursor: pointer;
-          transition: 0.2s;
+          transition: background-color 0.2s, color 0.2s;
           display: flex;
           align-items: center;
           justify-content: center;
         }
         .edit-mini-btn:hover {
-          color: #fff;
-          border-color: var(--blu);
+          color: var(--txt0);
+          background: var(--bg4);
         }
         .lsb-legal { margin-top: auto; padding: 10px 16px 12px; font-size: var(--fs-xs); color: var(--txt2); display: flex; gap: 10px; flex-shrink: 0; }
         .lsb-legal a { color: var(--txt2); text-decoration: none; }

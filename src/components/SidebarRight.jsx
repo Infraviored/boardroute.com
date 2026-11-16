@@ -239,8 +239,9 @@ export function SidebarRight({
                   onMouseLeave={() => setHoveredNet(null)}
                   onClick={() => setSelectedNet(selectedNet === name ? null : name)}
                 >
-<span className="net-name">{name}</span>
-                  <span className={`net-count ${pins.length === 1 ? 'lonely' : ''}`} title={pins.length === 1 ? 'Only one pin: connected to nothing' : undefined}>{pins.length}P</span>
+<span className="net-dot" aria-hidden="true" />
+                  <span className="net-name">{name}</span>
+                  <span className={`net-count ${pins.length === 1 ? 'lonely' : ''}`} title={pins.length === 1 ? 'Only one pin: connected to nothing' : undefined}>{pins.length === 1 ? '1 pin' : `${pins.length} pins`}</span>
                 </div>
               );
             })}
@@ -516,41 +517,38 @@ export function SidebarRight({
           padding: 6px 10px;
           gap: 10px;
           border: 1px solid var(--border);
-          border-left: 3px solid var(--net-color);
           background: var(--ui-neutral);
           border-radius: var(--radius-md);
-          transition: all 0.15s ease;
+          transition: background-color 0.15s, border-color 0.15s;
           cursor: pointer;
           user-select: none;
         }
         .net-row:hover { 
           background: var(--ui-neutral-hover); 
           border-color: var(--border2);
-          border-left-color: var(--net-color);
         }
         .net-row.sel {
            background: var(--ui-neutral-hover);
-           border-color: var(--net-color);
-           box-shadow: 0 0 0 1px var(--net-color), 0 0 12px color-mix(in srgb, var(--net-color), transparent 60%);
+           border-color: var(--border2);
+           box-shadow: inset 0 0 0 1px var(--border2);
         }
 .net-name { 
           flex: 1; 
           font-size: var(--fs-md); 
           color: var(--txt0); 
           font-family: 'Consolas', monospace; 
-          font-weight: 600; 
+          font-weight: 500; 
+          text-transform: none;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
+        .net-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--net-color); flex-shrink: 0; }
         .net-count { 
           font-size: var(--fs-xs); 
-          font-weight: 800; 
+          font-weight: 500; 
           color: var(--txt2); 
-          background: var(--bg2);
-          padding: 1px 5px;
-          border-radius: var(--radius-xs);
-          border: 1px solid var(--border);
+          white-space: nowrap;
           flex-shrink: 0;
         }
 

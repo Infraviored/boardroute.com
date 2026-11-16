@@ -452,7 +452,6 @@ export function PcbCanvas({
         return { minCol, minRow, maxCol, maxRow };
     }, [components, wires, cols, rows, boardFrame, boardView, side, tick, view]);
 
-    const snapLockRef = useRef(null);
     const lastSnapStep = useRef(0);
     const lastSnapCounter = useRef(0);
     const wasProcessing = useRef(false);
@@ -460,7 +459,6 @@ export function PcbCanvas({
     const startSnap = useCallback(() => {
         if (!bounds) return;
         if (viewportSize.width === 0) return; // Prevent infinity zoom on initial load
-        snapLockRef.current = fitView(bounds, viewportSize);
         setTrackingMode(TRACKING_MODES.SNAP);
     }, [bounds, viewportSize]);
 
@@ -537,8 +535,9 @@ export function PcbCanvas({
             let targetCX, targetCY, fitZoom;
             const b = targetBoundsRef.current;
 
-            if (isSnap && snapLockRef.current) ({ targetCX, targetCY, fitZoom } = snapLockRef.current);
-            else if (b) ({ targetCX, targetCY, fitZoom } = fitView(b, viewport));
+            // always the current bounds: a snap requested while the engine's new board is still
+            // arriving (load, end of a run) must fit the board that ends up there, not the old one
+            if (b) ({ targetCX, targetCY, fitZoom } = fitView(b, viewport));
             else return;
 
             const curZ = simZoom.current;
@@ -618,7 +617,6 @@ export function PcbCanvas({
 
             if (isSnap && Math.abs(fitZoom - simZoom.current) < 0.001) {
                 setTrackingMode(TRACKING_MODES.NONE);
-                snapLockRef.current = null;
             }
         }
     }, [trackingMode, isAutoTracking, isPanning, draggingId, viewportSize, isProcessing, applyCamera]);

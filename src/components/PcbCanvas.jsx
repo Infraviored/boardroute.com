@@ -7,6 +7,7 @@ import {
     renderCompSVG,
     layoutPartLabels,
     generateBoundingBoxSVG,
+    layoutBounds,
     computeBoardFrame,
     generateCoordinatesSVG,
     coordGutters,
@@ -107,6 +108,8 @@ export function PcbCanvas({
     const gRef = useRef(null);
     const holesRef = useRef(null);
     const vignetteRef = useRef(null);
+    const holesLitRef = useRef(null);
+    const footprintRef = useRef(null); // board outline in board px {x0,y0,x1,y1}; holes inside it are drawn bright
     const boundsRef = useRef(null);
     const prevLabelIndices = useRef({});
     const commitTimer = useRef(null);
@@ -118,11 +121,22 @@ export function PcbCanvas({
             holes.style.backgroundSize = `${SP * cam.z}px ${SP * cam.z}px`;
             holes.style.backgroundPosition = `${cam.x}px ${cam.y}px`;
         }
+        const lit = holesLitRef.current, f = footprintRef.current;
+        if (lit) {
+            if (!f) lit.style.display = 'none';
+            else {
+                const X0 = cam.x + f.x0 * cam.z, X1 = cam.x + f.x1 * cam.z, Y0 = cam.y + f.y0 * cam.z, Y1 = cam.y + f.y1 * cam.z;
+                lit.style.display = '';
+                lit.style.backgroundSize = `${SP * cam.z}px ${SP * cam.z}px`;
+                lit.style.backgroundPosition = `${cam.x}px ${cam.y}px`;
+                lit.style.clipPath = `polygon(${X0}px ${Y0}px, ${X1}px ${Y0}px, ${X1}px ${Y1}px, ${X0}px ${Y1}px)`;
+            }
+        }
         const v = vignetteRef.current, b = boundsRef.current;
         if (v && b) {
             const cx = ((b.minCol + b.maxCol + 1) / 2) * SP, cy = ((b.minRow + b.maxRow + 1) / 2) * SP;
             const r = Math.max((b.maxCol - b.minCol + 10) * SP / 2, (b.maxRow - b.minRow + 10) * SP / 2, 300) * 3 * cam.z;
-            v.style.background = `radial-gradient(circle ${r}px at ${cam.x + cx * cam.z}px ${cam.y + cy * cam.z}px, rgba(5,7,6,0) 40%, rgba(5,7,6,.2) 60%, rgba(5,7,6,.7) 80%, #050706 100%)`;
+            v.style.background = `radial-gradient(circle ${r}px at ${cam.x + cx * cam.z}px ${cam.y + cy * cam.z}px, rgba(0,0,0,0) 40%, rgba(0,0,0,.2) 60%, rgba(0,0,0,.6) 80%, rgba(0,0,0,.9) 100%)`;
         }
     }, []);
     const applyCamera = useCallback((cam) => {
@@ -634,7 +648,23 @@ export function PcbCanvas({
 
 
     // Keep the vignette centred on the board; repaint whenever React renders (data changed).
-    useLayoutEffect(() => { boundsRef.current = bounds; paintCamera(); });
+    const footprint = useMemo(() => {
+        void tick;
+        const B = 50000;
+        if (boardFrame?.sized) {
+            const mirror = solder;
+            const x0 = (mirror ? Math.min(...[boardFrame.c0, boardFrame.c0 + boardFrame.cols - 1].map(c => (mCenter - c - 1) * SP)) : boardFrame.c0 * SP);
+            const y0 = boardFrame.r0 * SP, w = boardFrame.cols * SP, h = boardFrame.rows * SP;
+            return {
+                x0: boardFrame.sizedC ? x0 - 3 : -B, x1: boardFrame.sizedC ? x0 + w + 3 : B,
+                y0: boardFrame.sizedR ? y0 - 3 : -B, y1: boardFrame.sizedR ? y0 + h + 3 : B,
+            };
+        }
+        const b = layoutBounds(view.components, view.wires);
+        if (!b) return null;
+        return { x0: b.minC * SP - 3, y0: b.minR * SP - 3, x1: b.maxC * SP + 3, y1: b.maxR * SP + 3 };
+    }, [boardFrame, solder, mCenter, view, tick]);
+    useLayoutEffect(() => { boundsRef.current = bounds; footprintRef.current = footprint; paintCamera(); });
     const wiresSvg = useMemo(() => { void tick; return generateWiresSVG(view.wires, activeNets, { solderSide: solder }); }, [view, activeNets, solder, tick]);
     const ratsnestSvg = useMemo(() => { void tick; return solder ? '' : generateRatsnestSVG(components, wires); }, [solder, components, wires, tick]);
     const labelKey = useMemo(() => {
@@ -668,11 +698,11 @@ export function PcbCanvas({
 
     const compsSplit = useMemo(() => {
         void tick;
-        if (!solder)return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id], partLabels[c.id])).join(''), labels: '' };
+        if (!solder)return { base: components.map(c => renderCompSVG(c, c.id === selectedId, activePin, partImages?.[c.id], partLabels[c.id], { activeNets })).join(''), labels: '' };
         // solder side: part outlines under the copper, labels on top
-        const parts = view.components.map(c => renderCompSVG(c, 'split', null, null, partLabels[c.id]));
+        const parts = view.components.map(c => renderCompSVG(c, 'split', null, null, partLabels[c.id], { activeNets }));
         return { base: parts.map(r => r.base).join(''), labels: parts.map(r => r.labels).join('') };
-    }, [solder, view.components, components, selectedId, activePin, tick, partImages, partLabels]);
+    }, [solder, view.components, components, selectedId, activePin, tick, partImages, partLabels, activeNets]);
     const conflictsSvg = useMemo(() => {
         if (!conflicts || solder) return '';
         const ids = new Set(conflicts.parts);
@@ -730,7 +760,8 @@ export function PcbCanvas({
 
     return (
         <div ref={containerRef} className={`canvas-container ${isProcessing ? 'pb-active' : ''}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}onPointerLeave={handlePointerUp} onMouseDown={handleMouseDown} onContextMenu={(e) => e.preventDefault()} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: activePin ? 'crosshair' : (isPanning || draggingId ? 'grabbing' : 'crosshair'), background: '#050706', touchAction: 'none', '--pb-height': '240px' }}>
-            <div ref={holesRef} className="holes-layer" />
+            <div ref={holesRef} className="holes-layer dim" />
+            <div ref={holesLitRef} className="holes-layer lit" />
             <div ref={vignetteRef} className="vignette-layer" />
             <svg ref={svgRef} width="100%" height="100%" style={{ display: 'block', position: 'relative', textRendering: 'geometricPrecision' }}>
                 <g ref={gRef}>
@@ -831,14 +862,16 @@ export function PcbCanvas({
                 __html: `
                 .canvas-container { user-select: none; -webkit-user-select: none; }
                 .holes-layer { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Crect width='28' height='28' fill='%231a1208'/%3E%3Ccircle cx='14' cy='14' r='6.16' fill='%23b87333'/%3E%3Ccircle cx='14' cy='14' r='2.52' fill='%230d0a06'/%3E%3C/svg%3E"); background-repeat: repeat; pointer-events: none; }
+                .holes-layer.dim { opacity: .35; }
                 .vignette-layer { position: absolute; inset: 0; pointer-events: none; }
                 .canvas-controls { position: absolute; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10; transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
                 .canvas-container.pb-active .canvas-controls { bottom: calc(20px + var(--pb-height)); }
                 .cbtn.coords-btn.on { color: var(--ui-accent-hover); border-color: rgba(208, 138, 62,.6); }
                 .cbtn.side-btn.on { color: var(--org); border-color: rgba(210,153,34,.6); }
                 .side-badge { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10; padding: 6px 14px; border-radius: var(--radius-full); background: rgba(13,17,23,.85); border: 1px solid rgba(210,153,34,.5); color: var(--org); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; pointer-events: none; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
-                .conflict-cell { animation: conflict-pulse 0.9s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
-                @keyframes conflict-pulse { from { opacity: .45; transform: scale(.8); } to { opacity: 1; transform: scale(1.05); } }
+                .canvas-container .conflict-cell { animation: none; }
+                .canvas-container .component-selected .pcb-comp-rim { filter: none; animation: none; }
+                .canvas-container .wire-active, .canvas-container .active-pin { filter: none; }
                 .cbtn { 
                   width: 38px; 
                   height: 38px; 

@@ -77,14 +77,18 @@ function jumperSVG(x1, y1, x2, y2, color, { width = 2.4, hidden = false } = {}) 
 }
 
 // opts.solderSide: jumpers lie on the other side, so they show only as faint dashed lines.
+const DIM_OPACITY = 0.25;
 export function generateWiresSVG(wires, activeNets = [], opts = {}) {
   let out = '';
   let jumpers = '';
   wires.forEach(w => {
     const isActive = activeNets.includes(w.net);
+    // a net is in focus (selected / hovered / of the selected part): all others recede
+    const dim = activeNets.length > 0 && !isActive;
+    const op = dim ? ` opacity="${DIM_OPACITY}"` : '';
     if (isJumper(w)) {
       const [a, b] = w.path;
-      jumpers += jumperSVG(cellPx(a.col), cellPx(a.row), cellPx(b.col), cellPx(b.row), netColor(w.net), { width: isActive ? 3.4 : 2.4, hidden: !!opts.solderSide });
+      jumpers += `<g${op}>` + jumperSVG(cellPx(a.col), cellPx(a.row), cellPx(b.col), cellPx(b.row), netColor(w.net), { width: isActive ? 3.4 : 2.4, hidden: !!opts.solderSide }) + '</g>';
       return;
     }
     if (w.failed) {
@@ -95,7 +99,7 @@ export function generateWiresSVG(wires, activeNets = [], opts = {}) {
     if (!w.path) return;
     const pts = w.path.map(pt => `${cellPx(pt.col)},${cellPx(pt.row)}`).join(' ');
     const color = netColor(w.net);
-    out += `<polyline points="${pts}" fill="none" class="${isActive ? 'wire-active' : ''}" stroke="${color}" stroke-width="${isActive ? 3.8 : 2.8}" stroke-linecap="round" stroke-linejoin="round" style="${isActive ? `--wire-color: ${color}` : ''}"/>`;
+    out += `<polyline points="${pts}"${op} fill="none" class="${isActive ? 'wire-active' : ''}" stroke="${color}" stroke-width="${isActive ? 3.8 : 2.8}" stroke-linecap="round" stroke-linejoin="round" style="${isActive ? `--wire-color: ${color}` : ''}"/>`;
   });
   // Jumpers sit on the component side, above the copper
   return out + jumpers;
@@ -281,7 +285,7 @@ export function segmentIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
 
 // Text sizes (px at SP = 28). The board can be zoomed, the export is looked at whole (and printed
 // with one hole = 2.54 mm), so it gets a floor well above the board's smallest sizes.
-export const BOARD_TEXT = { inMin: 7, sub: 5.5, tag: 7.5, pin: 6, pinLong: 6, pinCoord: 6.5 };
+export const BOARD_TEXT = { inMin: 8, sub: 6.5, tag: 8.5, pin: 6, pinLong: 6, pinCoord: 6.5 };
 export const EXPORT_TEXT = { inMin: 9, sub: 7.5, tag: 9, pin: 7.5, pinLong: 6.5, pinCoord: 8 };
 
 // title: partTitle(c); sub: the id when it says something the title doesn't, else null
@@ -460,6 +464,7 @@ function resistorBodySVG(c, rings) {
 // opts.mirrorPhoto: the solder-side view (the part's box is mirrored, the photo with it);
 // opts.text: BOARD_TEXT (default) or EXPORT_TEXT;
 // opts.mark === false: no stand-in marking (the export/print)
+export const SELECT_COLOR = '#d08a3e'; // = --acc
 export const STANDIN_COLOR = '#d29922'; // = --org
 export function renderCompSVG(c, isSelected = false, activePin = null, photo = null, label = null, opts = {}) {
   const T = opts.text || BOARD_TEXT;
@@ -478,7 +483,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   let out = `<g class="pcb-comp ${isSelected === true ? 'component-selected' : ''}" data-id="${escXml(c.id)}" style="--comp-color: ${mainColor}; --anim-delay: ${animDelay}; --anim-dur: ${animDur}; opacity: ${isGhost ? ghostOp : 1}">`;
 
   // 1. Draw Component Base (balanced shine-through, solid rim)
-  const sw = isSelected ? 3.1 : 1.9; // Balanced selecion thickness
+  const sw = isSelected === true ? 2 : 1.9; // selected: a plain 2px copper outline, no glow
   const rimOp = isSelected ? 1.0 : 0.8;
   const tintOp = isSelected ? 0.2 : 0.08;
 
@@ -490,7 +495,7 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
   const pic = photo ? photoSVG(c, photo) : '';
   if (pic) out += `<g opacity="${opts.photoOpacity ?? 0.3}"${opts.mirrorPhoto ? ` transform="translate(${(2 * c.ox + c.w) * SP} 0) scale(-1 1)"` : ''}>${pic}</g>`;
   // Rim: Drawn with fill="none" to ensure uniform wire visibility through the stroke
-  out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
+  out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none" class="pcb-comp-rim" stroke="${isSelected === true && !mono ? SELECT_COLOR : mainColor}" stroke-width="${sw}" stroke-opacity="${rimOp}"/>`;
   // subtle tint overlay (entire area)
   if (!pic && !mono) out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${mainColor}" opacity="${tintOp}" style="pointer-events:none"/>`;
   // a resistor shows its colour code: the body between its two pins with the rings on it
@@ -519,8 +524,9 @@ export function renderCompSVG(c, isSelected = false, activePin = null, photo = n
       out += `<circle cx="${px}" cy="${py}" r="${SP * .38}" fill="${pinColor}" opacity="0.15" style="pointer-events:none"/>`;
     }
     // Centered pin design: Label inside the colored pad (always same size)
-    out += `<circle cx="${px}" cy="${py}" r="${SP * .22}" fill="${pinColor}"${mono ? ' stroke="#000" stroke-width="0.9"' : ''} class="${isActive ? 'active-pin' : ''}" style="${isActive ? `--active-color: ${pinColor}` : ''}"/>`;
-    labelsOut += `<text x="${px}" y="${py}" dy=".35em" ${pinText} font-size="${String(p.lbl ?? '').length > 3 ? T.pinLong : T.pin}" ${pinTextEnd}>${escXml(p.lbl)}</text>`;
+    const pinDim = opts.activeNets?.length && !opts.activeNets.includes(p.net);
+    out += `<circle cx="${px}" cy="${py}" r="${SP * .22}" fill="${pinColor}"${pinDim ? ` opacity="${DIM_OPACITY}"` : ''}${mono ? ' stroke="#000" stroke-width="0.9"' : ''} class="${isActive ? 'active-pin' : ''}" style="${isActive ? `--active-color: ${pinColor}` : ''}"/>`;
+    labelsOut += `<text x="${px}" y="${py}" dy=".35em"${pinDim ? ` opacity="${DIM_OPACITY}"` : ''} ${pinText} font-size="${String(p.lbl ?? '').length > 3 ? T.pinLong : T.pin}" ${pinTextEnd}>${escXml(p.lbl)}</text>`;
   });
 
   // 3. Part label: what the part is (value, else name) large, its id small; outside on a

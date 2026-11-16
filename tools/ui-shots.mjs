@@ -45,13 +45,15 @@ const EXAMPLE_ID = 'relay-driver';
 const ex = examples.find(e => e.id === EXAMPLE_ID) || examples[0];
 // a finished, wired layout as a share link: loads instantly, no solver run needed
 const WIRED_HASH = '#b=' + await encodeShare(ex.preview.components, ex.preview.wires);
+// a hard example: Wire / Compact take long enough to catch the processing bar mid-run
+const HARD = examples.find(e => e.id === 'caps-k5') || ex;
 const EMPTY_BOARD = JSON.stringify({ components: [], wires: [], cols: 30, rows: 20 });
 const STANDIN_CIRCUIT = {
   parts: { U1: 'Wemos D1 Mini', R1: 'resistor, 220', X1: 'ZX-9000 flux capacitor (VIN, GND, SIG)' },
   connections: [['U1.5V', 'X1.VIN'], ['U1.GND', 'X1.GND'], ['U1.D5', 'R1.1'], ['R1.2', 'X1.SIG']],
 };
 const STANDIN_HASH = '#circuit=' + encodeURIComponent(JSON.stringify(STANDIN_CIRCUIT));
-const CIRCUIT_LINK_HASH = '#circuit=' + encodeURIComponent(JSON.stringify(JSON.parse(readFileSync(path.join(ROOT, 'tools/circuit-link-example.json'), 'utf8'))));
+const CIRCUIT_LINK_HASH = '#circuit=' + encodeURIComponent(JSON.stringify(HARD.circuit)); // long-running on purpose
 const PHOTO = path.join(ROOT, 'public/og-image.png');
 
 // ---------- helpers ----------
@@ -102,7 +104,7 @@ async function closeOverlay(page) {
   }
 }
 async function loadWired(page) { await open(page, WIRED_HASH); await page.waitForSelector('.comp-card, .pcb-comp', { state: 'attached', timeout: 10000 }); await settle(page, 1200); }
-async function loadExampleViaUrl(page) { await open(page, '', `?example=${EXAMPLE_ID}`); await page.waitForSelector('.pcb-comp', { state: 'attached', timeout: 10000 }); await settle(page, 1200); }
+async function loadExampleViaUrl(page, id = EXAMPLE_ID) { await open(page, '', `?example=${id}`); await page.waitForSelector('.pcb-comp', { state: 'attached', timeout: 10000 }); await settle(page, 1200); }
 async function seedEmpty(ctx) {
   await ctx.addInitScript((v) => { if (!localStorage.getItem('pcb_board_state')) localStorage.setItem('pcb_board_state', v); }, EMPTY_BOARD);
 }
@@ -178,12 +180,12 @@ scenario('after-wire', BOTH, async (page, ctx, shot) => {
   if (await card.isVisible()) await card.screenshot({ path: ctx.file('card'), animations: 'disabled' }), ctx.record('card', 'Close-up of the result card after Wire.');
 });
 scenario('after-compact', BOTH, async (page, ctx, shot) => {
-  await loadExampleViaUrl(page);
+  await loadExampleViaUrl(page, HARD.id);
   await flow(page, 'Wire');
   await waitResultCard(page);
   await flow(page, 'Compact');
   await sleep(3000);
-  await shot('running', 'Compact running: processing bar (progress = time since last improvement), live view of the search.');
+  await shot('running', 'Compact running on the hard puzzle example (ten capacitors): processing bar (progress = time since last improvement), live view of the search.');
   // finish: wait for the result card of the compact run, else apply the best so far
   const t0 = Date.now();
   while (Date.now() - t0 < SOLVER_CAP_MS && !(await visible(page, '.result-card.is-compact'))) await sleep(500);
@@ -261,13 +263,18 @@ scenario('overlay-library', BOTH, async (page, ctx, shot) => {
   await shot('no-results', 'Library search without any result.');
 });
 scenario('overlay-editor', BOTH, async (page, ctx, shot) => {
-  await loadWired(page);
+  // a part with many pins (ESP32), so the pin list actually overflows and can be scrolled
+  await open(page, '', '?example=esp32-io-panel');
+  await page.waitForSelector('.pcb-comp', { state: 'attached', timeout: 10000 });
+  await settle(page, 1000);
   await openDrawer(page, 'parts');
-  await page.locator('.edit-mini-btn').first().click();
+  const big = await page.locator('.comp-card').evaluateAll(cs => cs.map((c, i) => [i, parseInt(c.querySelector('.comp-pins-tag')?.textContent) || 0]).sort((x, y) => y[1] - x[1])[0][0]);
+  await page.locator('.comp-card .edit-mini-btn').nth(big).click();
   await page.waitForSelector('.ce-modal');
   await settle(page, 900);
   await shot('', 'Component editor for an existing part: footprint grid, pin list, body, cable side, photo buttons, Save/Cancel.');
-  await page.locator('.ce-modal').evaluate(el => { const s = [...el.querySelectorAll('*')].find(n => n.scrollHeight > n.clientHeight + 40 && getComputedStyle(n).overflowY !== 'visible'); if (s) s.scrollTop = s.scrollHeight; });
+  // desktop: the side panel (and its pin list) scrolls; phone: the whole body
+  await page.locator('.ce-modal').evaluate(el => { for (const n of el.querySelectorAll('.ce-body, .ce-side, .ce-pin-list')) n.scrollTop = n.scrollHeight; });
   await sleep(400);
   await shot('scrolled', 'Component editor scrolled to its lower part.');
 });
@@ -408,12 +415,13 @@ scenario('circuit-link-standin', BOTH, async (page, ctx, shot) => {
 });
 scenario('circuit-link-auto', BOTH, async (page, ctx, shot) => {
   await open(page, CIRCUIT_LINK_HASH);
-  await page.waitForSelector('.pcb-comp', { state: 'attached', timeout: 15000 });
-  await sleep(3000);
-  await shot('running', 'Circuit link of a normal circuit: Wire then Compact run by themselves (processing bar).');
+  // catch the processing bar while Wire / Compact are still running (poll fast, the solver is quick)
+  await page.waitForSelector('#proc-bar.shown:not(.results)', { timeout: 15000 }).catch(() => {});
+  await sleep(400);
+  await shot('running', 'Circuit link of a hard circuit (ten capacitors): Wire, then Compact, run by themselves (processing bar).');
   await waitResultCard(page, 40000).catch(() => {});
   await sleep(4000);
-  await shot('', 'Circuit link after the automatic Wire + Compact.');
+  await shot('', 'Circuit link after the automatic Wire + Compact (or the state after 40 s if the search is still going).');
 });
 scenario('undo-redo-empty', ['desktop'], async (page, ctx, shot) => {
   await loadWired(page);

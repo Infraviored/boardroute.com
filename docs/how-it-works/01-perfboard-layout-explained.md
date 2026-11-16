@@ -57,7 +57,7 @@ Instead of juggling board size, wire length and connectivity all at once, boardr
 
 If the circuit can't be built on one layer, or the wires simply don't fit between closely spaced pins, boardroute adds jumper wires and a blue notice says how many and why. Jumpers are drawn as arcs over the wiring. If even that fails, a yellow notice explains the most likely reason.
 
-The search runs in a background thread in your browser. Nothing is uploaded, and the page stays responsive while it works.
+The search runs in a background thread in your browser. Nothing leaves your browser unless you sign in to save or share a circuit, and the page stays responsive while it works.
 
 ## An example
 

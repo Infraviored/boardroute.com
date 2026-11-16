@@ -942,7 +942,11 @@ const [board, setBoard] = useState(() => {
   useEffect(() => {
     if (shareState === 'pending' || examplesStarted.current || (!examples.length && !examplesError)) return;
     examplesStarted.current = true;
-    if (shareState === 'done') return;
+    // Opened with a share/circuit link: never put the examples over its result or its error notice.
+    if (shareState !== 'none') {
+      if (shareState === 'failed' && firstVisit && !engine.components.length) handleLoadTemplate();
+      return;
+    }
     const wanted = new URLSearchParams(window.location.search).get('example');
     const ex = wanted && examples.find(e => e.id === wanted);
     if (ex) {
@@ -951,7 +955,7 @@ const [board, setBoard] = useState(() => {
     } else if (firstVisit) {
       if (examples.length) setExamplesOpen('first'); else handleLoadTemplate();
     }
-  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate, shareState]);
+  }, [examples, examplesError, firstVisit, loadExample, handleLoadTemplate, shareState, engine]);
 
   const netsMap = useMemo(() => {
     void board.tick; // mergeNets / pin edits change pins in place

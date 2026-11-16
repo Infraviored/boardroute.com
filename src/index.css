@@ -38,10 +38,16 @@
   --rsb-width: 240px;
 
   /* Typography Scale */
-  --fs-xs: 0.72em;  /* 11.5px: Micro metadata, tags */
-  --fs-sm: 0.82em;  /* 13.1px: Labels, secondary info */
-  --fs-md: 0.96em;  /* 15.4px: Primary text, inputs */
-  --fs-lg: 1.15em;  /* 18.4px: Section headers, titles */
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-15: 15px;
+  --fs-18: 18px;
+  --fs-24: 24px;
+  --fs-xs: var(--fs-11);  /* micro metadata, tags */
+  --fs-sm: var(--fs-13);  /* labels, secondary info */
+  --fs-md: var(--fs-15);  /* primary text, inputs */
+  --fs-lg: var(--fs-18);  /* section headers, titles */
 
   /* --- UI Tokens: Semantic Colors --- */
   --ui-primary: var(--acc);
@@ -467,7 +473,7 @@ kbd {
   background: none;
   border: none;
   color: var(--txt1);
-  font-size: 1.5em;
+  font-size: var(--fs-24);
   cursor: pointer;
   line-height: 1;
   transition: 0.2s;
@@ -601,7 +607,7 @@ kbd {
 /* fast tooltips (components/FastTooltips.jsx) */
 .fast-tip {
   position: fixed; z-index: 10000; max-width: 280px; padding: 5px 9px; border-radius: 6px;
-  background: #22221f; border: 1px solid #3a3a36; color: #ecebe6; font-size: 12px; line-height: 1.35;
+  background: #22221f; border: 1px solid #3a3a36; color: #ecebe6; font-size: var(--fs-12); line-height: 1.35;
   box-shadow: 0 6px 20px rgba(0,0,0,.45); pointer-events: none; opacity: 0; transition: opacity .1s;
 }
 .fast-tip.show { opacity: 1; }
@@ -863,7 +869,7 @@ textarea:focus-visible,
 .ui-modal-subtitle { margin: 0; color: var(--txt1); font-size: var(--fs-sm); line-height: 1.4; }
 .ui-modal-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.15em;
+  font-size: var(--fs-18);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--txt0);

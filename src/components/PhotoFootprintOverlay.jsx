@@ -1118,7 +1118,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-wide { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); }
                 .pf-note { color: var(--grn, #3fb950); }
-                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 32px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: 14px; font-weight: 700; -moz-appearance: textfield; }
+                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 32px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: var(--fs-13); font-weight: 700; -moz-appearance: textfield; }
                 .pf-modal .ce-btn { white-space: nowrap; }
                 .pf-warn { color: var(--orange, #d29922); }
                 .pf-tips-open { border-bottom: 0 !important; }
@@ -1127,7 +1127,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-steps li { display: flex; align-items: center; }
                 .pf-steps li + li::before { content: ''; width: 22px; height: 1px; background: var(--border2); margin-right: 4px; }
                 .pf-steps button, .pf-steps span { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 4px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--txt2); font: inherit; font-size: var(--fs-sm); font-weight: 600; }
-                .pf-steps b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: var(--bg3, #21262d); color: var(--txt1); }
+                .pf-steps b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-11); background: var(--bg3, #21262d); color: var(--txt1); }
                 .pf-steps .on button, .pf-steps .on span { color: var(--txt0); border-color: var(--border2); background: var(--bg2); }
                 .pf-steps .on b { background: var(--ui-accent); color: var(--acc-text); }
                 .pf-steps .done button { cursor: pointer; color: var(--txt1); }

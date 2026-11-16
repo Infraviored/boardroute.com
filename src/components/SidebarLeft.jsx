@@ -410,7 +410,7 @@ export function SidebarLeft({
           background: rgba(0, 0, 0, 0.25);
           padding: 12px 14px;
           font-family: 'JetBrains Mono', 'Consolas', ui-monospace, monospace;
-          font-size: 12.5px;
+          font-size: var(--fs-12);
           line-height: 1.55;
           color: var(--txt0);
           tab-size: 2;
@@ -479,7 +479,7 @@ export function SidebarLeft({
           }
           .mobile-sheet-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 1rem;
+            font-size: var(--fs-15);
             font-weight: 700;
             color: var(--txt0);
           }
@@ -521,7 +521,7 @@ export function SidebarLeft({
             min-height: 52px;
             background: var(--bg2);
           }
-          .jd-title { font-size: 1.1rem; }
+          .jd-title { font-size: var(--fs-18); }
           .jd-close {
             width: 40px;
             height: 40px;
@@ -533,7 +533,7 @@ export function SidebarLeft({
           }
           #lsb .jd-text {
             flex: 1;
-            font-size: 14px !important;
+            font-size: var(--fs-15);
             padding: 14px 16px;
           }
           .jd-foot {
@@ -545,7 +545,7 @@ export function SidebarLeft({
           .jd-load {
             min-height: 44px;
             padding: 10px 24px;
-            font-size: 1rem;
+            font-size: var(--fs-15);
           }
 
           .comp-card {
@@ -559,7 +559,7 @@ export function SidebarLeft({
           }
           .cc-btn {
             min-height: 40px;
-            font-size: 0.85rem;
+            font-size: var(--fs-13);
           }
         }
 
@@ -688,7 +688,7 @@ export function SidebarLeft({
           margin-left: auto;
           flex-shrink: 0;
         }
-        .comp-standin { font-size: 10px; font-weight: 700; color: var(--org); margin-top: 1px; }
+        .comp-standin { font-size: var(--fs-11); font-weight: 700; color: var(--org); margin-top: 1px; }
         .comp-card:has(.comp-standin) { border-style: dashed; }
         .comp-pins-tag {
            font-size: var(--fs-xs);

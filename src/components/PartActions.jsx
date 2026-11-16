@@ -45,7 +45,7 @@ export function PartActions({ comp, onRotate, onEdit, onDelete, canRotate = true
             box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
             animation: pa-in .2s ease-out;
           }
-          .part-actions.float button { flex: none; height: 40px; padding: 0 10px; font-size: 12px; background: transparent; border-color: transparent; }
+          .part-actions.float button { flex: none; height: 40px; padding: 0 10px; font-size: var(--fs-12); background: transparent; border-color: transparent; }
           /* above the result card and the row of canvas controls over it */
           #ca-col:has(.result-card) .part-actions.float { bottom: calc(var(--rc-h, 136px) + 18px + 48px + var(--bottom-nav-height, 0px)); }
         }

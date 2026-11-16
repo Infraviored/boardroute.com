@@ -342,7 +342,7 @@ export function SidebarRight({
           max-width: 100%;
         }
         .rs-l {
-          font-size: 0.78em;
+          font-size: var(--fs-12);
           color: var(--txt1);
           font-weight: 600;
         }
@@ -364,18 +364,18 @@ export function SidebarRight({
           font-weight: 600;
         }
         .rs-jumpers { color: var(--blu-bright); }
-        .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--org); }
+        .rs-lonely { display: flex; gap: 6px; align-items: flex-start; margin-top: 8px; font-size: var(--fs-12); line-height: 1.35; color: var(--org); }
         .rs-standin { margin: 8px 12px 0; padding: 8px 10px; border: 1px dashed var(--org); border-radius: 8px; }
-        .rs-standin-head { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; line-height: 1.35; color: var(--org); }
+        .rs-standin-head { display: flex; gap: 6px; align-items: flex-start; font-size: var(--fs-12); line-height: 1.35; color: var(--org); }
         .rs-standin-head svg { flex: none; margin-top: 1px; }
         .rs-standin-btns { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-        .rs-standin-btns button { text-align: left; padding: 6px 10px; font-size: 12px; font-weight: 600; background: var(--bg3, transparent); color: var(--txt0); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+        .rs-standin-btns button { text-align: left; padding: 6px 10px; font-size: var(--fs-12); font-weight: 600; background: var(--bg3, transparent); color: var(--txt0); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
         .rs-standin-btns button:hover { border-color: var(--org); }
         .rs-lonely svg { flex: none; margin-top: 1px; }
-        .rs-board { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; color: var(--txt2); }
+        .rs-board { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: var(--fs-12); color: var(--txt2); }
         .rs-board-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
         .rs-board-l { font-weight: 600; width: 44px; flex: none; }
-        .rs-board input { width: 42px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: 12px; -moz-appearance: textfield; flex: none; }
+        .rs-board input { width: 42px; height: 24px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt0); font: inherit; font-size: var(--fs-12); -moz-appearance: textfield; flex: none; }
         .rs-board input::-webkit-outer-spin-button, .rs-board input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .rs-board input:focus { outline: none; border-color: var(--ui-accent-hover); }
         .rs-board-x { color: var(--txt2); }
@@ -568,7 +568,7 @@ export function SidebarRight({
           }
 .mobile-sheet-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 1rem;
+            font-size: var(--fs-15);
             font-weight: 700;
             color: var(--txt0);
           }

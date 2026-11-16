@@ -295,7 +295,7 @@ export function Topbar({
           .logo .logo-board { width: 56.5%; height: auto; }
           .logo .logo-route { width: 42%; height: auto; margin-bottom: 4.8%; }
           /* the three workflow steps fill the taller bar (ids win over the base .flow-btn rules below) */
-          #topbar .flow-btn { font-size: .95em; padding: 11px 26px 11px 34px; gap: 10px; }
+          #topbar .flow-btn { font-size: var(--fs-15); padding: 11px 26px 11px 34px; gap: 10px; }
           #topbar .flow-btn:first-child { padding-left: 24px; }
           #topbar .flow-btn:last-child { padding-right: 24px; }
           #topbar .flow-btn svg { width: 17px; height: 17px; }
@@ -384,7 +384,7 @@ export function Topbar({
           height: 34px;
           border-radius: var(--radius-md);
           cursor: pointer;
-          font-size: .82em;
+          font-size: var(--fs-13);
           font-weight: 500;
           display: flex;
           align-items: center;
@@ -436,7 +436,7 @@ export function Topbar({
           color: var(--txt2);
           padding: 7px 20px 7px 28px;
           cursor: pointer;
-          font-size: .78em;
+          font-size: var(--fs-12);
           font-weight: 700;
           display: flex;
           align-items: center;
@@ -594,7 +594,7 @@ export function Topbar({
         }
         .mas-title {
           font-family: 'Outfit', sans-serif;
-          font-size: 1.1rem;
+          font-size: var(--fs-18);
           font-weight: 700;
           color: var(--txt0);
         }
@@ -628,7 +628,7 @@ export function Topbar({
           border-radius: var(--radius-md);
           color: var(--txt0);
           font-family: 'Outfit', sans-serif;
-          font-size: 0.88rem;
+          font-size: var(--fs-15);
           font-weight: 600;
           cursor: pointer;
           text-decoration: none;
@@ -725,7 +725,7 @@ export function Topbar({
           z-index: 1100; display: flex; align-items: center; gap: 8px;
           padding: 10px 16px; border-radius: var(--radius-full, 999px);
           background: var(--bg3); border: 1px solid var(--border2); color: var(--txt0);
-          font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.9rem; white-space: nowrap;
+          font-family: 'Outfit', sans-serif; font-weight: 700; font-size: var(--fs-15); white-space: nowrap;
           box-shadow: 0 8px 28px rgba(0,0,0,.55); animation: mas-fade 0.2s ease-out;
         }
         .share-toast.failed { color: var(--red); border-color: rgba(224,103,92,.5); }

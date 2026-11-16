@@ -514,9 +514,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     .ce-pin-list { overflow: visible; margin: 0; padding: 0; gap: 6px; }
                     .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; }
                                         .ce-pin.sel { outline-offset: 2px; }
-                    .ce-pin input { height: 40px !important; font-size: 14px; }
+                    .ce-pin input { height: 40px !important; font-size: var(--fs-15); }
                     .ce-icon { width: 40px; height: 40px; }
-                    .ce-side input:not([type=color]) { height: 40px; font-size: 14px; }
+                    .ce-side input:not([type=color]) { height: 40px; font-size: var(--fs-15); }
                     .ce-color input { width: 44px; height: 40px; }
 
                     .ce-add { height: 40px; padding: 0 14px; }

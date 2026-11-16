@@ -183,7 +183,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         .pb-detail { font-size: var(--fs-xs); color: var(--txt1); margin-top: 6px; }
         .pb-title {
           font-family: 'Outfit', sans-serif;
-          font-size: 1.25rem;
+          font-size: var(--fs-18);
           color: var(--txt0);
           font-weight: 800;
           white-space: nowrap;
@@ -205,7 +205,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           width: 180px;
         }
         .res-label { 
-          font-size: 0.75rem; 
+          font-size: var(--fs-12); 
           color: var(--txt1); 
           font-weight: 600; 
           white-space: nowrap;
@@ -224,7 +224,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           font-family: 'Outfit', sans-serif; 
         }
         .res-sub { 
-          font-size: 0.7rem; 
+          font-size: var(--fs-11); 
           color: var(--txt1); 
           font-family: 'Consolas', monospace; 
           opacity: 0.7; 
@@ -241,7 +241,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           border-radius: var(--radius-md);
           font-family: 'Outfit', sans-serif;
           font-weight: 700;
-          font-size: 0.9rem;
+          font-size: var(--fs-15);
           cursor: pointer;
           backdrop-filter: blur(8px);
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -261,7 +261,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           background: var(--ui-primary-active);
         }
         .pb-esc {
-          font-size: 0.7rem;
+          font-size: var(--fs-11);
           opacity: 0.6;
           margin-left: 10px;
           background: rgba(0,0,0,0.2);
@@ -280,7 +280,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         }
         .pb-preview-label {
           font-family: 'Outfit', sans-serif;
-          font-size: 0.78rem;
+          font-size: var(--fs-12);
           color: var(--txt1);
           font-weight: 600;
         }
@@ -322,7 +322,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
             gap: 6px;
           }
           .pb-title {
-            font-size: 1.02rem;
+            font-size: var(--fs-15);
             white-space: normal;
             line-height: 1.25;
           }
@@ -360,7 +360,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           }
           .pb-left > :not(.pb-btn-glass) { grid-column: 1; }
           .pb-left .pb-btn-glass { grid-column: 2; grid-row: 1 / span 4; margin-top: 0; }
-          .pb-title { font-size: 0.95rem; }
+          .pb-title { font-size: var(--fs-15); }
           .active-metrics { padding: 0; }
           .pb-detail { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         }

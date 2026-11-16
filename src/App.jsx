@@ -168,6 +168,8 @@ const [board, setBoard] = useState(() => {
   const [hoveredNet, setHoveredNet] = useState(null);
   const [bestSnapshot, setBestSnapshot] = useState(null);
   const [notice, setNotice] = useState(null);
+  // a finished layout was loaded (share link, saved circuit): nothing to coach
+  const [quietHints, setQuietHints] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   // Optional account (cloud.js): who is signed in, and which saved circuit the board came from
   // (Save overwrites that one; loading anything else forgets it)
@@ -377,6 +379,7 @@ const [board, setBoard] = useState(() => {
   const runLayout = useCallback(async (refine, text) => {
     const defs = await parseCircuit(text);
     if (!defs) return false;
+    setQuietHints(false);
     setWorkflowStep(refine ? 3 : 2);
     setNotice(null);
     setResultCard(null);
@@ -464,7 +467,12 @@ const [board, setBoard] = useState(() => {
     saveHistory();
   }, [engine, saveHistory]);
 
-  const handleClearWires = useCallback(() => { engine.setState({ wires: [] }); saveHistory(); }, [engine, saveHistory]);
+  const handleClearWires = useCallback(() => {
+    engine.setState({ wires: [] });
+    setQuietHints(false);
+    setWorkflowStep(prev => (prev > 1 ? 1 : prev)); // no wires: Wire is the next step again
+    saveHistory();
+  }, [engine, saveHistory]);
   const handleMoveComp = useCallback((id, ox, oy) => engine.moveComponent(id, ox, oy), [engine]);
   const handleRotateComp = useCallback((id) => { engine.rotateComponent(id); saveHistory(); }, [engine, saveHistory]);
   const handleSetBands = useCallback((id, n) => { engine.setBands(id, n); saveHistory(); }, [engine, saveHistory]);
@@ -785,6 +793,7 @@ const [board, setBoard] = useState(() => {
     setNotice(null);
     setExampleTitle(title);
     setCloudCurrent(current);
+    setQuietHints(step >= 2);
     setWorkflowStep(step); setSnapCounter(c => c + 1); saveHistory(current);
   }, [saveHistory]);
 
@@ -982,7 +991,7 @@ const [board, setBoard] = useState(() => {
   return (
     <div className="app-main" style={{ '--lsb-width': `${lsbWidth}px`, '--rsb-width': `${rsbWidth}px` }}>
       <Topbar
-        workflowStep={workflowStep} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
+        workflowStep={workflowStep} hasWires={board.wires.length > 0} quietHints={quietHints} onStepClick={handleStepClick} onUndo={handleUndo} onRedo={handleRedo}
         onClearWires={handleClearWires} onReset={handleReset} onRouteOnly={handleRouteOnly} onExportSVG={() => setIsExportOpen(true)}
         onShareLink={handleShareLink} hasLayout={board.components.length > 0}
         account={account} onAccount={() => setIsAccountOpen(true)}

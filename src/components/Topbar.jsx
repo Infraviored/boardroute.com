@@ -21,6 +21,8 @@ import {
 
 export function Topbar({
   workflowStep,
+  hasWires = false,
+  quietHints = false,
   onStepClick,
   onUndo,
   onRedo,
@@ -67,7 +69,8 @@ export function Topbar({
   }, [runningStep]);
 
   // Next-step coach mark: after Load point at Wire, after Wire at Compact; only for the first runs.
-  const hintKey = isProcessing ? null : workflowStep === 1 ? 'wire' : workflowStep === 2 ? 'compact' : null;
+  // Follows the actual board: no wires yet -> Wire, wired -> Compact; nothing after a finished layout was loaded.
+  const hintKey = isProcessing || quietHints || workflowStep < 1 || workflowStep > 2 ? null : hasWires && workflowStep === 2 ? 'compact' : 'wire';
   const hint = hintKey && (hintsSeen[hintKey] || 0) < HINT_RUNS ? HINTS[hintKey] : null;
 
   return (

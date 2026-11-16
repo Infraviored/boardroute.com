@@ -210,7 +210,7 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
         .lib-item:active { background: var(--ui-neutral-active); }
         .lib-thumb { width: 52px; height: 40px; flex-shrink: 0; background: #0a0f0c; border-radius: var(--radius-md); padding: 4px; }
         .lib-info { min-width: 0; }
-        .lib-name { font-size: var(--fs-md); font-weight: 700; color: var(--txt0); overflow-wrap: anywhere; }
+        .lib-name { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); overflow-wrap: anywhere; }
         .lib-val { font-size: var(--fs-xs); color: var(--txt2); margin-top: 2px; }
         .lib-src { color: var(--txt1); }
         .lib-more { align-self: center; margin: 4px 0; flex-shrink: 0; }

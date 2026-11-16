@@ -1169,7 +1169,7 @@ const [board, setBoard] = useState(() => {
             display: flex; align-items: center; justify-content: center; gap: 4px;
             height: 96px; width: 24px; padding: 0;
             background: var(--bg2); border: 1px solid var(--border2); color: var(--txt1);
-            font-family: 'Outfit', sans-serif; font-size: var(--fs-11); font-weight: 600;
+ font-size: var(--fs-11); font-weight: 600;
             writing-mode: vertical-rl; cursor: pointer;
             transform: translateY(-50%); transition: opacity .2s;
             box-shadow: 0 4px 16px rgba(0,0,0,.45);

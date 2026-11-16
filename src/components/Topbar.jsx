@@ -437,7 +437,7 @@ export function Topbar({
           padding: 7px 20px 7px 28px;
           cursor: pointer;
           font-size: var(--fs-12);
-          font-weight: 700;
+          font-weight: 600;
           display: flex;
           align-items: center;
           gap: 9px;
@@ -593,9 +593,9 @@ export function Topbar({
           margin-bottom: 14px;
         }
         .mas-title {
-          font-family: 'Outfit', sans-serif;
+
           font-size: var(--fs-18);
-          font-weight: 700;
+          font-weight: 600;
           color: var(--txt0);
         }
         .mas-close {
@@ -627,7 +627,7 @@ export function Topbar({
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           color: var(--txt0);
-          font-family: 'Outfit', sans-serif;
+
           font-size: var(--fs-15);
           font-weight: 600;
           cursor: pointer;
@@ -725,7 +725,7 @@ export function Topbar({
           z-index: 1100; display: flex; align-items: center; gap: 8px;
           padding: 10px 16px; border-radius: var(--radius-full, 999px);
           background: var(--bg3); border: 1px solid var(--border2); color: var(--txt0);
-          font-family: 'Outfit', sans-serif; font-weight: 700; font-size: var(--fs-15); white-space: nowrap;
+ font-weight: 600; font-size: var(--fs-15); white-space: nowrap;
           box-shadow: 0 8px 28px rgba(0,0,0,.55); animation: mas-fade 0.2s ease-out;
         }
         .share-toast.failed { color: var(--red); border-color: rgba(224,103,92,.5); }

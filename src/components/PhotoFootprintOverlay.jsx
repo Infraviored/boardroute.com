@@ -1118,7 +1118,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-wide { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); }
                 .pf-note { color: var(--grn, #3fb950); }
-                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 32px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: var(--fs-13); font-weight: 700; -moz-appearance: textfield; }
+                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 32px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: var(--fs-13); font-weight: 600; -moz-appearance: textfield; }
                 .pf-modal .ce-btn { white-space: nowrap; }
                 .pf-warn { color: var(--orange, #d29922); }
                 .pf-tips-open { border-bottom: 0 !important; }
@@ -1134,7 +1134,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-steps .done button:hover { color: var(--txt0); background: var(--ui-neutral-hover); }
                 .pf-steps .done b { background: rgba(63,185,80,.2); color: var(--grn, #3fb950); }
                 .pf-steps button:disabled { cursor: default; }
-                .pf-title { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); font-weight: 700; color: var(--txt0); }
+                .pf-title { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); font-weight: 600; color: var(--txt0); }
                 .pf-val { margin-left: auto; font-size: var(--fs-xs); font-weight: 500; color: var(--txt2); font-variant-numeric: tabular-nums; text-align: right; }
                 .pf-keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--txt1); }
                 .pf-keys b { color: var(--txt0); font-weight: 600; }

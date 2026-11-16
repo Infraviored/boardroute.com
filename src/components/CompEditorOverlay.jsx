@@ -428,11 +428,11 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-modal .ce-body { padding: 0; overflow: hidden; }
 
 
-                .ce-modal input.ce-title { min-width: 0; max-width: 100%; height: 32px; padding: 0 6px; margin-left: -6px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--txt0); font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 700; field-sizing: content; }
+                .ce-modal input.ce-title { min-width: 0; max-width: 100%; height: 32px; padding: 0 6px; margin-left: -6px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--txt0); font-size: var(--fs-md); font-weight: 600; field-sizing: content; }
                 .ce-modal input.ce-title:hover { border-color: var(--border); }
                 .ce-modal input.ce-title:focus { outline: none; border-color: var(--acc-hover); background: var(--bg0); }
                 .ce-kind { font-size: var(--fs-sm); color: var(--txt1); white-space: nowrap; }
-                .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: var(--radius-md); }
+                .ce-id { font-weight: 600; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: var(--radius-md); }
                 .ce-size { font-size: var(--fs-xs); color: var(--txt2); font-family: ui-monospace, Consolas, monospace; }
                 .ce-foot-right { display: flex; gap: 10px; }
                 .ce-btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }

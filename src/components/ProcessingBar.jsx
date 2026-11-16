@@ -182,10 +182,10 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         @keyframes pb-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
         .pb-detail { font-size: var(--fs-xs); color: var(--txt1); margin-top: 6px; }
         .pb-title {
-          font-family: 'Outfit', sans-serif;
+
           font-size: var(--fs-18);
           color: var(--txt0);
-          font-weight: 800;
+          font-weight: 600;
           white-space: nowrap;
           letter-spacing: -0.02em;
           flex-shrink: 0;
@@ -212,7 +212,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         }
         .res-val { 
           font-size: 1.8rem; 
-          font-weight: 800; 
+          font-weight: 600; 
           color: #fff; 
           font-family: 'Outfit', sans-serif; 
           line-height: 1; 
@@ -239,8 +239,8 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           border: 1px solid var(--ui-primary-border);
           color: var(--ui-primary-hover);
           border-radius: var(--radius-md);
-          font-family: 'Outfit', sans-serif;
-          font-weight: 700;
+
+          font-weight: 600;
           font-size: var(--fs-15);
           cursor: pointer;
           backdrop-filter: blur(8px);
@@ -279,7 +279,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           width: 300px; /* Slightly wider */
         }
         .pb-preview-label {
-          font-family: 'Outfit', sans-serif;
+
           font-size: var(--fs-12);
           color: var(--txt1);
           font-weight: 600;

@@ -104,17 +104,17 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         @keyframes rc-in { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
         .rc-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .rc-ok { color: var(--grn-bright); flex-shrink: 0; }
-        .rc-title { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-15); color: var(--txt0); letter-spacing: -0.01em; }
+        .rc-title { font-weight: 600; font-size: var(--fs-15); color: var(--txt0); letter-spacing: -0.01em; }
         .rc-hint { font-size: var(--fs-12); line-height: 1.3; color: var(--txt1); flex: 1; min-width: 0; }
         .rc-close { background: none; border: none; color: var(--txt1); cursor: pointer; padding: 4px; border-radius: var(--radius-sm); display: flex; flex-shrink: 0; }
         .rc-close:hover { color: var(--txt0); background: var(--ui-ghost-hover); }
         .rc-stats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 22px; margin: 10px 0 12px; }
         .rc-stat { display: flex; flex-direction: column; gap: 2px; }
-        .rc-val { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--txt0); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .rc-val { font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 1.5rem; line-height: 1; color: var(--txt0); font-variant-numeric: tabular-nums; white-space: nowrap; }
         .rc-lbl { font-size: var(--fs-12); font-weight: 600; color: var(--txt1); white-space: nowrap; }
         .rc-delta { padding: 5px 9px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
         .rc-delta.good { background: rgba(116, 179, 134, 0.10); border-color: rgba(116, 179, 134, 0.30); }
-        .rc-delta-main { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-15); color: var(--txt1); white-space: nowrap; }
+        .rc-delta-main { font-family: 'Outfit', sans-serif; font-weight: 600; font-size: var(--fs-15); color: var(--txt1); white-space: nowrap; }
         .rc-delta.good .rc-delta-main { color: var(--grn-bright); }
         .rc-delta-sub { font-family: Consolas, monospace; font-size: var(--fs-11); color: var(--txt1); opacity: 0.8; white-space: nowrap; }
         .rc-link { width: 100%; margin: -4px 0 10px; padding: 6px 8px; border-radius: var(--radius-md); border: 1px solid var(--border2); background: var(--bg2); color: var(--txt0); font: 12px Consolas, monospace; }
@@ -123,7 +123,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
           flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
           height: 34px; padding: 0 12px; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;
           background: var(--ui-neutral); border: 1px solid var(--border2); color: var(--txt0);
-          font-family: 'Outfit', sans-serif; font-weight: 600; font-size: var(--fs-15);
+ font-weight: 600; font-size: var(--fs-15);
           transition: background 0.15s, border-color 0.15s, transform 0.15s;
         }
         .rc-btn:hover:not(:disabled) { background: var(--ui-neutral-hover); border-color: var(--border2); transform: translateY(-1px); }

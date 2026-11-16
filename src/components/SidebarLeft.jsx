@@ -270,7 +270,7 @@ export function SidebarLeft({
         }
         .section-header h2 {
            font-size: var(--fs-lg);
-           font-weight: 700;
+           font-weight: 600;
            margin: 0;
            letter-spacing: -0.01em;
            color: var(--txt0);
@@ -310,8 +310,8 @@ export function SidebarLeft({
         }
         .cc-summary { min-width: 0; padding: 0 2px; }
         .cc-title {
-          font-family: 'Outfit', sans-serif;
-          font-weight: 700;
+
+          font-weight: 600;
           font-size: var(--fs-md);
           color: var(--txt0);
           white-space: nowrap;
@@ -337,7 +337,7 @@ export function SidebarLeft({
           padding: 7px 10px;
           border-radius: 8px;
           font-size: var(--fs-sm);
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
           transition: background-color 0.2s, border-color 0.2s, color 0.2s;
           white-space: nowrap;
@@ -379,7 +379,7 @@ export function SidebarLeft({
           padding: 10px 10px 10px 14px;
           border-bottom: 1px solid var(--border);
         }
-        .jd-title { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: var(--fs-md); }
+        .jd-title { font-weight: 600; font-size: var(--fs-md); }
         .jd-tools { display: flex; align-items: center; gap: 6px; }
         .jd-mini {
           display: flex; align-items: center; gap: 5px;
@@ -389,7 +389,7 @@ export function SidebarLeft({
           border-radius: 6px;
           color: var(--txt1);
           font-size: var(--fs-xs);
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
         }
         .jd-mini:hover { color: var(--txt0); border-color: var(--border2); }
@@ -443,9 +443,9 @@ export function SidebarLeft({
           border: 1px solid var(--acc);
           background: var(--acc);
           color: var(--acc-text);
-          font-family: 'Outfit', sans-serif;
+
           font-size: var(--fs-md);
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
           transition: 0.2s;
         }
@@ -478,9 +478,9 @@ export function SidebarLeft({
             background: rgba(255, 255, 255, 0.25);
           }
           .mobile-sheet-title {
-            font-family: 'Outfit', sans-serif;
+
             font-size: var(--fs-15);
-            font-weight: 700;
+            font-weight: 600;
             color: var(--txt0);
           }
           .mobile-sheet-close {
@@ -566,9 +566,9 @@ export function SidebarLeft({
         /* --- Parts list --- */
         .parts-section { display: flex; flex-direction: column; min-height: 0; }
         .parts-count {
-          font-family: 'Outfit', sans-serif;
+
           font-size: var(--fs-xs);
-          font-weight: 800;
+          font-weight: 600;
           color: var(--txt1);
           background: var(--bg3);
           border: 1px solid var(--border);
@@ -651,8 +651,8 @@ export function SidebarLeft({
         }
         .comp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--comp-color); flex-shrink: 0; margin-right: -2px; }
         .comp-id-tag {
-          font-family: 'Outfit', sans-serif;
-          font-weight: 700;
+
+          font-weight: 600;
           font-size: var(--fs-sm);
           color: var(--txt0);
           min-width: 24px;
@@ -688,7 +688,7 @@ export function SidebarLeft({
           margin-left: auto;
           flex-shrink: 0;
         }
-        .comp-standin { font-size: var(--fs-11); font-weight: 700; color: var(--org); margin-top: 1px; }
+        .comp-standin { font-size: var(--fs-11); font-weight: 600; color: var(--org); margin-top: 1px; }
         .comp-card:has(.comp-standin) { border-style: dashed; }
         .comp-pins-tag {
            font-size: var(--fs-xs);

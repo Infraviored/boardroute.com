@@ -140,7 +140,7 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
   white-space: nowrap;
   backdrop-filter: blur(4px);
 }
@@ -215,7 +215,7 @@ body,
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
   position: relative;
   clip-path: polygon(0% 0%, calc(100% - 10px) 0%, 100% 50%, calc(100% - 10px) 100%, 0% 100%, 10px 50%);
 }
@@ -249,23 +249,12 @@ body,
 .flow-btn.active {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  animation: flow-pulse 1.5s infinite alternate ease-in-out;
 }
 
 .flow-btn.active::before {
   opacity: 1;
   height: 4px;
   box-shadow: 0 0 15px var(--flow-color);
-}
-
-@keyframes flow-pulse {
-  from {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  to {
-    background: rgba(255, 255, 255, 0.12);
-  }
 }
 
 .flow-btn:disabled {
@@ -284,7 +273,7 @@ body,
   border: 1px solid var(--border);
   background: var(--bg3);
   color: var(--txt0);
-  transition: all 0.2s;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -313,19 +302,6 @@ body,
   background: var(--acc-subtle);
   border-color: var(--blu-bright);
   color: var(--blu-bright);
-  animation: btn-pulsation 1.5s infinite alternate ease-in-out;
-}
-
-@keyframes btn-pulsation {
-  from {
-    opacity: 0.7;
-    transform: scale(0.99);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 /* Layout Utilities */
@@ -505,92 +481,6 @@ kbd {
 
 .component-selected .pcb-comp-rim {
   filter: drop-shadow(0 0 2px var(--comp-color));
-  animation: halo-flicker var(--anim-dur, 3s) infinite;
-  animation-delay: var(--anim-delay, 0s);
-}
-
-@keyframes halo-flicker {
-
-  0%,
-  100% {
-    opacity: 0.98;
-    filter: drop-shadow(0 0 1.6px var(--comp-color));
-  }
-
-  5% {
-    opacity: 0.96;
-    filter: drop-shadow(0 0 1.4px var(--comp-color));
-  }
-
-  10% {
-    opacity: 0.99;
-    filter: drop-shadow(0 0 1.8px var(--comp-color));
-  }
-
-  15% {
-    opacity: 0.97;
-    filter: drop-shadow(0 0 1.5px var(--comp-color));
-  }
-
-  17% {
-    opacity: 1;
-    filter: drop-shadow(0 0 2.2px var(--comp-color)) brightness(1.04);
-  }
-
-  19% {
-    opacity: 0.95;
-    filter: drop-shadow(0 0 1.3px var(--comp-color));
-  }
-
-  25% {
-    opacity: 0.98;
-    filter: drop-shadow(0 0 1.6px var(--comp-color));
-  }
-
-  40% {
-    opacity: 0.97;
-    filter: drop-shadow(0 0 1.5px var(--comp-color));
-  }
-
-  42% {
-    opacity: 1;
-    filter: drop-shadow(0 0 2.0px var(--comp-color)) brightness(1.03);
-  }
-
-  44% {
-    opacity: 0.96;
-    filter: drop-shadow(0 0 1.4px var(--comp-color));
-  }
-
-  60% {
-    opacity: 0.98;
-    filter: drop-shadow(0 0 1.7px var(--comp-color));
-  }
-
-  61% {
-    opacity: 1;
-    filter: drop-shadow(0 0 2.4px var(--comp-color)) brightness(1.05);
-  }
-
-  63% {
-    opacity: 0.95;
-    filter: drop-shadow(0 0 1.2px var(--comp-color));
-  }
-
-  80% {
-    opacity: 0.98;
-    filter: drop-shadow(0 0 1.6px var(--comp-color));
-  }
-
-  90% {
-    opacity: 0.99;
-    filter: drop-shadow(0 0 1.8px var(--comp-color));
-  }
-
-  92% {
-    opacity: 0.96;
-    filter: drop-shadow(0 0 1.4px var(--comp-color));
-  }
 }
 
 .wire-active {
@@ -792,7 +682,7 @@ textarea:focus-visible,
   cursor: pointer;
   background: transparent;
   color: var(--txt1);
-  transition: all 0.15s ease;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
   flex-shrink: 0;
 }
 .ui-icn-btn-sm { width: 24px; height: 24px; }
@@ -967,7 +857,7 @@ select.ui-input { appearance: none; padding-right: 28px; cursor: pointer; backgr
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
 .ui-checkbox-box.checked {
   background: var(--ui-primary);
@@ -1042,4 +932,14 @@ body:has(.overlay-bg:not([style*="display: none"]), .json-drawer, #lsb.mobile-op
   .acc-save .acc-input { flex-basis: 100%; }
   .acc-open { padding: 12px 10px; }
   .acc-icon { width: 40px; height: 40px; }
+}
+
+/* Motion only where it answers an action: users who ask for less get none. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

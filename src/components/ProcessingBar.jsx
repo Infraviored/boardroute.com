@@ -244,7 +244,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           font-size: var(--fs-15);
           cursor: pointer;
           backdrop-filter: blur(8px);
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
           margin-top: 8px;
           display: flex;
           align-items: center;
@@ -290,7 +290,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.3s ease;
+          transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
           position: relative;
         }
         .pb-preview-wrap.success {

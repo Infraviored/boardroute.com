@@ -884,7 +884,7 @@ export function PcbCanvas({
                   display: flex; 
                   align-items: center; 
                   justify-content: center; 
-                  transition: all 0.15s ease; 
+                  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease; 
                   box-shadow: var(--shadow-premium);
                 }
                 .cbtn:hover { 

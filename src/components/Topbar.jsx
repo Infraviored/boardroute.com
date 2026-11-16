@@ -389,7 +389,7 @@ export function Topbar({
           display: flex;
           align-items: center;
           gap: 8px;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
           white-space: nowrap;
           position: relative;
         }
@@ -441,7 +441,7 @@ export function Topbar({
           display: flex;
           align-items: center;
           gap: 9px;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
           position: relative;
           border-radius: 0;
           clip-path: polygon(
@@ -484,29 +484,10 @@ export function Topbar({
 
         .flow-btn.processing {
           background-color: var(--bg4);
-          background-image: linear-gradient(90deg, 
-            transparent 0%, 
-            color-mix(in srgb, var(--flow-color), transparent 85%) 50%, 
-            transparent 100%
-          );
-          background-size: 200% 100%;
+          background-image: linear-gradient(color-mix(in srgb, var(--flow-color), transparent 90%), color-mix(in srgb, var(--flow-color), transparent 90%));
           color: var(--txt0);
           z-index: 5;
-          animation: flow-scan-bg 1.5s infinite linear;
           opacity: 1 !important; /* Force visibility even if disabled */
-        }
-
-        /* Pulsing indicator for the target step */
-        @keyframes flow-pulse {
-          0% { opacity: 0.6; transform: scaleX(1); }
-          50% { opacity: 1; transform: scaleX(1.05); }
-          100% { opacity: 0.6; transform: scaleX(1); }
-        }
-
-        /* Scanning effect for processing background */
-        @keyframes flow-scan-bg {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
         }
 
         .flow-btn.completed svg { color: var(--flow-color); opacity: 0.9; }
@@ -845,7 +826,6 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
           .coach-close { width: 40px; height: 40px; margin: -9px -6px -9px -8px; }
         }
         @keyframes coach-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
-        @keyframes coach-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
         @media (prefers-reduced-motion: reduce) { .coach-mark { animation: none; } }
       `}} />
     </>,

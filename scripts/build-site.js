@@ -50,8 +50,8 @@ function boardFigure(name, caption) {
         .replace(/@import url\([^)]*\);?/, '') // the page already loads the fonts
         .replace('<svg ', `<svg role="img" aria-label="${esc(caption)}" `);
     const ex = FIGURE_EXAMPLE[name];
-    const link = ex ? ` <a class="try-link" href="/?example=${ex}">Try this circuit in the autorouter →</a>` : '';
-    return `<figure class="board">${svg}<figcaption>${esc(caption)}${link}</figcaption></figure>`;
+    const link = ex ? ` <a class="try-link" href="/?example=${ex}">Open in boardroute →</a>` : '';
+    return `<figure class="board"><div class="figscroll">${svg}</div><figcaption>${esc(caption)}${link}</figcaption></figure>`;
 }
 
 function render(md) {
@@ -119,7 +119,7 @@ ${ANALYTICS}
 ${body}
 <footer class="site-foot">
   <div class="foot-cols">
-    <div><a class="logo" href="/"><img class="logo-board" src="/logo-board.svg" alt="board"><img class="logo-route" src="/logo-route.svg" alt="route"></a><p>Free perfboard autorouter that runs in your browser. Nothing is uploaded.</p><p class="legal"><a href="/imprint/">Imprint</a> · <a href="/privacy/">Privacy</a></p></div>
+    <div><a class="logo" href="/"><img class="logo-board" src="/logo-board.svg" alt="board"><img class="logo-route" src="/logo-route.svg" alt="route"></a><p>Free perfboard autorouter. Everything runs in your browser. Nothing leaves it unless you sign in to save or share a circuit.</p><p class="legal"><a href="/imprint/">Imprint</a> · <a href="/privacy/">Privacy</a></p></div>
     <div><h4>Parts</h4><ul><li><a href="/parts/">Pinouts for perfboard</a></li><li><a href="/parts.txt">parts.txt (for AI assistants)</a></li></ul></div>
     <div><h4>How it works</h4><ul>${files.map(f => `<li><a href="${urlOf(f)}">${esc(summaries.get(f)?.nav || slugOf(f))}</a></li>`).join('')}</ul></div>
   </div>
@@ -163,7 +163,7 @@ articles.forEach((a, i) => {
     ${toc.length > 1 && !isFaq ? `<p class="toc-title">On this page</p><ul>${toc.map(h => `<li><a href="#${h.id}">${esc(h.text)}</a></li>`).join('')}</ul>` : ''}
   </aside>
   <article class="prose">
-    <p class="crumbs"><a href="${BASE}">How it works</a> · Part ${i + 1} of ${articles.length}</p>
+    <p class="crumbs"><a href="${BASE}">How it works</a>, part ${i + 1} of ${articles.length}</p>
     ${html}
     <nav class="pager">${prev ? `<a class="prev" href="${prev.path}"><span>Previous</span>${esc(prev.nav)}</a>` : '<span></span>'}${next ? `<a class="next" href="${next.path}"><span>Next</span>${esc(next.nav)}</a>` : ''}</nav>
     <aside class="try"><p><strong>Try it yourself.</strong> Pick one of the example circuits or describe your own, press Wire and then Compact, and watch the board shrink. It runs in your browser and is free.</p><a class="cta" href="/">Open the autorouter →</a></aside>
@@ -176,7 +176,7 @@ articles.forEach((a, i) => {
     if (isFaq) jsonld.push({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqEntries(a.md) });
     const dir = join(OUT, 'how-it-works', slugOf(a.f));
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, 'index.html'), page({ title: `${a.title} · boardroute`, description: a.summary, path: a.path, body, jsonld }));
+    writeFileSync(join(dir, 'index.html'), page({ title: `${a.title} | boardroute`, description: a.summary, path: a.path, body, jsonld }));
 });
 
 // Hub page
@@ -189,7 +189,7 @@ const hubBody = `<main class="hub">
   <ol class="cards">${articles.map((a, i) => `<li><a href="${a.path}"><span class="num">${i + 1}</span><h2>${esc(a.nav)}</h2><p>${esc(a.summary)}</p></a></li>`).join('')}</ol>
 </main>`;
 writeFileSync(join(OUT, 'how-it-works', 'index.html'), page({
-    title: 'AI circuit to perfboard layout: how the autorouter works · boardroute',
+    title: 'AI circuit to perfboard layout: how the autorouter works | boardroute',
     description: 'Your AI picks the parts and connections; boardroute places them on a perfboard, routes every wire without crossings, adds jumper wires only when needed, and shrinks the board. How it works, in plain language.',
     path: BASE, body: hubBody, type: 'website',
     jsonld: [breadcrumb([['boardroute', '/'], ['How it works', BASE]]),
@@ -203,7 +203,7 @@ for (const [file, slug, title] of [['imprint.md', 'imprint', 'Imprint'], ['priva
     const dir = join(OUT, slug);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'index.html'), page({
-        title: `${title} · boardroute`, description: `${title} of boardroute.com`, path: `/${slug}/`, type: 'website', jsonld: [],
+        title: `${title} | boardroute`, description: `${title} of boardroute.com`, path: `/${slug}/`, type: 'website', jsonld: [],
         body: `<main class="article-layout legal-page"><article class="prose">${html}</article></main>`,
     }).replace('<meta name="viewport"', '<meta name="robots" content="noindex">\n<meta name="viewport"'));
 }
@@ -218,10 +218,10 @@ const partPages = [];
         const link = circuitLink(example);
         const path = modulePath(m);
         const body = `<main class="article-layout legal-page"><article class="prose">
-  <p class="crumbs"><a href="/parts/">Parts</a> · ${esc(m.cat)}</p>
+  <p class="crumbs"><a href="/parts/">Parts</a>, ${esc(m.cat)}</p>
   <h1>${esc(m.name)} pinout for perfboard</h1>
   <p>${esc(m.name)}${m.value ? ` (${esc(m.value)})` : ''}: ${m.ls.length} pins, shown here as boardroute places it on a 2.54 mm perfboard. Write it as <code>${esc(m.name)}</code> in the "parts" of a boardroute circuit and refer to the pins by the names below.</p>
-  <figure class="board">${footprintSvg(m)}<figcaption>${esc(m.name)} footprint on the perfboard grid.</figcaption></figure>
+  <figure class="board"><div class="figscroll">${footprintSvg(m)}</div><figcaption>${esc(m.name)} footprint on the perfboard grid.</figcaption></figure>
   <h2>Pins</h2>
   <div class="table-wrap"><table><thead><tr><th>#</th><th>Pin name</th></tr></thead><tbody>${m.ls.map((l, i) => `<tr><td>${i + 1}</td><td><code>${esc(l)}</code></td></tr>`).join('')}</tbody></table></div>
   <h2>Example</h2>
@@ -233,7 +233,7 @@ const partPages = [];
         const dir = join(OUT, 'parts', m.slug);
         mkdirSync(dir, { recursive: true });
         writeFileSync(join(dir, 'index.html'), page({
-            title: `${m.name} pinout for perfboard · boardroute`, description, path, body,
+            title: `${m.name} pinout for perfboard | boardroute`, description, path, body,
             jsonld: [breadcrumb([['boardroute', '/'], ['Parts', '/parts/'], [m.name, path]])],
         }));
         partPages.push(path);
@@ -245,7 +245,7 @@ const partPages = [];
 </article></main>`;
     mkdirSync(join(OUT, 'parts'), { recursive: true });
     writeFileSync(join(OUT, 'parts', 'index.html'), page({
-        title: 'Parts and pinouts for perfboard · boardroute',
+        title: 'Parts and pinouts for perfboard | boardroute',
         description: 'Pin names and perfboard footprints of the boards and parts boardroute knows: ESP32, Wemos D1 Mini, Arduino Nano, NE555, relays, displays and more.',
         path: '/parts/', body, type: 'website',
         jsonld: [breadcrumb([['boardroute', '/'], ['Parts', '/parts/']])],

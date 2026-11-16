@@ -40,11 +40,11 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
     return (
       <div className="active-metrics">
         <div className="res-item">
-          <div className="res-label">Board Area</div>
+          <div className="res-label">Board area</div>
           <div className="res-val small">{s.width}×{s.height} ({s.area})</div>
         </div>
         <div className="res-item wide">
-          <div className="res-label">Wire Length</div>
+          <div className="res-label">Wire length</div>
           <div className="res-val small">{s.wl} holes</div>
         </div>
       </div>
@@ -74,7 +74,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
                   <div className="res-sub">{results.startScore.width}×{results.startScore.height} → {results.score.width}×{results.score.height}</div>
                 </div>
                 <div className="res-item">
-                  <div className="res-label">Wire Length</div>
+                  <div className="res-label">Wire length</div>
                   <div className="res-val">
                     {results.startScore.wl > results.score.wl
                       ? `-${Math.round((results.startScore.wl - results.score.wl) / results.startScore.wl * 100)}%`
@@ -103,7 +103,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
 
         {preview && (
           <div className="pb-preview">
-            <div className="pb-preview-label">{results ? "final design" : "current best"}</div>
+            <div className="pb-preview-label">{results ? "Final design" : "Current best"}</div>
             <div className={`pb-preview-wrap ${results && improved ? 'success' : ''}`}>
               <svg viewBox={`-30 0 ${preview.W + 60} ${preview.H}`} style={{ height: '100%', maxWidth: '100%', display: 'block', overflow: 'visible' }}>
                 <g dangerouslySetInnerHTML={{ __html: preview.inner }} />
@@ -205,11 +205,9 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           width: 180px;
         }
         .res-label { 
-          font-size: 0.65rem; 
-          text-transform: uppercase; 
+          font-size: 0.75rem; 
           color: var(--txt1); 
-          letter-spacing: 0.12em; 
-          font-weight: 800; 
+          font-weight: 600; 
           white-space: nowrap;
         }
         .res-val { 
@@ -282,11 +280,9 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         }
         .pb-preview-label {
           font-family: 'Outfit', sans-serif;
-          font-size: 0.68rem;
+          font-size: 0.78rem;
           color: var(--txt1);
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
-          font-weight: 800;
+          font-weight: 600;
         }
         .pb-preview-wrap {
           height: 180px;

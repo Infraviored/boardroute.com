@@ -2,7 +2,7 @@ import React from 'react';
 import { MOBILE_MQ } from '../mobile.js';
 import { ModalShell, Button } from './ui';
 
-export function ConfirmOverlay({ isOpen, title, message, onConfirm, onCancel }) {
+export function ConfirmOverlay({ isOpen, title, message, action, onConfirm, onCancel }) {
   if (!isOpen) return null;
 
   return (
@@ -10,17 +10,17 @@ export function ConfirmOverlay({ isOpen, title, message, onConfirm, onCancel }) 
       isOpen={isOpen}
       onClose={onCancel}
       maxWidth="380px"
-      ariaLabel={title || 'Confirm action'}
+      ariaLabel={title || 'Confirm'}
       className="confirm-modal-shell"
     >
       <ModalShell.Header
-        title={title || 'Confirm action'}
+        title={title || 'Confirm'}
         onClose={onCancel}
       />
 
       <ModalShell.Body>
         <p className="confirm-modal-message">
-          {message || 'Are you sure you want to proceed?'}
+          {message || ''}
         </p>
       </ModalShell.Body>
 
@@ -29,7 +29,7 @@ export function ConfirmOverlay({ isOpen, title, message, onConfirm, onCancel }) 
           Cancel
         </Button>
         <Button variant="danger" onClick={onConfirm}>
-          Confirm action
+          {action || 'Confirm'}
         </Button>
       </ModalShell.Footer>
 

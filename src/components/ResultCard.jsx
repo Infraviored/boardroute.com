@@ -28,7 +28,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
   if (isCompact && start?.area) {
     const pct = Math.round((start.area - result.area) / start.area * 100);
     delta = pct > 0
-      ? { good: true, text: `−${pct} % area`, sub: `${start.width} × ${start.height} → ${width} × ${height}` }
+      ? { good: true, text: `${pct}% smaller`, sub: `${start.width} × ${start.height} → ${width} × ${height}` }
       : { good: false, text: optimal ? 'Already perfect' : 'No smaller layout this run', sub: optimal ? 'Nothing left to shrink' : `${start.width} × ${start.height} stays` };
   }
 
@@ -57,23 +57,23 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         <span className="rc-title">{optimal ? 'Perfect' : isCompact ? 'Compacted' : 'Wired'}</span>
         <span className="rc-hint">{optimal
           ? 'Smallest possible board, proven'
-          : isCompact ? `Best found · can't go below ${bound} holes` : 'Every net is connected'}</span>
+          : isCompact ? `Best found, the minimum is ${bound} holes` : 'Every net is connected'}</span>
         <button className="rc-close" onClick={onClose} aria-label="Close result"><X size={15} /></button>
       </div>
 
       <div className="rc-stats">
         <div className="rc-stat">
           <div className="rc-val">{width} × {height}</div>
-          <div className="rc-lbl">holes footprint</div>
+          <div className="rc-lbl">Board (holes)</div>
         </div>
         <div className="rc-stat">
           <div className="rc-val">{wl}</div>
-          <div className="rc-lbl">holes of wire</div>
+          <div className="rc-lbl">Wire (holes)</div>
         </div>
         {jumpers > 0 && (
           <div className="rc-stat">
             <div className="rc-val">{jumpers}</div>
-            <div className="rc-lbl">jumper{jumpers === 1 ? '' : 's'}</div>
+            <div className="rc-lbl">{jumpers === 1 ? 'Jumper' : 'Jumpers'}</div>
           </div>
         )}
         {delta && (
@@ -124,7 +124,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .rc-stats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 22px; margin: 10px 0 12px; }
         .rc-stat { display: flex; flex-direction: column; gap: 2px; }
         .rc-val { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--txt0); font-variant-numeric: tabular-nums; white-space: nowrap; }
-        .rc-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--txt1); white-space: nowrap; }
+        .rc-lbl { font-size: 12px; font-weight: 600; color: var(--txt1); white-space: nowrap; }
         .rc-delta { margin-left: auto; padding: 5px 9px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
         .rc-delta.good { background: rgba(116, 179, 134, 0.10); border-color: rgba(116, 179, 134, 0.30); }
         .rc-delta-main { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; color: var(--txt1); white-space: nowrap; }
@@ -181,7 +181,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
           .rc-title { font-size: 0.98rem; }
           .rc-stats { gap: 4px 14px; margin: 8px 0 10px; flex-wrap: nowrap; }
           .rc-val { font-size: 1.2rem; }
-          .rc-lbl { font-size: 9.5px; letter-spacing: 0.06em; }
+          .rc-lbl { font-size: 11px; }
           .rc-delta { padding: 4px 8px; }
           .rc-delta-sub { display: none; }
           .rc-btn { min-height: 40px; height: 40px; padding: 0 8px; font-size: 0.82rem; gap: 5px; }
@@ -192,7 +192,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
           #ca-col:has(.result-card) .canvas-controls { bottom: calc(12px + var(--bottom-nav-height, 0px)); grid-template-columns: repeat(2, 40px); }
           .rc-stats { gap: 4px 16px; margin: 6px 0 8px; flex-wrap: nowrap; }
           .rc-val { font-size: 1.2rem; }
-          .rc-lbl { font-size: 9.5px; letter-spacing: 0.06em; }
+          .rc-lbl { font-size: 11px; }
           .rc-delta { padding: 4px 8px; }
           .rc-delta-sub { display: none; }
           .rc-hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

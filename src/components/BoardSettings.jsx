@@ -158,9 +158,7 @@ export function BoardSettingsStyles() {
         .bv-label {
           font-size: var(--fs-xs);
           color: var(--txt1);
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
+          font-weight: 600;
           white-space: nowrap;
         }
         .bv-size { display: flex; align-items: center; gap: 4px; min-width: 0; }
@@ -218,7 +216,7 @@ export function BoardSettingsStyles() {
         .bv-seg button:disabled { cursor: default; }
         .bv-seg.disabled button.active { background: var(--bg4); color: var(--txt1); }
 
-        .bv-sub { font-size: var(--fs-xs); font-weight: 700; color: var(--txt2); text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
+        .bv-sub { font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); margin-top: 6px; }
         .bv-origin { display: grid; grid-template-columns: repeat(2, 22px); gap: 4px; }
         .bv-corner {
           width: 22px; height: 18px;

@@ -97,7 +97,7 @@ export function SidebarLeft({
 
   const summaryLine = summary.empty ? 'No circuit yet'
     : summary.error ? 'The JSON has an error'
-    : `${plural(summary.parts, 'part')} · ${plural(summary.nets, 'net')}`;
+    : `${plural(summary.parts, 'part')}, ${plural(summary.nets, 'net')}`;
 
   return (
     <aside id="lsb" className={`${editorOpen ? 'json-open' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -135,8 +135,8 @@ export function SidebarLeft({
                 aria-expanded={editorOpen}
                 aria-controls="json-editor"
               >
-                {hasCircuit ? <Pencil size={13} /> : <ClipboardPaste size={14} />}
-                {editorOpen ? 'Close JSON editor' : hasCircuit ? 'Edit JSON' : 'Paste JSON'}
+                <Pencil size={13} />
+                {editorOpen ? 'Close JSON editor' : 'Edit JSON'}
               </button>
               <button className="cc-btn wide" onClick={onOpenFile} title="Open a project file saved with Export → Project file">
                 <FolderOpen size={14} /> Open project file
@@ -154,7 +154,7 @@ export function SidebarLeft({
                   <ClipboardPaste size={12} /> Paste
                 </button>
                 <button className="jd-mini" onClick={() => { setJsonInput(''); setEdited(true); textareaRef.current?.focus(); }} title="Empty the editor">
-                  Clear
+                  Empty
                 </button>
                 <button className="jd-close" onClick={closeEditor} aria-label="Close JSON editor"><X size={16} /></button>
               </div>
@@ -171,7 +171,7 @@ export function SidebarLeft({
               <div className={`jd-status ${summary.error ? 'err' : summary.empty ? '' : 'ok'}`}>
                 {summary.error ? <><AlertTriangle size={12} /> <span>{summary.error}</span></>
                   : summary.empty ? <span>Paste or type the circuit description</span>
-                  : <><Check size={12} /> <span>Valid JSON · {summaryLine}</span></>}
+                  : <><Check size={12} /> <span>Valid JSON, {summaryLine}</span></>}
               </div>
               <button className="jd-load" onClick={load} disabled={summary.empty}>
                 Load circuit
@@ -229,7 +229,7 @@ export function SidebarLeft({
                     <button
                       className="edit-mini-btn"
                       onClick={(e) => { e.stopPropagation(); onEditComponent(c.id); }}
-                      title="Edit component"
+                      title="Edit part"
                     >
                       <Pencil size={11} />
                     </button>

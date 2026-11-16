@@ -801,7 +801,7 @@ export function PcbCanvas({
                 </g>
             </svg>
 
-            {solder && <div className="side-badge">Solder side · mirrored like the board turned over · view only</div>}
+            {solder && <div className="side-badge">Solder side, mirrored like the board turned over, view only</div>}
             <div className="canvas-controls">
                 <button className={`cbtn coords-btn ${boardView?.showCoords ? 'on' : ''}`} onClick={onToggleCoords} title={boardView?.showCoords ? 'Hide hole coordinates (H)' : 'Show hole coordinates (H); board size and numbering: Export'}>
                     <Hash size={18} />

@@ -37,10 +37,10 @@ function persist(key, value) {
 
 const CONFIRM_CLOSED = { isOpen: false, type: null, targetId: null };
 const CONFIRM_TEXT = {
-  pin: ['Disconnect Pin', id => `Are you sure you want to disconnect ${id}?`],
-  comp: ['Delete Component', id => `Are you sure you want to delete ${id}?`],
-  net: ['Delete Net', id => `Are you sure you want to clear wires for net ${id}?`],
-  reset: ['Reset Workspace', () => 'Clear all components and wires?'],
+  pin: id => ({ title: `Disconnect ${id}?`, message: 'The pin leaves its net and the wires are routed again.', action: 'Disconnect pin' }),
+  comp: id => ({ title: `Delete ${id}?`, message: 'The part and its wires are removed from the board.', action: 'Delete part' }),
+  net: id => ({ title: `Clear the wires of ${id}?`, message: 'The net stays, only its wires are removed.', action: 'Clear wires' }),
+  reset: () => ({ title: 'Reset the board?', message: 'Every part and wire is removed and the starter circuit is loaded.', action: 'Reset board' }),
 };
 
 // first free id of the form <prefix><n>, counting up from `start`; ids that still hold a
@@ -1087,7 +1087,7 @@ const [board, setBoard] = useState(() => {
       </div>
       {/* phone: Parts slides in from the left, Inspector from the right (edge handle or swipe) */}
       <button className={`mobile-edge left ${mobileDrawer ? 'hide' : ''}`} onClick={() => setMobileDrawer('parts')} aria-label="Open parts">
-        <ChevronRight size={14} /><span>Parts{board.components.length ? ` · ${board.components.length}` : ''}</span>
+        <ChevronRight size={14} /><span>Parts{board.components.length ? ` ${board.components.length}` : ''}</span>
       </button>
       <button className={`mobile-edge right ${mobileDrawer ? 'hide' : ''}`} onClick={() => setMobileDrawer('inspector')} aria-label="Open inspector">
         <span>Inspector</span><ChevronLeft size={14} />
@@ -1101,8 +1101,7 @@ const [board, setBoard] = useState(() => {
       <PromptOverlay isOpen={isPromptOpen} onClose={() => setIsPromptOpen(false)} />
       <ConfirmOverlay
         isOpen={confirmData.isOpen}
-        title={CONFIRM_TEXT[confirmData.type]?.[0] ?? 'Confirm Action'}
-        message={CONFIRM_TEXT[confirmData.type]?.[1](confirmData.targetId) ?? 'Proceed?'}
+        {...(CONFIRM_TEXT[confirmData.type]?.(confirmData.targetId) ?? {})}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmData(CONFIRM_CLOSED)}
       />
       <AccountOverlay isOpen={isAccountOpen} onClose={() => setIsAccountOpen(false)} account={account} setAccount={setAccount}
@@ -1170,7 +1169,7 @@ const [board, setBoard] = useState(() => {
             display: flex; align-items: center; justify-content: center; gap: 4px;
             height: 96px; width: 24px; padding: 0;
             background: var(--bg2); border: 1px solid var(--border2); color: var(--txt1);
-            font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+            font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600;
             writing-mode: vertical-rl; cursor: pointer;
             transform: translateY(-50%); transition: opacity .2s;
             box-shadow: 0 4px 16px rgba(0,0,0,.45);

@@ -5,6 +5,7 @@ import { Plus, Trash2, Camera, Undo2, X, Image as ImageIcon } from 'lucide-react
 import { SP, netColor, boostColor, compColor, photoTurn, turnMatrix, turnRect, edgeArrowPath } from '../engine/render-utils.js';
 import { swapGroups } from '../engine/templates.js';
 import { PhotoFootprintOverlay } from './PhotoFootprintOverlay.jsx';
+import { ModalShell, Button, Checkbox } from './ui';
 
 // Footprint editor.
 // Model: pins sit on integer holes (any coordinates while editing, normalised on save) and the
@@ -251,23 +252,19 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
     };
 
     return (
-        <div className="overlay-bg" onPointerDown={(e) => { if (e.target === e.currentTarget && !photoSession?.open) onClose(); }}>
-            <div className="modal ce-modal" role="dialog" aria-label={`Edit ${data.id}`} style={photoSession?.open ? { display: 'none' } : undefined}>
-                <header className="ce-head">
+        <>
+            <ModalShell isOpen onClose={onClose} maxWidth="1120px" className="ce-modal" ariaLabel={`Edit ${data.id}`}
+                closeOnEscape={false} closeOnOutsideClick={!photoSession?.open} overlayStyle={photoSession?.open ? { display: 'none' } : undefined}>
+                <ModalShell.Header onClose={onClose}>
                     {/* the part's name is the title, edited in place; id and value beside it */}
                     <span className="ce-id" style={{ borderColor: mainColor, color: mainColor }}>{data.id || '?'}</span>
                     <input className="ce-title" value={data.name} onChange={e => handleUpdate('name', e.target.value)} placeholder={mode === 'add' ? 'New part' : 'Part name'}
                         aria-label="Part name" size={Math.max(6, Math.min(28, (data.name || '').length))} />
                     {data.value && <span className="ce-kind">{data.value}</span>}
                     <span className="ce-size">{foot.w} × {foot.h} holes, {(foot.w * 2.54).toFixed(1)} × {(foot.h * 2.54).toFixed(1)} mm</span>
-                    <div className="ce-head-actions">
-                        <button className="ce-btn ce-undo" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)"><Undo2 size={14} /><span className="ce-btn-txt"> Undo</span></button>
-                        <button className="ce-btn" onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</button>
-                        <button className="ce-btn primary" onClick={save}>{mode === 'add' ? 'Add to circuit' : 'Save'}</button>
-                    </div>
-                </header>
+                </ModalShell.Header>
 
-                <div className="ce-body">
+                <ModalShell.Body className="ce-body">
                     <div className="ce-canvas" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
                             <svg
                             ref={svgRef}
@@ -356,9 +353,9 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                                 </label>
                             </div>
                             <div className="ce-opts">
-                                <label className="ce-check" title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
-                                    <input type="checkbox" checked={!!data.swap} onChange={e => handleUpdate('swap', e.target.checked ? true : null)} /> Pins swappable
-                                </label>
+                                <span title="The router may give these pins each other's nets, e.g. a screw terminal works either way round">
+                                    <Checkbox checked={!!data.swap} onChange={v => handleUpdate('swap', v ? true : null)} label="Pins swappable" />
+                                </span>
                                 <div className="ce-edge">
                                     <button className={`ce-face ${faceMode ? 'active' : ''} ${data.edge >= 0 ? 'set' : ''}`} onClick={() => setFaceMode(m => !m)} aria-pressed={faceMode}
                                         title="Pick the side that must face outward, on the board's edge (a plug or wires come in there). Which way it ends up pointing is up to the router.">
@@ -373,7 +370,7 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
 
                         <section className="ce-bodysec">
                             <div className="ce-label">Body</div>
-                            <div className="ce-seg">
+                            <div className="ui-seg">
                                 <button className={!data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: null }))}>Spans the pins</button>
                                 <button className={data.body ? 'active' : ''} onClick={() => update(d => ({ ...d, body: d.body || { x: pinBox.x - 1, y: pinBox.y - 1, w: pinBox.w + 2, h: pinBox.h + 2 } }))}>Larger housing</button>
                             </div>
@@ -410,66 +407,71 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                             </div>
                         </section>
                     </aside>
-                </div>
-            </div>
+                </ModalShell.Body>
 
-            {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
-                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name}
-                mode={photoSession.mode || 'footprint'} footprint={{ w: foot.w, h: foot.h, pins: data.pins.map(p => [p.dCol - foot.x, p.dRow - foot.y, p.lbl]) }} />}
+                <ModalShell.Footer align="between">
+                    <Button icon={<Undo2 size={14} />} onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)" className="ce-undo"><span className="ce-btn-txt">Undo</span></Button>
+                    <div className="ce-foot-right">
+                        <Button onClick={onClose}>{mode === 'add' ? 'Back to library' : 'Cancel'}</Button>
+                        <Button variant="primary" onClick={save}>{mode === 'add' ? 'Add to circuit' : 'Save'}</Button>
+                    </div>
+                </ModalShell.Footer>
 
             <style dangerouslySetInnerHTML={{ __html: `
                 .ce-photo-row { display: flex; gap: 6px; flex-wrap: wrap; }
                 .ce-photo-row .ce-photo { flex: 1 1 0; white-space: nowrap; padding: 0 8px; }
                 .ce-photo-row .ce-photo-fp { flex-basis: 100%; }
-                .ce-photo-row .ce-photo-x { flex: none; width: 34px; padding: 0; display: grid; place-items: center; }
+                .ce-photo-row .ce-photo-x { flex: none; width: 32px; padding: 0; display: grid; place-items: center; }
                 .ce-photo-row .ce-photo.primary { flex-basis: 100%; order: -1; }
                 .ce-photo { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-                .ce-modal { max-width: 1120px; width: calc(100% - 32px); height: min(720px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }
-                .ce-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-                .ce-head h3 { font-size: var(--fs-md); font-weight: 600; color: var(--txt0); }
-                .ce-head input.ce-title { min-width: 0; max-width: 100%; height: 30px; padding: 0 6px; margin-left: -6px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--txt0); font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 700; field-sizing: content; }
-                .ce-head input.ce-title:hover { border-color: var(--border); }
-                .ce-head input.ce-title:focus { outline: none; border-color: var(--ui-accent-hover); background: var(--bg0); }
+                .ce-modal { width: calc(100% - 32px); height: min(780px, calc(100vh - 48px)); }
+                .ce-modal .ce-body { padding: 0; overflow: hidden; }
+
+
+                .ce-modal input.ce-title { min-width: 0; max-width: 100%; height: 32px; padding: 0 6px; margin-left: -6px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--txt0); font-family: 'Outfit', sans-serif; font-size: var(--fs-md); font-weight: 700; field-sizing: content; }
+                .ce-modal input.ce-title:hover { border-color: var(--border); }
+                .ce-modal input.ce-title:focus { outline: none; border-color: var(--acc-hover); background: var(--bg0); }
                 .ce-kind { font-size: var(--fs-sm); color: var(--txt1); white-space: nowrap; }
                 .ce-id { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: var(--fs-sm); padding: 1px 8px; border: 1px solid; border-radius: var(--radius-md); }
                 .ce-size { font-size: var(--fs-xs); color: var(--txt2); font-family: ui-monospace, Consolas, monospace; }
-                .ce-head-actions { margin-left: auto; display: flex; gap: 6px; }
-                .ce-btn { height: 30px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+                .ce-foot-right { display: flex; gap: 10px; }
+                .ce-btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--ui-neutral); color: var(--txt0); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease; }
                 .ce-btn:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
                 .ce-btn:active { background: var(--ui-neutral-active); }
                 .ce-btn:disabled { opacity: .45; cursor: default; }
-                .ce-undo { display: inline-flex; align-items: center; gap: 5px; }
-                .ce-btn.primary { background: var(--ui-primary); border-color: var(--ui-primary-border); color: #fff; }
+
+                .ce-btn.primary { background: var(--ui-primary); border-color: var(--ui-primary-border); color: var(--ui-primary-text); }
                 .ce-btn.primary:hover { background: var(--ui-primary-hover); }
                 .ce-btn.primary:active { background: var(--ui-primary-active); }
-                .ce-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+                .ce-modal .ce-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
                 .ce-canvas { position: relative; min-width: 0; min-height: 0; background: #080a0c; }
                 .ce-canvas > svg { position: absolute; inset: 16px 16px 34px; width: calc(100% - 32px); height: calc(100% - 50px); touch-action: none; user-select: none; }
                 .ce-canvas-hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: var(--fs-xs); color: var(--txt2); pointer-events: none; }
                 .ce-side { border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--bg2); }
                 .ce-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
                 .ce-side label { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); min-width: 0; }
-                .ce-side input:not([type=color]) { height: 28px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font-family: inherit; font-size: 13px; font-weight: 500; min-width: 0; width: 100%; }
-                .ce-side input:focus { outline: none; border-color: var(--ui-accent-hover); }
+                .ce-side input:not([type=color]) { height: 32px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font-family: inherit; font-size: var(--fs-sm); font-weight: 500; min-width: 0; width: 100%; }
+                .ce-side input:focus { outline: none; border-color: var(--acc-hover); }
+                .ce-side label.ui-checkbox-label { flex-direction: row; align-items: center; gap: 8px; font-size: var(--fs-sm); font-weight: 400; color: var(--txt0); }
                 .ce-row3 { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; }
-                .ce-color input { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: none; cursor: pointer; }
+                .ce-color input { width: 44px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: none; cursor: pointer; }
                 .ce-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--txt2); }
                 .ce-label span { color: var(--txt1); }
-                .ce-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
-                .ce-seg button { flex: 1; background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; padding: 5px; border-radius: var(--radius-sm); cursor: pointer; }
-                .ce-seg button.active { background: var(--ui-accent); color: var(--acc-text); }
+
+
+
                 .ce-hint { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; margin: 0; }
                 .ce-rings { display: flex; align-items: center; gap: 10px; }
-                .ce-rings .ce-seg { flex: 1; }
+                .ce-rings .ui-seg { flex: 1; }
                 .ce-rings svg { flex: none; }
                 .ce-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-                .ce-side label.ce-check { flex-direction: row; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--txt1); cursor: pointer; white-space: nowrap; }
-                .ce-side .ce-check input[type=checkbox] { width: 14px; height: 14px; padding: 0; margin: 0; flex: none; accent-color: var(--ui-accent); }
+
+
                 .ce-edge { display: flex; align-items: center; gap: 4px; }
-                .ce-face { height: 24px; padding: 0 9px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
+                .ce-face { height: 32px; padding: 0 10px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; white-space: nowrap; }
                 .ce-face.set { color: var(--txt0); border-color: var(--border2); }
                 .ce-face.active { background: var(--ui-accent); border-color: var(--ui-accent); color: var(--acc-text); }
-                .ce-face-x { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
+                .ce-face-x { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; background: none; border: 0; color: var(--txt2); cursor: pointer; }
                 .ce-face-x:hover { color: var(--txt0); }
                 .ce-face-side { cursor: pointer; }
                 .ce-face-side rect { fill: var(--c); fill-opacity: .08; stroke: var(--c); stroke-opacity: .35; stroke-dasharray: 4 3; }
@@ -478,65 +480,75 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                 .ce-face-side:hover path, .ce-face-side.on path { opacity: 1; }
                 .ce-face-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: var(--radius-md); background: var(--ui-accent); color: var(--acc-text); font-size: var(--fs-xs); font-weight: 600; pointer-events: none; white-space: nowrap; }
                 .ce-pins { flex: 1; min-height: 0; border-bottom: 0 !important; }
-                .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
+                .ce-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: var(--radius-md); border: 1px solid var(--border2); background: var(--bg4); color: var(--txt0); font: inherit; font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0; cursor: pointer; }
                 .ce-pin-list { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; margin: 0 -6px; padding: 0 6px; }
-                .ce-pin { display: grid; grid-template-columns: 10px 48px 1fr 24px; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 6px; border: 1px solid transparent; }
-                .ce-pin.sel { background: rgba(208, 138, 62,.12); border-color: rgba(208, 138, 62,.35); }
+                .ce-pin { display: grid; grid-template-columns: 10px 48px 1fr 32px; align-items: center; gap: 6px; padding: 4px; border-radius: var(--radius-md); }
+                .ce-pin.sel { outline: 2px solid var(--acc); outline-offset: -2px; }
                 .ce-dot { width: 10px; height: 10px; border-radius: 50%; }
-                .ce-pin input { height: 26px !important; }
-                .ce-icon { width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
+                .ce-pin input { height: 32px !important; }
+                .ce-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 0; background: none; color: var(--txt2); border-radius: 5px; cursor: pointer; }
                 .ce-icon:hover { color: var(--red); background: rgba(248,81,73,.1); }
                 @media ${MOBILE_MQ} {
-                    .ce-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
-                    .ce-size, .ce-canvas-hint, .ce-hint-long, .ce-head > svg, .ce-btn-txt { display: none; }
-                    .ce-head { padding: 8px 10px; gap: 8px; }
-                    .ce-head h3 { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+                    .ce-modal { width: 100vw; max-width: 100vw !important; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
+                    .ce-size, .ce-canvas-hint, .ce-hint-long, .ce-btn-txt { display: none; }
+                    .ce-modal .ui-modal-header { padding: 8px 12px; }
+                    .ce-modal .ui-modal-header-title-row { flex-wrap: wrap; gap: 8px; }
+                    .ce-modal .ui-modal-footer { padding: 10px 12px max(10px, env(safe-area-inset-bottom, 0px)); }
+                    .ce-foot-right { flex: 1; justify-content: flex-end; }
+                    .ce-modal .ui-modal-footer .ui-btn { min-height: 44px; }
+
+
                     .ce-id { flex: none; }
-                    .ce-head-actions { flex: none; }
-                    .ce-head .ce-btn { padding: 0 12px; }
-                    .ce-undo { width: 40px; padding: 0 !important; justify-content: center; }
-                    .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
+
+
+
+                    .ce-modal .ce-body { display: flex; flex-direction: column; overflow-y: auto; }
                     .ce-canvas { flex: none; height: 30dvh; position: sticky; top: 0; z-index: 2; }
                     .ce-canvas > svg { inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
                     .ce-side { border-left: 0; }
                     .ce-side section { padding: 10px 12px; gap: 8px; }
                     .ce-row3 { grid-template-columns: 1fr 1.4fr 44px; }
                     .ce-side section.ce-bodysec { flex-direction: row; align-items: center; gap: 12px; }
-                    .ce-bodysec .ce-seg { flex: 1; }
+                    .ce-bodysec .ui-seg { flex: 1; }
                     .ce-pins { flex: none; }
                     .ce-pin-list { overflow: visible; margin: 0; padding: 0; gap: 6px; }
-                    .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; border: 0; }
-                    .ce-pin.sel { background: none; }
-                    .ce-pin.sel input { border-color: rgba(208, 138, 62,.5); }
+                    .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; }
+                                        .ce-pin.sel { outline-offset: 2px; }
                     .ce-pin input { height: 40px !important; font-size: 14px; }
                     .ce-icon { width: 40px; height: 40px; }
                     .ce-side input:not([type=color]) { height: 40px; font-size: 14px; }
                     .ce-color input { width: 44px; height: 40px; }
-                    .ce-seg button { padding: 8px 6px; font-size: var(--fs-sm); min-height: 40px; }
+
                     .ce-add { height: 40px; padding: 0 14px; }
-                    .ce-head .ce-btn { min-height: 40px; }
-                    /* header: the actions drop to their own row when the name would get squeezed */
-                    .ce-head { flex-wrap: wrap; row-gap: 6px; }
-                    .ce-head input.ce-title { flex: 1 1 auto; min-width: 96px; height: 40px; }
+
+
+
+                    .ce-modal input.ce-title { flex: 1 1 auto; min-width: 96px; height: 40px; }
                     .ce-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-                    .ce-head-actions { margin-left: auto; max-width: 100%; }
-                    .ce-head-actions .ce-btn { white-space: nowrap; }
+
+
                     .ce-face { height: 40px; padding: 0 12px; }
                     .ce-face-x { width: 40px; height: 40px; }
                     .ce-photo-row .ce-btn { height: 40px; }
                     .ce-photo-row .ce-photo-x { width: 40px; }
-                    .ce-side label.ce-check { min-height: 40px; }
+                .ce-side .ui-checkbox-label { min-height: 40px; }
                 }
                 /* phone sideways: drawing left, settings right (scrolling on their own) */
                 @media ${LANDSCAPE_MQ} {
-                    .ce-head { flex-wrap: nowrap; padding: 4px max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left)); }
-                    .ce-body { display: grid; grid-template-columns: minmax(0, 1fr) min(360px, 48%); overflow: hidden; }
+
+                    .ce-modal .ce-body { display: grid; grid-template-columns: minmax(0, 1fr) min(360px, 48%); overflow: hidden; }
                     .ce-canvas { height: auto; position: relative; }
                     .ce-side { border-left: 1px solid var(--border); overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom, 0px); }
                     .ce-side section { flex: none; }
                 }
             ` }} />
-        </div>
+            </ModalShell>
+
+            {photoSession && <PhotoFootprintOverlay key={photoSession.key} file={photoSession.file} hidden={!photoSession.open}
+                onCancel={() => setPhotoSession(s => ({ ...s, open: false }))} onApply={applyPhoto} partName={data.name}
+                mode={photoSession.mode || 'footprint'} footprint={{ w: foot.w, h: foot.h, pins: data.pins.map(p => [p.dCol - foot.x, p.dRow - foot.y, p.lbl]) }} />}
+
+        </>
     );
 }
 
@@ -592,7 +604,7 @@ function RingsSection({ data, onChange }) {
         <section>
             <div className="ce-label">Colour rings</div>
             <div className="ce-rings">
-                <div className="ce-seg">
+                <div className="ui-seg">
                     {[[5, '5 rings'], [4, '4 rings'], [0, 'Off']].map(([k, l]) => (
                         <button key={k} className={n === k ? 'active' : ''} onClick={() => onChange(k)}>{l}</button>
                     ))}

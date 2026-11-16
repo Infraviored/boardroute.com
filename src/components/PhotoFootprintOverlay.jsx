@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MOBILE_MQ, LANDSCAPE_MQ, isTouch } from '../mobile.js';
 import { Camera, Minus, Plus, FlipHorizontal2, Loader2, Ruler, Rows3, ClipboardPaste, Link2, ImageUp, Undo2, ScanText, RotateCcw, RotateCw, ArrowRight, Sparkles, ZoomIn, ZoomOut, Maximize2, Move } from 'lucide-react';
 import { readLabels } from './ocr-labels.js';
+import { ModalShell, Button, Checkbox } from './ui';
 
 const MAX_SIDE = 2400; // photos are scaled down to this (enough for pins and printed labels)
 
@@ -774,31 +775,24 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
     };
 
     return (
-        <div className="overlay-bg pf-bg" style={hidden ? { display: 'none' } : undefined} onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
-            <div className="modal pf-modal" role="dialog" aria-label={picture ? 'Picture from a photo' : 'Footprint from a photo'}>
-                <header className="ce-head pf-head">
-                    <Camera size={16} className="icon-accent" />
-                    <div className="pf-titles">
-                        <h3>{partName || (picture ? 'Picture from a photo' : 'Footprint from a photo')}</h3>
-                        {partName && <span className="pf-kind">{picture ? 'picture from a photo' : 'footprint from a photo'}</span>}
-                    </div>
-                    {(cropping || ready) && (
-                        <ol className="pf-steps" aria-label="Steps">
-                            <li className={cropping ? 'on' : 'done'}>
-                                <button onClick={backToFrame} disabled={cropping} title={ready ? 'Back to the frame' : undefined}><b>1</b> Frame</button>
-                            </li>
-                            <li className={ready ? 'on' : ''}><span><b>2</b> {picture ? 'Line up' : 'Pins'}</span></li>
-                        </ol>
-                    )}
-                    <div className="ce-head-actions">
-                        <button className="ce-btn" onClick={onCancel}>Cancel</button>
-                        {cropping
-                            ? <button className="ce-btn primary" onClick={next}>Next <ArrowRight size={13} /></button>
-                            : <button className="ce-btn primary" onClick={apply} disabled={!scaled || (!picture && !pins.length)}>{picture ? 'Use picture' : 'Use footprint'}</button>}
-                    </div>
-                </header>
+        <ModalShell isOpen onClose={onCancel} maxWidth="1120px" className="pf-modal" ariaLabel={picture ? 'Picture from a photo' : 'Footprint from a photo'}
+            closeOnEscape={false} overlayStyle={{ zIndex: 1100, ...(hidden ? { display: 'none' } : {}) }}>
+            <ModalShell.Header
+                icon={<Camera size={16} className="icon-accent" />}
+                title={partName || (picture ? 'Picture from a photo' : 'Footprint from a photo')}
+                subtitle={partName ? (picture ? 'Picture from a photo' : 'Footprint from a photo') : undefined}
+                onClose={onCancel}>
+                {(cropping || ready) && (
+                    <ol className="pf-steps" aria-label="Steps">
+                        <li className={cropping ? 'on' : 'done'}>
+                            <button onClick={backToFrame} disabled={cropping} title={ready ? 'Back to the frame' : undefined}><b>1</b> Frame</button>
+                        </li>
+                        <li className={ready ? 'on' : ''}><span><b>2</b> {picture ? 'Line up' : 'Pins'}</span></li>
+                    </ol>
+                )}
+            </ModalShell.Header>
 
-                <div className="pf-body">
+                <ModalShell.Body className="pf-body">
                     <div className={'pf-view' + (over ? ' over' : '')}
                         onDragOver={e => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
                         onDrop={e => { e.preventDefault(); setOver(false); load(e.dataTransfer.files?.[0]); }}>
@@ -984,7 +978,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                         onChange={e => setGrid(g => turnGrid(g, +e.target.value * Math.PI / 180 - (g.angle || 0), boxCentre()))} />
                                     <button className="ce-btn" onClick={() => { snap(); setGrid(g => turnGrid(g, Math.PI / 2, boxCentre())); }} title="Turn 90° right" aria-label="Turn 90° right"><RotateCw size={14} /></button>
                                 </div>
-                                <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => { snap(); setMirror(e.target.checked); setPins(footPins(e.target.checked)); setLabels(footLabels(e.target.checked)); }} /> <FlipHorizontal2 size={14} /> Mirrored (photo of the underside)</label>
+                                <Checkbox checked={mirror} onChange={v => { snap(); setMirror(v); setPins(footPins(v)); setLabels(footLabels(v)); }} label={<><FlipHorizontal2 size={14} /> Mirrored (photo of the underside)</>} />
                                 {(grid.ky || 1) !== 1 && <button className="ce-btn pf-wide" onClick={() => { snap(); setGrid(g => pinGrid({ ...g, ky: 1 }, (footprint.w - 1) / 2, (footprint.h - 1) / 2, boxCentre())); }}>Undo stretch</button>}
                             </section>}
                             <div className="pf-grow" />
@@ -998,7 +992,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
 
                         {ready && !picture && <>
                             <section>
-                                <div className="pf-title"><b className="pf-num">1</b> Scale</div>
+                                <div className="pf-title">Scale</div>
                                 {measure?.kind === 'scale' && measure.b ? (
                                     <div className="pf-count">
                                         <span className="pf-lbl">Pins in that row</span>
@@ -1023,7 +1017,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 <p className="ce-hint">{measure?.kind === 'scale' && measure.b ? 'Drag the orange points onto the pin centres to fine-tune.' : 'Any row 2.54 mm apart works, also perfboard holes next to the part.'}</p>
                             </section>
                             <section>
-                                <div className="pf-title"><b className="pf-num">2</b> Pins {scaled && <span className="pf-val">{pins.length}{rows ? ` in ${rows} row${rows === 1 ? '' : 's'}` : ''}</span>}</div>
+                                <div className="pf-title">Pins {scaled && <span className="pf-val">{pins.length}{rows ? ` in ${rows} row${rows === 1 ? '' : 's'}` : ''}</span>}</div>
                                 <p className="ce-hint">{!scaled ? 'Set the scale first.'
                                     : measure?.kind === 'grid' ? 'Line the grid up with the holes: drag, and turn or size it below.'
                                         : `Tap: add a pin; tap a pin: select, again${touch ? '' : ' or Del'}: remove; ${touch ? 'Row' : 'Shift+tap'}: a straight row from the selected pin.`}</p>
@@ -1046,14 +1040,14 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                                 {found && <p className="ce-hint pf-note">{found}</p>}
                             </section>
                             <section>
-                                <div className="pf-title"><b className="pf-num">3</b> Outline and names {scaled && <span className="pf-val">{body.w} × {body.h} holes, {(body.w * 2.54).toFixed(1)} × {(body.h * 2.54).toFixed(1)} mm</span>}</div>
-                                <label className="pf-check"><input type="checkbox" checked={keepPhoto} onChange={e => setKeepPhoto(e.target.checked)} /> Photo as the part's picture</label>
-                                <label className="pf-check"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> <FlipHorizontal2 size={14} /> Photo shows the underside</label>
+                                <div className="pf-title">Outline and names {scaled && <span className="pf-val">{body.w} × {body.h} holes, {(body.w * 2.54).toFixed(1)} × {(body.h * 2.54).toFixed(1)} mm</span>}</div>
+                                <Checkbox checked={keepPhoto} onChange={setKeepPhoto} label="Photo as the part's picture" />
+                                <Checkbox checked={mirror} onChange={setMirror} label={<><FlipHorizontal2 size={14} /> Photo shows the underside</>} />
                                 <div className="pf-row">
                                     {measure?.kind !== 'ocr'
                                         ? <button className="ce-btn" disabled={!scaled || !pins.length || !!measure || (ocr && 'total' in ocr)} onClick={() => setMeasure({ kind: 'ocr' })}><ScanText size={14} /> Read pin names</button>
                                         : <button className="ce-btn" onClick={() => setMeasure(null)}>Cancel</button>}
-                                    <select className="pf-select" value={String(textDir)} onChange={e => setTextDir(e.target.value === 'auto' ? 'auto' : +e.target.value)} aria-label="Text direction">
+                                    <select className="ui-input pf-select" value={String(textDir)} onChange={e => setTextDir(e.target.value === 'auto' ? 'auto' : +e.target.value)} aria-label="Text direction">
                                         <option value="auto">text: auto</option>
                                         <option value="0">left to right</option>
                                         <option value="3">bottom to top</option>
@@ -1077,13 +1071,19 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                         </>}
                         {!cropping && !ready && <section className="pf-tips-open"><Tips /></section>}
                     </aside>
-                </div>
-            </div>
+                </ModalShell.Body>
+
+                <ModalShell.Footer>
+                    <Button onClick={onCancel}>Cancel</Button>
+                    {cropping
+                        ? <Button variant="primary" iconRight={<ArrowRight size={13} />} onClick={next}>Next</Button>
+                        : <Button variant="primary" onClick={apply} disabled={!scaled || (!picture && !pins.length)}>{picture ? 'Use picture' : 'Use footprint'}</Button>}
+                </ModalShell.Footer>
 
             <style dangerouslySetInnerHTML={{ __html: `
-                .pf-bg { z-index: 1100; }
-                .pf-modal { max-width: 1120px; width: calc(100% - 32px); height: min(760px, calc(100vh - 32px)); padding: 0; gap: 0; overflow: hidden; border-radius: var(--radius-xl); }
-                .pf-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+                .pf-modal { width: calc(100% - 32px); height: min(820px, calc(100vh - 48px)); }
+                .pf-modal .pf-body { padding: 0; overflow: hidden; }
+                .pf-modal .pf-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
                 .pf-view { position: relative; min-width: 0; min-height: 0; background: #080a0c; display: grid; place-items: center; }
                 .pf-view > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); touch-action: none; user-select: none; }
                 .pf-msg { color: var(--txt1); font-size: var(--fs-sm); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 420px; text-align: center; padding: 16px; }
@@ -1093,7 +1093,6 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-side section { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
                 .pf-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
                 .pf-row .ce-btn { display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; }
-                .pf-modal .ce-head-actions .ce-btn { display: inline-flex; align-items: center; gap: 5px; }
                 .pf-view.over { outline: 2px dashed var(--ui-accent-hover); outline-offset: -8px; }
                 .pf-pick { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 440px; padding: 24px; text-align: center; color: var(--txt1); font-size: var(--fs-sm); }
                 .pf-pick > svg { color: var(--txt2); }
@@ -1101,10 +1100,10 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-center { justify-content: center; }
                 .pf-file { display: inline-flex; align-items: center; gap: 6px; line-height: 30px; cursor: pointer; }
                 .pf-url { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--txt2); }
-                .pf-url input, .pf-mm { flex: 1; min-width: 0; height: 30px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font: inherit; font-size: 13px; }
+                .pf-url input, .pf-mm { flex: 1; min-width: 0; height: 32px; padding: 0 8px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font: inherit; font-size: var(--fs-sm); }
                 .pf-mm { flex: 0 0 58px; text-align: center; }
                 .pf-range { width: 100%; accent-color: var(--ui-accent-hover, #58a6ff); }
-                .pf-select { height: 28px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--txt0); font: inherit; font-size: 13px; padding: 0 6px; }
+                .pf-select { flex: 1; min-width: 0; }
                 .pf-banner svg { vertical-align: -2px; }
                 .pf-count { display: flex; align-items: center; gap: 6px; min-width: 0; }
                 .pf-count .ce-btn { display: inline-flex; align-items: center; padding: 0 10px; }
@@ -1115,21 +1114,16 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-zoom button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); border: 1px solid var(--border2); background: rgba(13,17,23,.85); color: var(--txt0); cursor: pointer; }
                 .pf-zoom button:hover:not(:disabled) { background: var(--ui-neutral-hover); }
                 .pf-zoom button:disabled { opacity: .4; cursor: default; }
-                .pf-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1; background: #f0883e; color: #111; font-weight: 700; font-size: var(--fs-sm); padding: 6px 12px; border-radius: 8px; pointer-events: none; }
+                .pf-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1; background: rgba(13,17,23,.82); color: var(--txt1); font-weight: 500; font-size: var(--fs-sm); padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--border2); pointer-events: none; }
                 .pf-wide { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
                 .pf-lbl { font-size: var(--fs-xs); color: var(--txt1); }
                 .pf-note { color: var(--grn, #3fb950); }
-                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 30px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: 14px; font-weight: 700; -moz-appearance: textfield; }
+                .pf-count .pf-n { width: 64px; flex: 0 0 64px; height: 32px; padding: 0 4px; text-align: center; background: var(--bg0); border: 1px solid var(--border); border-radius: 7px; color: var(--txt0); font-family: inherit; font-size: 14px; font-weight: 700; -moz-appearance: textfield; }
                 .pf-modal .ce-btn { white-space: nowrap; }
-                .pf-check { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--txt0); cursor: pointer; }
                 .pf-warn { color: var(--orange, #d29922); }
                 .pf-tips-open { border-bottom: 0 !important; }
                 .pf-tiplist { margin: 0; padding-left: 16px; font-size: var(--fs-xs); color: var(--txt2); line-height: 1.5; }
-                .pf-head { gap: 14px; }
-                .pf-titles { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-                .pf-titles h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .pf-kind { font-size: var(--fs-xs); color: var(--txt2); }
-                .pf-steps { display: flex; align-items: center; gap: 4px; margin: 0 auto; padding: 0; list-style: none; }
+                .pf-steps { display: flex; align-items: center; gap: 4px; margin: 0 auto 0 8px; padding: 0; list-style: none; }
                 .pf-steps li { display: flex; align-items: center; }
                 .pf-steps li + li::before { content: ''; width: 22px; height: 1px; background: var(--border2); margin-right: 4px; }
                 .pf-steps button, .pf-steps span { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px 0 4px; border-radius: 14px; border: 1px solid transparent; background: none; color: var(--txt2); font: inherit; font-size: var(--fs-sm); font-weight: 600; }
@@ -1141,7 +1135,6 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .pf-steps .done b { background: rgba(63,185,80,.2); color: var(--grn, #3fb950); }
                 .pf-steps button:disabled { cursor: default; }
                 .pf-title { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); font-weight: 700; color: var(--txt0); }
-                .pf-num { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; background: var(--bg3, #21262d); color: var(--txt1); flex: none; }
                 .pf-val { margin-left: auto; font-size: var(--fs-xs); font-weight: 500; color: var(--txt2); font-variant-numeric: tabular-nums; text-align: right; }
                 .pf-keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--txt1); }
                 .pf-keys b { color: var(--txt0); font-weight: 600; }
@@ -1158,8 +1151,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 .spin { animation: pfspin 1s linear infinite; }
                 @keyframes pfspin { to { transform: rotate(360deg); } }
                 @media ${MOBILE_MQ} {
-                    .pf-modal { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
-                    .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
+                    .pf-modal { width: 100vw; max-width: 100vw !important; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
+                    .pf-modal .pf-body { display: flex; flex-direction: column; overflow-y: auto; }
                     .pf-view { flex: none; height: 58dvh; position: sticky; top: 0; z-index: 2; }
                     .pf-view > svg { inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
                     .pf-zoom { right: 10px; bottom: 10px; }
@@ -1167,18 +1160,14 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                     .pf-side { border-left: 0; overflow: visible; }
                     .pf-side section { padding: 10px 12px; gap: 8px; }
                     .pf-side .ce-btn { min-height: 40px; }
-                    .pf-count .pf-n, .pf-mm, .pf-select { height: 40px; }
+                    .pf-count .pf-n, .pf-mm { height: 40px; }
                     .pf-tips { display: none !important; }
-                    .ce-size, .pf-kind { display: none; }
-                    .pf-head { gap: 8px; }
+                    .pf-modal .ui-modal-subtitle { display: none; }
+                    .pf-modal .ui-modal-footer { padding: 10px 12px max(10px, env(safe-area-inset-bottom, 0px)); }
+                    .pf-modal .ui-modal-footer .ui-btn { min-height: 44px; }
                     .pf-steps button, .pf-steps span { padding: 0 3px; font-size: 0; gap: 0; height: 26px; }
                     .pf-steps li + li::before { width: 10px; }
                     .pf-banner.soft { white-space: normal; width: max-content; max-width: 90%; text-align: center; font-size: var(--fs-xs); }
-                    .pf-modal .ce-head { padding: 8px 10px; gap: 8px; }
-                    .pf-modal .ce-head > svg { display: none; }
-                    .pf-modal .ce-head h3 { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-                    .pf-modal .ce-head-actions { flex: none; }
-                    .pf-modal .ce-head .ce-btn { min-height: 40px; padding: 0 12px; }
                     /* 40 px tap targets */
                     .pf-pick .ce-btn, .pf-file { min-height: 40px; display: inline-flex; align-items: center; }
                     .pf-url input { height: 40px; font-size: 16px; }
@@ -1186,7 +1175,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                 }
                 /* phone sideways: photo left, tools right (scrolling on their own) */
                 @media ${LANDSCAPE_MQ} {
-                    .pf-body { display: grid; grid-template-columns: minmax(0, 1fr) min(320px, 44%); overflow: hidden; }
+                    .pf-modal .pf-body { display: grid; grid-template-columns: minmax(0, 1fr) min(320px, 44%); overflow: hidden; }
                     .pf-view { height: auto; position: relative; }
                     .pf-side { border-left: 1px solid var(--border); overflow-y: auto; overscroll-behavior: contain; }
                     .pf-side section { flex: none; }
@@ -1194,7 +1183,7 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                     .pf-pick > svg { display: none; }
                 }
             ` }} />
-        </div>
+        </ModalShell>
     );
 }
 

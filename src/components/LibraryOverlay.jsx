@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MOBILE_MQ, isMobile, isTouch } from '../mobile.js';
 import { Camera, X } from 'lucide-react';
 import { compColor } from '../engine/render-utils.js';
+import { ModalShell, Button } from './ui';
 import { indexPart, matches, squash } from '../engine/part-lookup.js';
 
 const PAGE = 120; // rendered rows per "show more" step; the KiCad set has ~1,100 parts
@@ -91,31 +92,31 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
     const pickCategory = (v) => { setCategory(v); setLimit(PAGE); };
 
     return (
-        <div className="overlay-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div className="modal lib-modal">
-                <div className="modal-header">
-                    <h3>{replaceTitle || 'Part library'}</h3>
+        <ModalShell isOpen onClose={onClose} maxWidth="720px" className="lib-modal" ariaLabel={replaceTitle || 'Part library'}>
+            <ModalShell.Header title={replaceTitle || 'Part library'} onClose={onClose} />
+            <ModalShell.Body className="lib-body">
+                <div className="lib-search-row">
+                    <div className="lib-search">
+                        {/* no autofocus on touch: it would pop up the keyboard over the list */}
+                        <input
+                            ref={searchRef}
+                            type="text"
+                            className="ui-input"
+                            placeholder={isMobile() ? 'Search: ESP32, DIP-8, relay…' : 'Search, e.g. ESP32, DIP-8, TO-220, relay…'}
+                            value={search}
+                            onChange={(e) => setQuery(e.target.value)}
+                            autoFocus={!isTouch()}
+                        />
+                        {search && (
+                            <button type="button" className="lib-clear" onClick={() => { setQuery(''); searchRef.current?.focus(); }} aria-label="Clear search" title="Clear search">
+                                <X size={15} />
+                            </button>
+                        )}
+                    </div>
                     {onPhoto && (
-                        <button className="lib-photo" onClick={onPhoto} title="Photo, pasted image or URL of the part: pins and size are read from it">
-                            <Camera size={14} /> Footprint from a photo
-                        </button>
-                    )}
-                    <button className="close-btn" onClick={onClose} aria-label="Close library"><X size={18} /></button>
-                </div>
-                <div className="lib-search">
-                    {/* no autofocus on touch: it would pop up the keyboard over the list */}
-                    <input
-                        ref={searchRef}
-                        type="text"
-                        placeholder={isMobile() ? 'Search: ESP32, DIP-8, relay…' : 'Search, e.g. ESP32, DIP-8, TO-220, relay…'}
-                        value={search}
-                        onChange={(e) => setQuery(e.target.value)}
-                        autoFocus={!isTouch()}
-                    />
-                    {search && (
-                        <button type="button" className="lib-clear" onClick={() => { setQuery(''); searchRef.current?.focus(); }} aria-label="Clear search" title="Clear search">
-                            <X size={15} />
-                        </button>
+                        <Button icon={<Camera size={14} />} onClick={onPhoto} className="lib-photo" title="Photo, pasted image or URL of the part: pins and size are read from it">
+                            Footprint from a photo
+                        </Button>
                     )}
                 </div>
                 <div className="lib-cats">
@@ -131,6 +132,12 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
                     {kicadError && ', KiCad library could not be loaded'}
                 </div>
                 <div className="lib-list">
+                    {kicad !== null && filtered.length === 0 && (
+                        <div className="lib-empty">
+                            <p>{search.trim() ? <>Nothing matches &ldquo;{search.trim()}&rdquo;.</> : 'Nothing in this category.'}</p>
+                            {onPhoto && <Button icon={<Camera size={14} />} onClick={onPhoto}>From a photo</Button>}
+                        </div>
+                    )}
                     {shown.map((e) => {
                         const c = e.c;
                         const alias = search.trim() && c.aka?.find(a => a.toLowerCase().includes(search.trim().toLowerCase()));
@@ -151,130 +158,80 @@ export function LibraryOverlay({ isOpen, onClose, onSelect, onPhoto, replaceTitl
                         );
                     })}
                     {filtered.length > shown.length && (
-                        <button className="btn lib-more" onClick={() => setLimit(l => l + PAGE)}>
+                        <Button className="lib-more" onClick={() => setLimit(l => l + PAGE)}>
                             Show more ({filtered.length - shown.length} left)
-                        </button>
+                        </Button>
                     )}
                 </div>
-                <div className="lib-credit">
+            </ModalShell.Body>
+            <ModalShell.Footer align="left" className="lib-credit">
+                <span>
                     Parts not marked Curated are generated from the{' '}
                     <a href="https://gitlab.com/kicad/libraries/kicad-footprints" target="_blank" rel="noreferrer">KiCad footprint libraries</a>
                     {' '}(CC-BY-SA 4.0 with an exception for designs using them); only through-hole parts whose pins sit on the 2.54 mm grid.
-                </div>
-            </div>
+                </span>
+            </ModalShell.Footer>
 
             <style dangerouslySetInnerHTML={{
                 __html: `
-        .lib-modal { max-width: 640px; max-height: 86vh; border-radius: var(--radius-xl); }
-        .lib-photo { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--ui-accent); color: var(--ui-accent-hover); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; background: none; font-family: inherit; transition: all 0.15s ease; }
-        .lib-photo:hover { background: rgba(208, 138, 62,.15); }
-        .lib-photo:active { background: rgba(208, 138, 62,.25); }
-        .lib-search { position: relative; flex-shrink: 0; }
-        .lib-search input { width: 100%; padding-right: 34px; }
-        .lib-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--txt1); cursor: pointer; }
+        .lib-modal { width: calc(100% - 32px); height: min(720px, calc(100vh - 48px)); }
+        .lib-modal .lib-body { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+        .lib-search-row { display: flex; gap: 8px; flex-shrink: 0; }
+        .lib-search { position: relative; flex: 1; min-width: 0; }
+        .lib-search input { width: 100%; padding-right: 36px; font-family: inherit; }
+        .lib-clear { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: var(--txt1); cursor: pointer; }
         .lib-clear:hover { color: var(--txt0); background: var(--ui-ghost-hover); }
-        .lib-photo { white-space: nowrap; flex: none; }
-        .lib-cats { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
+        .lib-search-row .lib-photo { flex: none; height: 32px; }
+        .lib-cats { display: flex; flex-wrap: nowrap; gap: 6px; flex-shrink: 0; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
         .lib-cat {
-          font-size: .7em; padding: 3px 8px; border-radius: var(--radius-full); cursor: pointer;
+          flex: none; white-space: nowrap; font: inherit; font-size: var(--fs-xs); font-weight: 600; height: 24px; padding: 0 10px; border-radius: var(--radius-full); cursor: pointer;
           background: var(--ui-neutral); border: 1px solid var(--border); color: var(--txt1);
-          transition: all 0.12s ease;
+          transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
         }
-        .lib-cat span { color: var(--txt2); }
+        .lib-cat span { color: var(--txt2); font-weight: 500; }
         .lib-cat:hover { background: var(--ui-neutral-hover); color: var(--txt0); }
-        .lib-cat.active { border-color: var(--ui-accent-hover); color: var(--ui-accent-hover); background: rgba(208, 138, 62,.12); }
-        .lib-cat.active span { color: var(--ui-accent-hover); opacity: .8; }
-        .lib-count { font-size: .7em; color: var(--txt1); margin-top: -6px; }
-        .lib-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .lib-cat.active { border-color: transparent; color: var(--acc-hover); background: var(--acc-subtle); }
+        .lib-cat.active span { color: var(--acc-hover); opacity: .8; }
+        .lib-count { font-size: var(--fs-xs); color: var(--txt1); margin-top: -4px; }
+        .lib-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .lib-item {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 8px 10px;
+          padding: 8px 12px;
           background: var(--ui-neutral);
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           cursor: pointer;
-          transition: .12s;
+          transition: background 0.12s ease, border-color 0.12s ease;
           flex-shrink: 0;
         }
-        .lib-item:hover { background: var(--ui-neutral-hover); border-color: var(--ui-accent); }
+        .lib-item:hover { background: var(--ui-neutral-hover); border-color: var(--border2); }
         .lib-item:active { background: var(--ui-neutral-active); }
-        .lib-swatch { width: 32px; height: 32px; border-radius: var(--radius-sm); flex-shrink: 0; }
-        .lib-thumb { width: 52px; height: 40px; flex-shrink: 0; background: #0a0f0c; border-radius: var(--radius-md); padding: 3px; }
+        .lib-thumb { width: 52px; height: 40px; flex-shrink: 0; background: #0a0f0c; border-radius: var(--radius-md); padding: 4px; }
         .lib-info { min-width: 0; }
-        .lib-name { font-size: .85em; font-weight: 700; color: var(--txt0); overflow-wrap: anywhere; }
-        .lib-val { font-size: .7em; color: var(--txt2); margin-top: 2px; }
+        .lib-name { font-size: var(--fs-md); font-weight: 700; color: var(--txt0); overflow-wrap: anywhere; }
+        .lib-val { font-size: var(--fs-xs); color: var(--txt2); margin-top: 2px; }
         .lib-src { color: var(--txt1); }
         .lib-more { align-self: center; margin: 4px 0; flex-shrink: 0; }
-        .lib-credit { font-size: .65em; color: var(--txt2); line-height: 1.4; }
+        .lib-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 16px; text-align: center; color: var(--txt1); font-size: var(--fs-sm); }
+        .lib-empty p { margin: 0; }
+        .ui-modal-footer.lib-credit { font-size: var(--fs-xs); color: var(--txt2); line-height: 1.4; }
         .lib-credit a { color: var(--txt1); }
 
         @media ${MOBILE_MQ} {
-          .lib-modal {
-            width: 100vw;
-            height: 100dvh;
-            max-height: 100dvh;
-            max-width: 100vw;
-            border-radius: 0;
-            padding: 14px 16px;
-            margin: 0;
-          }
-          .lib-modal .modal-header {
-            gap: 8px;
-            margin-bottom: 8px;
-          }
-          .lib-modal .modal-header h3 { min-width: 0; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .lib-photo {
-            height: 40px;
-            padding: 0 12px;
-            font-size: 0.85rem;
-          }
+          .lib-modal { width: 100vw; height: 100dvh; max-height: 100dvh; max-width: 100vw !important; border-radius: 0; border: 0; }
+          .lib-search-row { flex-direction: column; }
+          .lib-search-row .lib-photo { height: 40px; }
           .lib-search input { padding-right: 44px; }
-          .lib-clear { width: 40px; height: 40px; right: 1px; }
-          .lib-modal .close-btn {
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .lib-modal input[type="text"] {
-            height: 42px;
-            font-size: 16px;
-            padding: 0 12px;
-          }
-          .lib-cats {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 6px;
-            margin: 0 -16px;
-            padding-left: 16px;
-            padding-right: 16px;
-          }
-          .lib-cat {
-            min-height: 40px;
-            padding: 8px 14px;
-            font-size: 0.82rem;
-            border-radius: 999px;
-            white-space: nowrap;
-            flex-shrink: 0;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-          }
-          .lib-item {
-            min-height: 52px;
-            padding: 10px 12px;
-          }
-          .lib-more {
-            min-height: 44px;
-            padding: 10px 18px;
-          }
+          .lib-clear { width: 40px; height: 40px; right: 0; }
+          .lib-cats { margin: 0 -20px; padding: 0 20px 6px; }
+          .lib-cat { height: 40px; padding: 0 14px; font-size: var(--fs-sm); }
+          .lib-item { min-height: 52px; padding: 10px 12px; }
+          .lib-more, .lib-empty .ui-btn { min-height: 44px; }
+          .ui-modal-footer.lib-credit { padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
         }
       `}} />
-        </div>
+        </ModalShell>
     );
 }

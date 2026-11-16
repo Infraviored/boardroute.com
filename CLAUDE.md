@@ -38,6 +38,16 @@ node bench/make-circuits.js                   # regenerate bench/circuits/04_* .
 - Multi-core: the app runs 4 solvers (engine.layout). A single `app` run is not what users get: best-of-4 seeds after 15 s is about one solver after 30-60 s (`--portfolio 4` on `bench/baselines/app-bodies-60s.json`: 1.032 @15 s, 0.998 @60 s vs 1.093 / 1.023 for one). The real `portfolio` strategy matches that estimate: `bench/baselines/portfolio4-same-60s.json`, score 1.001 (with `--jobs 3`, 12 threads on 6 cores, so the early curve is a bit slower). Tried and not adopted (all within noise): per-worker tunables (`pf=smart|soft|effort|mix|restarts|init`), sharing the global best on restart, and every 3 s (`share=3000`, the best candidate: 0.992 full set, `bench/baselines/portfolio4-share3000-60s.json`).
 - `bench/circuits/` uses `routeUnder: true` everywhere: on perfboard the wiring is on the solder side, so only pins block. `x*_` are constructed (un)routability cases.
 
+**UI screenshots for a UI/UX audit:** `npm run shots` (`tools/ui-shots.mjs`) drives the running site with headless Chrome and writes a PNG of every UI state on desktop (1440x900) and phone (390x844, plus 844x390 for the main screen) to `ui-shots/<device>/<NN>-<scenario>[-part].png` plus `ui-shots/index.md` (one line per file, failed scenarios listed; git-ignored). Needs a build being served, since the static pages (`/how-it-works/`, `/parts/`, `/privacy/`) exist only there: `npm run build && npm run preview -- --port 4992`.
+
+```bash
+npm run shots                                   # all scenarios, both devices, http://localhost:4992 (~6.5 min)
+npm run shots -- --only overlay --device mobile # subset by scenario-name substring / device (desktop|mobile|all)
+npm run shots -- --url https://boardroute.com --out /tmp/shots
+```
+
+Playwright is not a dependency: `playwright-core` and the Chrome binary come from `PLAYWRIGHT_CORE` / `CHROME_PATH` (defaults: `/home/flo/repos/claude-code-voice/node_modules/playwright-core`, `~/.cache/ms-playwright/chromium_headless_shell-1228/...`). Every scenario gets a fresh browser context (own localStorage); a failing one is logged, gets a `-FAILED.png`, and the run goes on (exit 1 at the end). Scenarios are the `scenario(...)` calls in the file; quick states use a share link of an example's saved layout (`#b=`), Wire/Compact are really run (capped at 25 s, then "Apply current best"). Add a scenario there when a new dialog or screen appears.
+
 The old engine can also be exercised with the repro script (imports `src/engine/optimizer.js` directly under Node):
 
 ```bash

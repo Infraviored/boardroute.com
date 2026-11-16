@@ -9,6 +9,7 @@
     "build:site": "node scripts/build-site.js",
     "lint": "eslint .",
     "preview": "vite preview",
+    "shots": "node tools/ui-shots.mjs",
     "predev": "node scripts/copy-ocr-assets.js",
     "prebuild": "node scripts/copy-ocr-assets.js"
   },

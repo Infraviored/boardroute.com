@@ -39,18 +39,17 @@ export function PartActions({ comp, onRotate, onEdit, onDelete, canRotate = true
           .part-actions.inspector button { height: 40px; font-size: var(--fs-sm); }
           .part-actions.float {
             display: flex; position: absolute; z-index: 11;
-            left: 12px; bottom: calc(12px + var(--bottom-nav-height, 0px));
+            left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(12px + var(--bottom-nav-height, 0px));
             padding: 4px; border-radius: 12px;
             background: rgba(13, 17, 23, 0.94); border: 1px solid var(--border2);
             box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
             animation: pa-in .2s ease-out;
           }
-          .part-actions.float button { flex: none; height: 40px; padding: 0 10px; font-size: var(--fs-12); background: transparent; border-color: transparent; }
-          /* above the result card and the row of canvas controls over it */
-          #ca-col:has(.result-card) .part-actions.float { bottom: calc(var(--rc-h, 136px) + 18px + 48px + var(--bottom-nav-height, 0px)); }
+          .part-actions.float button { flex: none; height: 44px; padding: 0 10px; font-size: var(--fs-12); background: transparent; border-color: transparent; }
+          /* above the result card */
+          #ca-col:has(.result-card) .part-actions.float { bottom: calc(var(--rc-h, 136px) + 18px + var(--bottom-nav-height, 0px)); }
         }
         @media ${LANDSCAPE_MQ} {
-          /* controls stay in their column on the right; only the card is below */
           #ca-col:has(.result-card) .part-actions.float { bottom: calc(var(--rc-h, 136px) + 18px + var(--bottom-nav-height, 0px)); }
         }
         @keyframes pa-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

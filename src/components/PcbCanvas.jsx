@@ -898,21 +898,20 @@ export function PcbCanvas({
                 .pcb-comp:hover { filter: brightness(1.2); }
 
                 @media ${MOBILE_MQ} {
-                  .canvas-controls {
-                    right: 12px;
-                    bottom: calc(12px + var(--bottom-nav-height, 54px));
+                  /* one fixed place, top right under the top bar: it no longer moves when the
+                     result card, the processing bar or the part actions appear at the bottom */
+                  .canvas-controls, .canvas-container.pb-active .canvas-controls {
+                    right: max(12px, env(safe-area-inset-right, 0px));
+                    top: 56px;
+                    bottom: auto;
                     display: grid;
-                    grid-template-columns: repeat(2, 40px);
+                    grid-template-columns: repeat(2, 44px);
                     gap: 6px;
-                  }
-                  /* above the processing bar, whose height ProcessingBar writes into --pb-h */
-                  .canvas-container.pb-active .canvas-controls {
-                    bottom: calc(12px + var(--bottom-nav-height, 54px) + var(--pb-h, 140px));
-                    grid-template-columns: repeat(6, 40px); /* one row: keeps clear of the edge tabs */
+                    transition: none;
                   }
                   .cbtn {
-                    width: 40px;
-                    height: 40px;
+                    width: 44px;
+                    height: 44px;
                     border-radius: var(--radius-md);
                   }
                   .cbtn svg {
@@ -922,7 +921,7 @@ export function PcbCanvas({
                 }
                 /* phone sideways: clear of the Inspector edge tab, which sits at mid height */
                 @media ${LANDSCAPE_MQ} {
-                  .canvas-controls, .canvas-container.pb-active .canvas-controls { right: max(34px, calc(10px + env(safe-area-inset-right))); grid-template-columns: repeat(2, 40px); }
+                  .canvas-controls, .canvas-container.pb-active .canvas-controls { right: max(40px, calc(14px + env(safe-area-inset-right))); grid-template-columns: repeat(2, 44px); }
                 }
             `}} />
         </div>

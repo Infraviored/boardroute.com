@@ -103,7 +103,7 @@ export function SidebarLeft({
     <aside id="lsb" className={`${editorOpen ? 'json-open' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="mobile-sheet-head">
         <div className="mobile-sheet-handle" />
-        <div className="mobile-sheet-title">Parts &amp; Circuit</div>
+        <div className="mobile-sheet-title" />
         <button type="button" className="mobile-sheet-close" onClick={onCloseDrawer} aria-label="Close drawer"><X size={18} /></button>
       </div>
 
@@ -487,8 +487,8 @@ export function SidebarLeft({
             background: none;
             border: none;
             color: var(--txt1);
-            width: 36px;
-            height: 36px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;

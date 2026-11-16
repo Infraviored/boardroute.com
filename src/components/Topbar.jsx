@@ -639,13 +639,13 @@ export function Topbar({
           #topbar {
             display: grid !important;
             grid-template-columns: 1fr auto;
-            grid-template-rows: 40px 44px;
+            grid-template-rows: 44px 44px;
             align-items: center;
             column-gap: 8px;
             row-gap: 6px;
             height: auto !important;
             min-height: 0 !important;
-            padding: 6px 10px 8px !important;
+            padding: max(6px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) 8px max(10px, env(safe-area-inset-left, 0px)) !important;
             overflow: visible;
           }
           #topbar > .sep { display: none !important; }
@@ -670,9 +670,9 @@ export function Topbar({
             display: flex !important;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
             background: var(--bg4);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -685,8 +685,8 @@ export function Topbar({
             background: var(--bg3);
             color: var(--txt0);
           }
-          /* steps: 40 px tap height (the chevron clip-path rules out an invisible hit area) */
-          #topbar .workflow-track .flow-btn { min-height: 40px; }
+          /* steps: 44 px tap height (the chevron clip-path rules out an invisible hit area) */
+          #topbar .workflow-track .flow-btn { min-height: 44px; }
         }
         /* phone held sideways: logo, steps and menu in one row, so the canvas keeps its height */
         @media ${LANDSCAPE_MQ} {
@@ -694,7 +694,7 @@ export function Topbar({
             grid-template-columns: auto minmax(0, 1fr) auto;
             grid-template-rows: 44px;
             column-gap: 12px;
-            padding: 4px max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left)) !important;
+            padding: max(4px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left)) !important;
           }
           #topbar .workflow-track { grid-column: 2; grid-row: 1; max-width: 460px; justify-self: center; }
           .mobile-more-btn { grid-column: 3; grid-row: 1; margin-left: 0; }

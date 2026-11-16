@@ -149,8 +149,6 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
             width: calc(100% - 16px);
             padding: 10px 12px;
           }
-          /* the canvas controls (zoom, fit, coordinates, solder side) stay reachable above the card */
-          #ca-col:has(.result-card) .canvas-controls { bottom: calc(var(--rc-h, 136px) + 18px + var(--bottom-nav-height, 0px)); grid-template-columns: repeat(6, 40px); }
           /* 40 px hit area, the visible icon stays small */
           .rc-close { width: 40px; height: 40px; margin: -10px -10px -10px 0; align-items: center; justify-content: center; }
           .rc-actions {
@@ -176,7 +174,6 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         /* Phone sideways: the card sits between the edge tabs and the control column, one row of numbers */
         @media ${LANDSCAPE_MQ} {
           .result-card { width: min(440px, calc(100% - 260px)); padding: 8px 12px 10px; }
-          #ca-col:has(.result-card) .canvas-controls { bottom: calc(12px + var(--bottom-nav-height, 0px)); grid-template-columns: repeat(2, 40px); }
           .rc-stats { gap: 4px 16px; margin: 6px 0 8px; flex-wrap: nowrap; }
           .rc-val { font-size: 1.2rem; }
           .rc-lbl { font-size: var(--fs-11); }

@@ -1167,19 +1167,20 @@ const [board, setBoard] = useState(() => {
           .mobile-edge {
             position: fixed; top: 50%; z-index: 130;
             display: flex; align-items: center; justify-content: center; gap: 4px;
-            height: 96px; width: 24px; padding: 0;
+            height: 96px; width: 26px; padding: 0;
             background: var(--bg2); border: 1px solid var(--border2); color: var(--txt1);
  font-size: var(--fs-11); font-weight: 600;
             writing-mode: vertical-rl; cursor: pointer;
             transform: translateY(-50%); transition: opacity .2s;
             box-shadow: 0 4px 16px rgba(0,0,0,.45);
           }
-          .mobile-edge.left { left: 0; border-left: 0; border-radius: 0 10px 10px 0; }
-          .mobile-edge.right { right: 0; border-right: 0; border-radius: 10px 0 0 10px; }
-          .mobile-edge.left span { transform: rotate(180deg); }
+          .mobile-edge.left { left: env(safe-area-inset-left, 0px); border-left: 0; border-radius: 0 10px 10px 0; }
+          .mobile-edge.right { right: env(safe-area-inset-right, 0px); border-right: 0; border-radius: 10px 0 0 10px; }
+          /* both tabs read bottom to top */
+          .mobile-edge span { transform: rotate(180deg); }
           .mobile-edge.hide { opacity: 0; pointer-events: none; }
-          /* 40 px wide hit area, the tab itself stays slim */
-          .mobile-edge::before { content: ''; position: absolute; top: 0; bottom: 0; width: 40px; }
+          /* 44 px wide hit area, the tab itself stays slim */
+          .mobile-edge::before { content: ''; position: absolute; top: 0; bottom: 0; width: 44px; }
           .mobile-edge.left::before { left: 0; }
           .mobile-edge.right::before { right: 0; }
 

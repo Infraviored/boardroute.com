@@ -49,9 +49,6 @@ export function ConfirmOverlay({ isOpen, title, message, action, onConfirm, onCa
           margin: 6px 0 16px 0;
         }
         @media ${MOBILE_MQ} {
-          .confirm-modal-shell {
-            width: calc(100vw - 32px);
-          }
           .confirm-modal-shell .ui-modal-footer {
             flex-direction: column-reverse;
             gap: 8px;

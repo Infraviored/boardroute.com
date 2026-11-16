@@ -512,26 +512,26 @@ export function CompEditorOverlay({ component, isOpen, onClose, onSave, netNames
                     .ce-bodysec .ui-seg { flex: 1; }
                     .ce-pins { flex: none; }
                     .ce-pin-list { overflow: visible; margin: 0; padding: 0; gap: 6px; }
-                    .ce-pin { grid-template-columns: 10px 56px 1fr 40px; gap: 8px; padding: 0; }
+                    .ce-pin { grid-template-columns: 10px 56px 1fr 44px; gap: 8px; padding: 0; }
                                         .ce-pin.sel { outline-offset: 2px; }
-                    .ce-pin input { height: 40px !important; font-size: var(--fs-15); }
-                    .ce-icon { width: 40px; height: 40px; }
-                    .ce-side input:not([type=color]) { height: 40px; font-size: var(--fs-15); }
-                    .ce-color input { width: 44px; height: 40px; }
+                    .ce-pin input { height: 44px !important; font-size: var(--fs-15); }
+                    .ce-icon { width: 44px; height: 44px; }
+                    .ce-side input:not([type=color]) { height: 44px; font-size: var(--fs-15); }
+                    .ce-color input { width: 44px; height: 44px; }
 
-                    .ce-add { height: 40px; padding: 0 14px; }
+                    .ce-add { height: 44px; padding: 0 14px; }
 
 
 
-                    .ce-modal input.ce-title { flex: 1 1 auto; min-width: 96px; height: 40px; }
+                    .ce-modal input.ce-title { flex: 1 1 auto; min-width: 96px; height: 44px; }
                     .ce-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 
-                    .ce-face { height: 40px; padding: 0 12px; }
-                    .ce-face-x { width: 40px; height: 40px; }
-                    .ce-photo-row .ce-btn { height: 40px; }
-                    .ce-photo-row .ce-photo-x { width: 40px; }
-                .ce-side .ui-checkbox-label { min-height: 40px; }
+                    .ce-face { height: 44px; padding: 0 12px; }
+                    .ce-face-x { width: 44px; height: 44px; }
+                    .ce-photo-row .ce-btn { height: 44px; }
+                    .ce-photo-row .ce-photo-x { width: 44px; }
+                .ce-side .ui-checkbox-label { min-height: 44px; }
                 }
                 /* phone sideways: drawing left, settings right (scrolling on their own) */
                 @media ${LANDSCAPE_MQ} {

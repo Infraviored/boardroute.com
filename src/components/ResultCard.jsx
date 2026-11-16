@@ -21,7 +21,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
   }, [result]);
 
   if (!result) return null;
-  const { mode, width, height, wl, jumpers, start, optimal, bound } = result;
+  const { mode, width, height, start, optimal, bound } = result;
   const isCompact = mode === 'compact';
 
   let delta = null;
@@ -61,28 +61,15 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         <button className="rc-close" onClick={onClose} aria-label="Close result"><X size={15} /></button>
       </div>
 
-      <div className="rc-stats">
-        <div className="rc-stat">
-          <div className="rc-val">{width} × {height}</div>
-          <div className="rc-lbl">Board (holes)</div>
-        </div>
-        <div className="rc-stat">
-          <div className="rc-val">{wl}</div>
-          <div className="rc-lbl">Wire (holes)</div>
-        </div>
-        {jumpers > 0 && (
-          <div className="rc-stat">
-            <div className="rc-val">{jumpers}</div>
-            <div className="rc-lbl">{jumpers === 1 ? 'Jumper' : 'Jumpers'}</div>
-          </div>
-        )}
-        {delta && (
+      {/* Board size, wire length and jumpers are in the sidebar stats; the card only says what changed */}
+      {delta && (
+        <div className="rc-stats">
           <div className={`rc-delta ${delta.good ? 'good' : ''}`} title={delta.sub}>
             <div className="rc-delta-main">{delta.text}</div>
             <div className="rc-delta-sub">{delta.sub}</div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {share.state === 'manual' && (
         <input className="rc-link" readOnly value={share.url} onFocus={e => e.target.select()} autoFocus aria-label="Share link" />
@@ -125,7 +112,7 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .rc-stat { display: flex; flex-direction: column; gap: 2px; }
         .rc-val { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--txt0); font-variant-numeric: tabular-nums; white-space: nowrap; }
         .rc-lbl { font-size: 12px; font-weight: 600; color: var(--txt1); white-space: nowrap; }
-        .rc-delta { margin-left: auto; padding: 5px 9px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+        .rc-delta { padding: 5px 9px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
         .rc-delta.good { background: rgba(116, 179, 134, 0.10); border-color: rgba(116, 179, 134, 0.30); }
         .rc-delta-main { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; color: var(--txt1); white-space: nowrap; }
         .rc-delta.good .rc-delta-main { color: var(--grn-bright); }

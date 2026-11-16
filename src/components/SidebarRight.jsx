@@ -576,8 +576,8 @@ export function SidebarRight({
             background: none;
             border: none;
             color: var(--txt1);
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -595,6 +595,9 @@ export function SidebarRight({
           .rs-head {
             min-height: 44px;
           }
+          /* 44 px tap targets: colour rings, stand-in actions */
+          .rs-seg button { min-height: 44px; padding: 4px 14px; }
+          .rs-standin-btns button { min-height: 44px; padding: 8px 12px; font-size: var(--fs-13); }
           .rs-stat {
             padding: 8px 4px;
           }

@@ -1159,8 +1159,8 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                     .pf-zoom button { width: 42px; height: 42px; }
                     .pf-side { border-left: 0; overflow: visible; }
                     .pf-side section { padding: 10px 12px; gap: 8px; }
-                    .pf-side .ce-btn { min-height: 40px; }
-                    .pf-count .pf-n, .pf-mm { height: 40px; }
+                    .pf-side .ce-btn { min-height: 44px; }
+                    .pf-count .pf-n, .pf-mm { height: 44px; }
                     .pf-tips { display: none !important; }
                     .pf-modal .ui-modal-subtitle { display: none; }
                     .pf-modal .ui-modal-footer { padding: 10px 12px max(10px, env(safe-area-inset-bottom, 0px)); }
@@ -1169,9 +1169,9 @@ export function PhotoFootprintOverlay({ file = null, onCancel, onApply, hidden =
                     .pf-steps li + li::before { width: 10px; }
                     .pf-banner.soft { white-space: normal; width: max-content; max-width: 90%; text-align: center; font-size: var(--fs-xs); }
                     /* 40 px tap targets */
-                    .pf-pick .ce-btn, .pf-file { min-height: 40px; display: inline-flex; align-items: center; }
-                    .pf-url input { height: 40px; font-size: 16px; }
-                    .pf-steps button, .pf-steps span { height: 40px; padding: 0 9px; }
+                    .pf-pick .ce-btn, .pf-file { min-height: 44px; display: inline-flex; align-items: center; }
+                    .pf-url input { height: 44px; font-size: 16px; }
+                    .pf-steps button, .pf-steps span { height: 44px; padding: 0 9px; }
                 }
                 /* phone sideways: photo left, tools right (scrolling on their own) */
                 @media ${LANDSCAPE_MQ} {

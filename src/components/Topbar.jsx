@@ -80,7 +80,7 @@ export function Topbar({
             className={`flow-btn ${workflowStep >= 1 && !(workflowStep === 1 && isProcessing) ? 'completed' : ''} ${workflowStep === 1 && isProcessing ? 'processing' : ''} ${workflowStep === 0 && !isProcessing ? 'next' : ''}`}
             onClick={() => onStepClick(1)}
             disabled={isProcessing}
-            style={{ '--flow-color': '#4da0ff' }}
+            style={{ '--flow-color': 'var(--acc)' }}
           >
             <FileJson size={14} />
             <span>Load</span>
@@ -91,7 +91,7 @@ export function Topbar({
             onClick={() => onStepClick(2)}
             disabled={workflowStep < 1 || isProcessing}
             title="Arrange the parts until every connection is wired (W)"
-            style={{ '--flow-color': 'var(--grn-bright)' }}
+            style={{ '--flow-color': 'var(--acc)' }}
           >
             <Cable size={14} />
             <span>Wire</span>
@@ -102,7 +102,7 @@ export function Topbar({
             onClick={() => onStepClick(3)}
             disabled={workflowStep < 2 || isProcessing}
             title="Shrink the board as far as possible, starting from the current layout, also after moving parts by hand (C)"
-            style={{ '--flow-color': '#a371f7' }}
+            style={{ '--flow-color': 'var(--acc)' }}
           >
             <Minimize2 size={14} />
             <span>Compact</span>
@@ -407,7 +407,7 @@ export function Topbar({
         /* the one filled button: the main way out of the app */
         .export-btn { color: var(--txt0); background: var(--ui-neutral); border-color: var(--border2); }
         .export-btn:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.25); }
-        .share-btn.copied { color: var(--grn-bright); border-color: rgba(63,185,80,.5); }
+        .share-btn.copied { color: var(--grn-bright); border-color: rgba(116,179,134,.5); }
         .share-btn.failed { color: var(--red); }
         @media (max-width: 1500px) and (min-width: 951px) { .docs-link-label { display: none; } }
 
@@ -468,7 +468,7 @@ export function Topbar({
         }
         
         .flow-btn.completed {
-          background: #1f252e;
+          background: var(--bg4);
           color: var(--txt0);
           z-index: 1;
           opacity: 1 !important;
@@ -476,9 +476,9 @@ export function Topbar({
         }
 
         .flow-btn.next {
-          background: #1f252e;
+          background: var(--bg4);
           color: var(--txt0);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
           z-index: 2;
         }
 
@@ -492,7 +492,6 @@ export function Topbar({
           background-size: 200% 100%;
           color: var(--txt0);
           z-index: 5;
-          filter: drop-shadow(0 0 10px color-mix(in srgb, var(--flow-color), transparent 60%));
           animation: flow-scan-bg 1.5s infinite linear;
           opacity: 1 !important; /* Force visibility even if disabled */
         }
@@ -510,10 +509,9 @@ export function Topbar({
           100% { background-position: -200% 0; }
         }
 
-        .flow-btn.completed svg { color: var(--flow-color); opacity: 0.9; }
+        .flow-btn.completed svg { color: var(--txt1); }
         .flow-btn.next svg, .flow-btn.processing svg {
           color: var(--flow-color);
-          filter: drop-shadow(0 0 8px var(--flow-color));
         }
 
         .flow-btn.completed::before, .flow-btn.next::before, .flow-btn.processing::before {
@@ -526,9 +524,9 @@ export function Topbar({
           background: var(--flow-color);
           pointer-events: none;
         }
-        .flow-btn.completed::before { opacity: 0.5; }
-        .flow-btn.next::before { opacity: 0.9; box-shadow: 0 0 10px var(--flow-color); animation: flow-pulse 2s infinite ease-in-out; }
-        .flow-btn.processing::before { opacity: 1; box-shadow: 0 0 15px var(--flow-color); animation: flow-pulse 0.8s infinite ease-in-out; }
+        .flow-btn.completed::before { background: var(--txt2); opacity: 0.6; }
+        .flow-btn.next::before { opacity: 1; }
+        .flow-btn.processing::before { opacity: 1; }
 
         .flow-btn:disabled:not(.processing):not(.completed) {
           opacity: 0.22;
@@ -543,15 +541,15 @@ export function Topbar({
         }
 
         .svg-export-btn {
-          color: #ffb44a;
-          background: rgba(255, 180, 74, 0.08);
-          border: 1px solid rgba(255, 180, 74, 0.2);
-          font-weight: 700;
+          color: var(--txt0);
+          background: var(--ui-neutral);
+          border: 1px solid var(--border2);
+          font-weight: 600;
         }
         .svg-export-btn:hover:not(:disabled) {
-          background: rgba(255, 180, 74, 0.2);
-          color: #fff;
-          border-color: #ffb44a;
+          background: var(--ui-neutral-hover);
+          color: var(--txt0);
+          border-color: var(--border2);
         }
 
         .reset-btn {
@@ -726,11 +724,11 @@ export function Topbar({
           position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
           z-index: 1100; display: flex; align-items: center; gap: 8px;
           padding: 10px 16px; border-radius: var(--radius-full, 999px);
-          background: var(--bg3); border: 1px solid rgba(63,185,80,.5); color: var(--grn-bright);
+          background: var(--bg3); border: 1px solid var(--border2); color: var(--txt0);
           font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 0.9rem; white-space: nowrap;
           box-shadow: 0 8px 28px rgba(0,0,0,.55); animation: mas-fade 0.2s ease-out;
         }
-        .share-toast.failed { color: var(--red); border-color: rgba(248,81,73,.5); }
+        .share-toast.failed { color: var(--red); border-color: rgba(224,103,92,.5); }
       `}} />
       {hint && (
         <CoachMark
@@ -750,8 +748,8 @@ export function Topbar({
 const HINTS_KEY = 'pcb_hints_seen';
 const HINT_RUNS = 2; // show each hint until its step has been run this many times
 const HINTS = {
-  wire: { color: 'var(--grn-bright)', text: <>Next: press <b>Wire</b> to connect everything</> },
-  compact: { color: '#a371f7', text: <>Now press <b>Compact</b> to shrink the board</> },
+  wire: { color: 'var(--acc)', text: <>Next: press <b>Wire</b> to connect everything</> },
+  compact: { color: 'var(--acc)', text: <>Now press <b>Compact</b> to shrink the board</> },
 };
 
 function readHints() {
@@ -817,11 +815,11 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
           backdrop-filter: blur(12px);
           border: 1px solid color-mix(in srgb, var(--coach-color), transparent 40%);
           border-radius: 10px;
-          box-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 0 18px color-mix(in srgb, var(--coach-color), transparent 75%);
+          box-shadow: 0 8px 28px rgba(0,0,0,0.5);
           font-size: var(--fs-sm);
           color: var(--txt0);
           line-height: 1.35;
-          animation: coach-in 0.35s cubic-bezier(0.16, 1, 0.3, 1), coach-bob 2.4s 0.4s ease-in-out infinite;
+          animation: coach-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .coach-mark::before {
           content: '';
@@ -835,7 +833,7 @@ function CoachMark({ targetRef, watchRef, color, onDismiss, children }) {
           border-top: 1px solid color-mix(in srgb, var(--coach-color), transparent 40%);
           transform: rotate(45deg);
         }
-        .coach-text b { color: var(--coach-color); font-weight: 800; }
+        .coach-text b { color: var(--coach-color); font-weight: 600; }
         .coach-close {
           display: flex; align-items: center; justify-content: center;
           width: 22px; height: 22px; flex-shrink: 0;

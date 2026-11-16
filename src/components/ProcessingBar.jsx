@@ -125,9 +125,9 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           padding: 0 40px;
           background: var(--glass-bg);
           backdrop-filter: blur(20px);
-          border-top: 2px solid var(--grn-bright);
+          border-top: 2px solid var(--acc);
           height: 240px;
-          box-shadow: 0 -10px 40px rgba(0,0,0,0.4), 0 -4px 32px rgba(35, 134, 54, 0.15);
+          box-shadow: 0 -10px 40px rgba(0,0,0,0.4);
           z-index: 100;
           transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
           transform: translateY(100%);
@@ -171,9 +171,8 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         }
         .pb-fill {
           height: 100%;
-          background: linear-gradient(90deg, var(--grn), var(--grn-bright));
+          background: var(--acc);
           transition: width 0.15s cubic-bezier(0.1, 0, 0, 1);
-          box-shadow: 0 0 15px var(--grn);
         }
         .pb-track.indeterminate .pb-fill {
           width: 30%;
@@ -185,7 +184,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         .pb-title {
           font-family: 'Outfit', sans-serif;
           font-size: 1.25rem;
-          color: var(--grn-bright);
+          color: var(--txt0);
           font-weight: 800;
           white-space: nowrap;
           letter-spacing: -0.02em;
@@ -238,7 +237,7 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           min-width: 140px;
           height: 38px;
           padding: 0 24px;
-          background: rgba(35, 134, 54, 0.18);
+          background: var(--acc-subtle);
           border: 1px solid var(--ui-primary-border);
           color: var(--ui-primary-hover);
           border-radius: var(--radius-md);
@@ -256,9 +255,8 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
         }
         .pb-btn-glass:hover {
           background: var(--ui-primary);
-          color: #fff;
+          color: var(--ui-primary-text);
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(35, 134, 54, 0.3);
         }
         .pb-btn-glass:active {
           transform: translateY(0);
@@ -300,16 +298,11 @@ export function ProcessingBar({ status, bestSnapshot, onGoodEnough }) {
           position: relative;
         }
         .pb-preview-wrap.success {
-          filter: drop-shadow(0 0 20px rgba(35, 134, 54, 0.4));
         }
         /* Compact: the purple of its step in the top bar; gold once the board is provably perfect */
-        #proc-bar.mode-compact { border-top-color: #a371f7; box-shadow: 0 -10px 40px rgba(0,0,0,0.4), 0 -4px 32px rgba(137, 87, 229, 0.18); }
-        #proc-bar.mode-compact .pb-fill { background: linear-gradient(90deg, #8957e5, #a371f7); box-shadow: 0 0 15px #8957e5; }
-        #proc-bar.mode-compact .pb-title { color: #d2a8ff; }
-        #proc-bar.mode-compact .pb-btn-glass { border-color: #a371f7; color: #d2a8ff; background: rgba(137, 87, 229, 0.15); }
-        #proc-bar.perfect { border-top-color: #e3b341; }
-        #proc-bar.perfect .pb-title { color: #e3b341; }
-        #proc-bar.results { border-top-color: var(--grn-bright); background: linear-gradient(180deg, #101413 0%, #050706 100%); }
+                                        #proc-bar.perfect { border-top-color: var(--acc); }
+        #proc-bar.perfect .pb-title { color: var(--acc-hover); }
+        #proc-bar.results { border-top-color: var(--acc); background: var(--bg2); }
 
         @media ${MOBILE_MQ} {
           /* as tall as its content, opaque enough to read over the board, clear of the home indicator */

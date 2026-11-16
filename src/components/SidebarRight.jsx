@@ -128,7 +128,7 @@ export function SidebarRight({
       <div className="rs-stats" aria-label="Board stats">
         <div className="rs-stat-grid">
           <div className="rs-stat"><span className="rs-v">{stats.components}</span><span className="rs-l">parts</span></div>
-          <div className="rs-stat"><span className="rs-v" style={{ color: 'var(--blu-bright)' }}>{stats.nets}</span><span className="rs-l">nets</span></div>
+          <div className="rs-stat"><span className="rs-v">{stats.nets}</span><span className="rs-l">nets</span></div>
           <div className="rs-stat"><span className="rs-v">{stats.footprint || '—'}</span><span className="rs-l">holes</span></div>
           <div className="rs-stat"><span className="rs-v">{stats.wireLength || '—'}</span><span className="rs-l">wire</span></div>
         </div>
@@ -467,7 +467,7 @@ export function SidebarRight({
         .rs-rings-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); color: var(--txt1); font-weight: 600; }
         .rs-seg { display: flex; gap: 2px; background: var(--bg0); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 2px; }
         .rs-seg button { background: none; border: 0; color: var(--txt1); font: inherit; font-size: var(--fs-xs); font-weight: 700; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; }
-        .rs-seg button.active { background: var(--ui-accent); color: #fff; }
+        .rs-seg button.active { background: var(--ui-accent); color: var(--acc-text); }
         .rs-rings-hint { margin-top: 4px; font-size: var(--fs-xs); color: var(--txt2); }
         .prop-icon { color: var(--txt2); flex-shrink: 0; }
         .prop-label { font-size: var(--fs-xs); color: var(--txt1); font-weight: 600; width: 45px; flex-shrink: 0; }

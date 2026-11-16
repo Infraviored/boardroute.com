@@ -76,7 +76,7 @@ export function ExamplesOverlay({ isOpen, examples, firstVisit, onClose, onSelec
         .example-title { font-family: 'Outfit', sans-serif; font-weight: 600; color: var(--txt0); font-size: 1.02em; }
         .example-level { font-size: var(--fs-xs); font-weight: 600; padding: 2px 8px; border-radius: var(--radius-full); border: 1px solid var(--border2); color: var(--txt1); white-space: nowrap; }
         .example-level.lvl-starter { color: var(--ui-primary-hover); border-color: rgba(63,185,80,.4); }
-        .example-level.lvl-classic { color: var(--ui-accent-hover); border-color: rgba(88,166,255,.4); }
+        .example-level.lvl-classic { color: var(--ui-accent-hover); border-color: rgba(208, 138, 62,.4); }
         .example-level.lvl-bigger { color: var(--org); border-color: rgba(210,153,34,.45); }
         .example-level.lvl-tricky { color: var(--ui-purple-hover); border-color: rgba(163,113,247,.45); }
         .example-blurb { color: var(--txt1); font-size: var(--fs-sm); line-height: 1.45; flex: 1; }

@@ -110,13 +110,13 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
           padding: 12px 14px 14px; border-radius: var(--radius-xl);
           background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
           border: 1px solid var(--glass-border); border-top: 2px solid var(--ui-primary);
-          box-shadow: var(--shadow-premium), 0 -2px 24px rgba(35, 134, 54, 0.12);
+          box-shadow: var(--shadow-premium);
           animation: rc-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
           font-family: 'Inter', system-ui, sans-serif;
         }
         @keyframes rc-in { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
         .rc-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-        .rc-ok { color: var(--ui-primary-hover); flex-shrink: 0; }
+        .rc-ok { color: var(--grn-bright); flex-shrink: 0; }
         .rc-title { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.05rem; color: var(--txt0); letter-spacing: -0.01em; }
         .rc-hint { font-size: 12px; line-height: 1.3; color: var(--txt1); flex: 1; min-width: 0; }
         .rc-close { background: none; border: none; color: var(--txt1); cursor: pointer; padding: 4px; border-radius: var(--radius-sm); display: flex; flex-shrink: 0; }
@@ -126,9 +126,9 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .rc-val { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1; color: var(--txt0); font-variant-numeric: tabular-nums; white-space: nowrap; }
         .rc-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--txt1); white-space: nowrap; }
         .rc-delta { margin-left: auto; padding: 5px 9px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
-        .rc-delta.good { background: rgba(35, 134, 54, 0.14); border-color: rgba(63, 185, 80, 0.35); }
+        .rc-delta.good { background: rgba(116, 179, 134, 0.10); border-color: rgba(116, 179, 134, 0.30); }
         .rc-delta-main { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem; color: var(--txt1); white-space: nowrap; }
-        .rc-delta.good .rc-delta-main { color: var(--ui-primary-hover); }
+        .rc-delta.good .rc-delta-main { color: var(--grn-bright); }
         .rc-delta-sub { font-family: Consolas, monospace; font-size: 10.5px; color: var(--txt1); opacity: 0.8; white-space: nowrap; }
         .rc-link { width: 100%; margin: -4px 0 10px; padding: 6px 8px; border-radius: var(--radius-md); border: 1px solid var(--border2); background: var(--bg2); color: var(--txt0); font: 12px Consolas, monospace; }
         .rc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -142,19 +142,19 @@ export function ResultCard({ result, onClose, onCompact, onExport, onShare }) {
         .rc-btn:hover:not(:disabled) { background: var(--ui-neutral-hover); border-color: var(--border2); transform: translateY(-1px); }
         .rc-btn:active:not(:disabled) { background: var(--ui-neutral-active); transform: translateY(0); }
         .rc-btn:disabled { opacity: 0.6; cursor: default; }
-        .rc-btn.primary { background: var(--ui-primary); border-color: var(--ui-primary-border); color: #fff; box-shadow: 0 4px 14px rgba(35, 134, 54, 0.3); }
+        .rc-btn.primary { background: var(--ui-primary); border-color: var(--ui-primary); color: var(--ui-primary-text); }
         .rc-btn.primary:hover:not(:disabled) { background: var(--ui-primary-hover); }
         .rc-btn.primary:active:not(:disabled) { background: var(--ui-primary-active); }
         /* Compact keeps the purple of its step in the top bar */
-        .rc-btn.compact { color: #d2a8ff; border-color: rgba(163, 113, 247, 0.55); }
-        .rc-btn.compact:hover:not(:disabled) { background: rgba(163, 113, 247, 0.14); border-color: #a371f7; }
-        .rc-btn.compact.primary { background: var(--ui-purple); border-color: rgba(240, 246, 252, 0.1); color: #fff; box-shadow: 0 4px 14px rgba(138, 99, 210, 0.35); }
+        .rc-btn.compact { color: var(--acc-hover); border-color: rgba(208, 138, 62, 0.55); }
+        .rc-btn.compact:hover:not(:disabled) { background: var(--acc-subtle); border-color: var(--acc); }
+        .rc-btn.compact.primary { background: var(--acc); border-color: var(--acc); color: var(--acc-text); }
         .rc-btn.compact.primary:hover:not(:disabled) { background: var(--ui-purple-hover); }
         .rc-btn.compact.primary:active:not(:disabled) { background: var(--ui-purple-active); }
-        .result-card.is-compact { border-top-color: var(--ui-purple); }
-        .result-card.perfect { border-top-color: #e3b341; }
-        .result-card.perfect .rc-ok, .result-card.perfect .rc-title { color: #e3b341; }
-        .rc-btn.copied { border-color: var(--ui-primary-hover); color: var(--ui-primary-hover); }
+        .result-card.is-compact { border-top-color: var(--acc); }
+        .result-card.perfect { border-top-color: var(--acc); }
+        .result-card.perfect .rc-ok, .result-card.perfect .rc-title { color: var(--acc-hover); }
+        .rc-btn.copied { border-color: var(--grn-bright); color: var(--grn-bright); }
         .rc-btn.primary.copied { color: #fff; }
         @media ${MOBILE_MQ} {
           .result-card {

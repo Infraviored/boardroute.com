@@ -9,7 +9,7 @@ export function ConfirmOverlay({ isOpen, title, message, action, onConfirm, onCa
     <ModalShell
       isOpen={isOpen}
       onClose={onCancel}
-      maxWidth="380px"
+      maxWidth="440px"
       ariaLabel={title || 'Confirm'}
       className="confirm-modal-shell"
     >

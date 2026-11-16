@@ -60,7 +60,7 @@ CIRCUIT: [DESCRIBE YOUR CIRCUIT HERE]`;
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="600px"
+      maxWidth="720px"
       ariaLabel="Get it from your AI"
       className="prompt-modal-shell"
     >

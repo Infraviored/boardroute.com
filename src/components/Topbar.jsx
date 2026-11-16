@@ -80,7 +80,7 @@ export function Topbar({
             className={`flow-btn ${workflowStep >= 1 && !(workflowStep === 1 && isProcessing) ? 'completed' : ''} ${workflowStep === 1 && isProcessing ? 'processing' : ''} ${workflowStep === 0 && !isProcessing ? 'next' : ''}`}
             onClick={() => onStepClick(1)}
             disabled={isProcessing}
-            style={{ '--flow-color': 'var(--acc)' }}
+            style={{ '--flow-color': '#4da0ff' }}
           >
             <FileJson size={14} />
             <span>Load</span>
@@ -91,7 +91,7 @@ export function Topbar({
             onClick={() => onStepClick(2)}
             disabled={workflowStep < 1 || isProcessing}
             title="Arrange the parts until every connection is wired (W)"
-            style={{ '--flow-color': 'var(--acc)' }}
+            style={{ '--flow-color': '#3fb950' }}
           >
             <Cable size={14} />
             <span>Wire</span>
@@ -102,7 +102,7 @@ export function Topbar({
             onClick={() => onStepClick(3)}
             disabled={workflowStep < 2 || isProcessing}
             title="Shrink the board as far as possible, starting from the current layout, also after moving parts by hand (C)"
-            style={{ '--flow-color': 'var(--acc)' }}
+            style={{ '--flow-color': '#a371f7' }}
           >
             <Minimize2 size={14} />
             <span>Compact</span>
@@ -509,7 +509,7 @@ export function Topbar({
           100% { background-position: -200% 0; }
         }
 
-        .flow-btn.completed svg { color: var(--txt1); }
+        .flow-btn.completed svg { color: var(--flow-color); opacity: 0.9; }
         .flow-btn.next svg, .flow-btn.processing svg {
           color: var(--flow-color);
         }
@@ -524,7 +524,7 @@ export function Topbar({
           background: var(--flow-color);
           pointer-events: none;
         }
-        .flow-btn.completed::before { background: var(--txt2); opacity: 0.6; }
+        .flow-btn.completed::before { opacity: 0.5; }
         .flow-btn.next::before { opacity: 1; }
         .flow-btn.processing::before { opacity: 1; }
 

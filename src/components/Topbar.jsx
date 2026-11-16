@@ -566,8 +566,10 @@ export function Topbar({
           padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
           box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
           animation: sheet-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          max-height: 80dvh;
-          overflow-y: auto;
+          /* whole viewport minus the safe area on top; only the list scrolls, header stays */
+          max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px);
+          display: flex;
+          flex-direction: column;
         }
         @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .mas-header {
@@ -600,6 +602,15 @@ export function Topbar({
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 10px;
+          min-height: 0;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+        }
+        /* phone sideways: three columns so the whole list fits without scrolling */
+        @media (max-height: 500px) and (orientation: landscape) {
+          .mas-grid { grid-template-columns: repeat(3, 1fr); }
+          .mobile-action-sheet { padding-top: 10px; }
+          .mas-header { margin-bottom: 8px; }
         }
         .mas-btn {
           display: flex;
